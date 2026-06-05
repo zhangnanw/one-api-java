@@ -174,7 +174,7 @@ public class RelayController {
         upstream.relay(finalReq)
             .compose(resp -> {
                 int status = resp.statusCode();
-                log.info("[req={}] relay ← {} status={}", reqId, rv.vendor().getName(), status);
+                log.info("[req={}] relay <- {} status={}", reqId, rv.vendor().getName(), status);
 
                 if (status >= 500) {
                     router.vendorCooldown(rv.vendor().getId());
