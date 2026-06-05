@@ -47,7 +47,14 @@ public class UpstreamClient {
         headers.add("Authorization", "Bearer " + req.apiKey);
         if (req.extraHeaders != null) headers.addAll(req.extraHeaders);
 
-        return client.requestAbs(HttpMethod.valueOf(req.method), url)
+        HttpMethod httpMethod;
+        try {
+            httpMethod = HttpMethod.valueOf(req.method);
+        } catch (IllegalArgumentException e) {
+            log.warn("bad method: {}", req.method);
+            return Future.failedFuture("bad method: " + req.method);
+        }
+        return client.requestAbs(httpMethod, url)
             .putHeaders(headers)
             .sendBuffer(Buffer.buffer(req.body))
             .onSuccess(resp -> log.debug("relay OK: {} → status={}", url, resp.statusCode()))
@@ -67,10 +74,21 @@ public class UpstreamClient {
         headers.add("Authorization", "Bearer " + req.apiKey);
         if (req.extraHeaders != null) headers.addAll(req.extraHeaders);
 
+        HttpMethod httpMethod;
+        try {
+            httpMethod = HttpMethod.valueOf(req.method);
+        } catch (IllegalArgumentException e) {
+            log.warn("bad method: {}", req.method);
+            if (!sink.ended())
+                sink.setStatusCode(400).end("{\"error\":{\"message\":\"bad method\"}}");
+            onComplete.accept(400, 0);
+            return;
+        }
+
         try {
             var uri = new URI(url);
             var opts = new RequestOptions()
-                .setMethod(HttpMethod.valueOf(req.method))
+                .setMethod(httpMethod)
                 .setHost(uri.getHost())
                 .setPort(uri.getPort() > 0 ? uri.getPort() : (uri.getScheme().equals("https") ? 443 : 80))
                 .setURI(uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : ""))
@@ -89,10 +107,10 @@ public class UpstreamClient {
                             }
                             sink.setChunked(true);
 
-                            // Accumulate chunks for SSE token parsing
-                            Buffer acc = Buffer.buffer();
+                            // Parse tokens from each SSE chunk on the fly (no unbounded accumulation)
+                            final int[] tokensHolder = {0};
                             upstream.handler(chunk -> {
-                                acc.appendBuffer(chunk);
+                                parseTokensFromChunk(chunk, tokensHolder);
                                 sink.write(chunk);
                                 if (sink.writeQueueFull()) {
                                     upstream.pause();
@@ -101,9 +119,8 @@ public class UpstreamClient {
                             });
                             upstream.endHandler(v -> {
                                 sink.end();
-                                int tokens = parseSSETokens(acc);
-                                log.debug("stream done: status={} tokens={}", statusCode, tokens);
-                                onComplete.accept(statusCode, tokens);
+                                log.debug("stream done: status={} tokens={}", statusCode, tokensHolder[0]);
+                                onComplete.accept(statusCode, tokensHolder[0]);
                             });
                             upstream.resume();
                         })
@@ -130,9 +147,24 @@ public class UpstreamClient {
 
     /** Parse total_tokens from accumulated SSE chunks. Returns 0 if not found. */
     private static int parseSSETokens(Buffer buf) {
-        String body = buf.toString();
+        return parseTokensFromBody(buf.toString());
+    }
+
+    /** Parse tokens from a single chunk, updating holder with latest non-zero value. */
+    private static void parseTokensFromChunk(Buffer chunk, int[] holder) {
+        int t = parseTokensFromBody(chunk.toString());
+        if (t > 0) holder[0] = t;
+    }
+
+    /** Scan body line-by-line for total_tokens (avoids full split into array). */
+    private static int parseTokensFromBody(String body) {
         int totalTokens = 0;
-        for (String line : body.split("\n")) {
+        int start = 0;
+        while (true) {
+            int end = body.indexOf('\n', start);
+            if (end < 0) break;
+            String line = body.substring(start, end).trim();
+            start = end + 1;
             if (line.startsWith("data: ") && !line.equals("data: [DONE]")) {
                 try {
                     String json = line.substring(6);

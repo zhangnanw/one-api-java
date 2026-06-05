@@ -95,7 +95,35 @@ public class RouterService {
         // 3. Sort: non-raw first, then layer (free→sub→payg), then pref, then id
         sortInstances(candidates);
 
-        // 4. Pick first non-cooling instance
+        // 4. Apply layer and max_pref filters on Instance level (before creating RoutedVendor)
+        if (fc.layerAllow() != null && !fc.layerAllow().isEmpty()) {
+            Set<String> allowed = new HashSet<>();
+            for (String s : fc.layerAllow().split(",")) {
+                String t = s.trim();
+                if (!t.isEmpty()) allowed.add(t);
+            }
+            if (!allowed.isEmpty()) {
+                candidates = candidates.stream()
+                    .filter(i -> {
+                        Map<String, Object> m = FilterUtils.parseMeta(i.getMeta());
+                        String layer = m.getOrDefault("layer", "").toString();
+                        return !layer.isEmpty() && allowed.contains(layer);
+                    })
+                    .toList();
+            }
+        }
+        if (fc.maxPref() < Integer.MAX_VALUE) {
+            candidates = candidates.stream()
+                .filter(i -> {
+                    Map<String, Object> m = FilterUtils.parseMeta(i.getMeta());
+                    Object pref = m.get("pref");
+                    double prefVal = pref instanceof Number n ? n.doubleValue() : 0;
+                    return prefVal <= fc.maxPref();
+                })
+                .toList();
+        }
+
+        // 5. Map surviving candidates to RoutedVendor + pick first non-cooling
         List<RoutedVendor> rvs = candidates.stream()
             .map(i -> new RoutedVendor(
                 i.getVendor(),
@@ -106,14 +134,6 @@ public class RouterService {
                 i.getMeta()
             ))
             .toList();
-
-        // 4.5 Apply layer and max_pref filters (RoutedVendor-level)
-        if (fc.layerAllow() != null && !fc.layerAllow().isEmpty()) {
-            rvs = FilterUtils.applyLayer(rvs, fc.layerAllow());
-        }
-        if (fc.maxPref() < Integer.MAX_VALUE) {
-            rvs = FilterUtils.applyMaxPref(rvs, fc.maxPref());
-        }
 
         for (RoutedVendor rv : rvs) {
             if (cooldown.isInstanceInCooldown(rv.instanceId, rv.instanceTags)

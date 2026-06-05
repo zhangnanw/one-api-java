@@ -34,12 +34,15 @@ public class RelayController {
     }
 
     private void doHandle(RoutingContext ctx, byte[] rawBody) {
+        String bodyStr = new String(rawBody);
         // Parse model from query or body
         String requestedModel = ctx.request().getParam("model");
         if (requestedModel == null) {
             try {
-                requestedModel = new JsonObject(new String(rawBody)).getString("model");
-            } catch (Exception ignore) {}
+                requestedModel = new JsonObject(bodyStr).getString("model");
+            } catch (Exception e) {
+                log.debug("body parse failed: {}", e.getMessage());
+            }
         }
         if (requestedModel == null || requestedModel.isEmpty()) {
             error(ctx, 400, "model name required");
@@ -72,7 +75,7 @@ public class RelayController {
         // Go: reasoning filter — restrict to reasoning-capable instances
         var relayCandidates = result.candidates();
         boolean isReasoningRequest = (requestedModel != null && requestedModel.endsWith("-max"))
-            || new String(rawBody).contains("reasoning:max");
+            || bodyStr.contains("reasoning:max");
         if (isReasoningRequest) {
             var filtered = new java.util.ArrayList<>(result.candidates());
             filtered.removeIf(c -> !c.instanceTags().contains("capability:reasoning")
@@ -104,10 +107,11 @@ public class RelayController {
 
         var rv = cr.candidate();
         var extraHeaders = MultiMap.caseInsensitiveMultiMap();
+        String bodyStr = new String(rawBody);
 
         String modelName = ctx.get("model_name");
         if ((modelName != null && modelName.endsWith("-max"))
-            || (rawBody != null && new String(rawBody).contains("reasoning:max"))) {
+            || (rawBody != null && bodyStr.contains("reasoning:max"))) {
             extraHeaders.set("X-Reasoning-Effort", "max");
         }
         if (rv.vendor().getBaseUrl() != null && rv.vendor().getBaseUrl().contains("kimi.com")) {
@@ -184,6 +188,9 @@ public class RelayController {
                 }
                 if (status >= 400 && status != 429) {
                     router.instanceCooldown(rv.instanceId(), rv.instanceTags());
+                    if (status == 401 || status == 403) {
+                        router.vendorCooldown(rv.vendor().getId());
+                    }
                     rlog.code = status;
                     rlog.respSize = resp.body() != null ? resp.body().length() : 0;
                     rlog.latencyMs = System.currentTimeMillis() - startMs;

@@ -16,9 +16,11 @@ public class CooldownService {
 
     // Cooldown entries — Caffeine auto-expires after cap
     private final Cache<Integer, CooldownEntry> instanceCooldowns = Caffeine.newBuilder()
+        .maximumSize(10000)
         .expireAfterAccess(100, TimeUnit.MINUTES)  // max 100 min
         .build();
     private final Cache<Integer, CooldownEntry> vendorCooldowns = Caffeine.newBuilder()
+        .maximumSize(10000)
         .expireAfterAccess(100, TimeUnit.MINUTES)
         .build();
 
