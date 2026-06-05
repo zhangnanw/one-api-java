@@ -2,6 +2,9 @@
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
+:: Set console to UTF-8 to avoid garbled output
+chcp 65001 >nul 2>&1
+
 echo ========================================
 echo   one-api-java Atomic Deploy
 echo ========================================
@@ -45,7 +48,7 @@ echo        Build OK.
 
 :: Deploy & start
 echo [3/3] Starting on port 13000...
-for /f %%i in ('powershell -Command "$p=Start-Process -FilePath '%JAVA_EXE%' -ArgumentList '-jar','target\one-api-java-1.0.0.jar' -PassThru -NoNewWindow; $p.Id"') do set PID=%%i
+for /f %%i in ('powershell -Command "$p=Start-Process -FilePath '%JAVA_EXE%' -ArgumentList '-Dfile.encoding=UTF-8','-jar','target\one-api-java-1.0.0.jar' -PassThru -NoNewWindow; $p.Id"') do set PID=%%i
 echo !PID!>.pid
 echo        PID !PID! saved.
 
