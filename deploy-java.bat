@@ -48,7 +48,7 @@ echo        Build OK.
 
 :: Deploy & start
 echo [3/3] Starting on port 13000...
-for /f %%i in ('powershell -Command "$p=Start-Process -FilePath '%JAVA_EXE%' -ArgumentList '-Dfile.encoding=UTF-8','-jar','target\one-api-java-1.0.0.jar' -PassThru -NoNewWindow; $p.Id"') do set PID=%%i
+for /f %%i in ('powershell -Command "$p=Start-Process -FilePath 'cmd' -ArgumentList '/c','chcp 65001 ^>nul ^&^& %JAVA_EXE% -Dfile.encoding=UTF-8 -jar target\one-api-java-1.0.0.jar' -PassThru -NoNewWindow; $p.Id"') do set PID=%%i
 echo !PID!>.pid
 echo        PID !PID! saved.
 
