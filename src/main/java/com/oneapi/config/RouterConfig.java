@@ -3,22 +3,48 @@ package com.oneapi.config;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.client.WebClient;
 
 import com.oneapi.repo.VirtualModelRepo;
+import com.oneapi.repo.InstanceRepo;
 import com.oneapi.controller.MiscController;
 import com.oneapi.controller.VendorController;
 import com.oneapi.controller.InstanceController;
 import com.oneapi.controller.VirtualModelController;
-import com.oneapi.controller.RelayController;
+import com.oneapi.controller.RelayControllerV2;
+import com.oneapi.coordinator.RelayCoordinator;
 import com.oneapi.middleware.CORS;
 import com.oneapi.middleware.RequestSetup;
+import com.oneapi.filter.Filter;
+import com.oneapi.filter.NameMatcher;
+import com.oneapi.filter.VirtualModelLookup;
+import com.oneapi.filter.CapabilityFilter;
+import com.oneapi.filter.CapabilityInstanceFilter;
+import com.oneapi.filter.CoolingFilter;
+import com.oneapi.filter.TagFilter;
+import com.oneapi.filter.LayerFilter;
+import com.oneapi.filter.MaxPrefFilter;
+import com.oneapi.filter.RawStatusFilter;
+import com.oneapi.handler.UpstreamClient;
+import com.oneapi.relay.BaseRelay;
+import com.oneapi.relay.ReasoningDecorator;
+import com.oneapi.relay.HeaderDecorator;
+import com.oneapi.relay.RetryDecorator;
+import com.oneapi.relay.StreamingAdapter;
+import com.oneapi.service.CooldownService;
+import com.oneapi.service.RouterService;
+import com.oneapi.service.SessionTracker;
+
+import java.util.List;
 
 public class RouterConfig {
     private final Vertx vertx;
     private final Router router;
+    private final AppConfig config;
 
-    public RouterConfig(Vertx vertx) {
+    public RouterConfig(Vertx vertx, AppConfig config) {
         this.vertx = vertx;
+        this.config = config;
         this.router = Router.router(vertx);
     }
 
@@ -79,12 +105,55 @@ public class RouterConfig {
                     .toString());
         });
 
-        var relayCtrl = new RelayController(vertx);
+        // /v1/chat/completions — V2 controller
         var requestSetup = new RequestSetup();
+        var v2Ctrl = buildV2Controller();
+        router.route("/v1/chat/completions").handler(requestSetup);
+        router.route("/v1/chat/completions").handler(v2Ctrl::handle);
+    }
 
-        // All /v1/* paths go through request setup then relay
-        router.route("/v1/*").handler(requestSetup);
-        router.route("/v1/*").handler(relayCtrl::handle);
+    private RelayControllerV2 buildV2Controller() {
+        // ── Wiring: assemble all V2 dependencies ──
+
+        // Services
+        var cooldown = new CooldownService();
+        var routerSvc = new RouterService();
+        var sessions = new SessionTracker();
+
+        // Stage 2 filters (model resolution)
+        List<Filter> stage2 = List.of(
+            new NameMatcher(new InstanceRepo()),
+            new VirtualModelLookup(new VirtualModelRepo(), config.getPolicies().getReasoning().getTriggerSuffix()),
+            new CapabilityFilter()
+        );
+
+        // Stage 3 filters (candidate filtering)
+        List<Filter> stage3 = List.of(
+            new CoolingFilter(cooldown),
+            new CapabilityInstanceFilter(),
+            new TagFilter(),
+            new LayerFilter(),
+            new MaxPrefFilter(),
+            new RawStatusFilter()
+        );
+
+        // Stage 5: decorator chain
+        var upstreamClient = new UpstreamClient(
+            WebClient.create(vertx), vertx);
+
+        var baseRelay = new BaseRelay(upstreamClient);
+        String triggerSuffix = config.getPolicies().getReasoning().getTriggerSuffix();
+        var reasoningRelay = new ReasoningDecorator(baseRelay, triggerSuffix);
+        var headerRelay = new HeaderDecorator(reasoningRelay);
+        int maxRetries = config.getRelay().getMaxRetries();
+        var retryRelay = new RetryDecorator(headerRelay, maxRetries, cooldown, vertx);
+        var streamRelay = new StreamingAdapter(retryRelay, upstreamClient, vertx);
+
+        // Coordinator
+        var coordinator = new RelayCoordinator(
+            routerSvc, cooldown, sessions, upstreamClient,
+            stage2, stage3, streamRelay, config);
+        return new RelayControllerV2(coordinator);
     }
 
     private void registerFallback() {

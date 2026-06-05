@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.oneapi.config.AppConfig;
+import com.oneapi.config.ConfigLoader;
 import com.oneapi.config.DatabaseConfig;
 import com.oneapi.config.RouterConfig;
 import com.oneapi.service.RelayLogger;
@@ -14,10 +15,12 @@ public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
-        AppConfig config = AppConfig.load();
+        AppConfig config = ConfigLoader.load();
+        int port = config.port();
+        String sqlitePath = config.sqlitePath();
 
         // Initialize database
-        DatabaseConfig.init(config.sqlitePath());
+        DatabaseConfig.init(sqlitePath);
 
         // Initialize relay-log.db (independent, silent failure)
         RelayLogger.init();
@@ -26,15 +29,15 @@ public class Main {
         Vertx vertx = Vertx.vertx();
 
         // Build router
-        var routerConfig = new RouterConfig(vertx);
+        var routerConfig = new RouterConfig(vertx, config);
         var router = routerConfig.build();
 
         // Start HTTP server
         HttpServer server = vertx.createHttpServer()
             .requestHandler(router)
-            .listen(config.port(), ar -> {
+            .listen(port, ar -> {
                 if (ar.succeeded()) {
-                    log.info("one-api-java started on http://localhost:{}", config.port());
+                    log.info("one-api-java started on http://localhost:{}", port);
                 } else {
                     log.error("Failed to start: {}", ar.cause().getMessage());
                     System.exit(1);

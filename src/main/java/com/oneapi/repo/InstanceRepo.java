@@ -163,4 +163,23 @@ public class InstanceRepo extends BaseRepo {
         inst.setMeta(rs.getString("meta"));
         return inst;
     }
+
+    /**
+     * Lightweight check: does any active instance have this model_name?
+     * Used by NameMatcher in Stage 2.
+     */
+    public boolean existsByModelName(String modelName) {
+        String sql = "SELECT 1 FROM instances WHERE model_name = ? AND status = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, modelName);
+            ps.setInt(2, STATUS_RAW);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            log.error("existsByModelName {}: {}", modelName, e.getMessage());
+            return false;
+        }
+    }
 }
