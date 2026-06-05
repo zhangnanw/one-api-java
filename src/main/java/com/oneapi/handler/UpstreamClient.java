@@ -57,7 +57,7 @@ public class UpstreamClient {
         return client.requestAbs(httpMethod, url)
             .putHeaders(headers)
             .sendBuffer(Buffer.buffer(req.body))
-            .onSuccess(resp -> log.debug("relay OK: {} → status={}", url, resp.statusCode()))
+            .onSuccess(resp -> log.debug("relay OK: {} -> status={}", url, resp.statusCode()))
             .onFailure(err -> log.error("relay failed: {}", err.getMessage()));
     }
 

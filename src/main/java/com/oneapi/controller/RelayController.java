@@ -130,7 +130,7 @@ public class RelayController {
 
         String reqId = ctx.get("req_id");
         String sessionId = ctx.get("session_id");
-        log.info("[req={}] relay → {} #{} model={} session={}", reqId, rv.vendor().getName(), rv.instanceId(), rv.modelName(), sessionId);
+        log.info("[req={}] relay -> {} #{} model={} session={}", reqId, rv.vendor().getName(), rv.instanceId(), rv.modelName(), sessionId);
 
         // --- RelayLog ---
         RelayLog rlog = new RelayLog();
