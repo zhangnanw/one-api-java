@@ -97,4 +97,20 @@ public class RelayLogger {
             log.debug("relay log updateTokens failed: {}", e.getMessage());
         }
     }
+
+    /** 流式结束后回填 code、tokens、latency。静默失败。 */
+    public static void updateStreamResult(long id, int code, int tokens, long latencyMs) {
+        if (ds == null) return;
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                 "UPDATE relay_logs SET code = ?, tokens = ?, latency_ms = ?, err = NULL WHERE id = ?")) {
+            ps.setInt(1, code);
+            ps.setInt(2, tokens);
+            ps.setLong(3, latencyMs);
+            ps.setLong(4, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            log.debug("relay log updateStreamResult failed: {}", e.getMessage());
+        }
+    }
 }

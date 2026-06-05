@@ -162,13 +162,21 @@ public class RelayController {
 
         // --- Streaming path: real pipe, no retry ---
         if (rlog.stream) {
+            rlog.code = 0;
+            rlog.err = "streaming";
+            rlog.latencyMs = System.currentTimeMillis() - startMs;
+            long logId = RelayLogger.insert(rlog);
+
             upstream.relayStream(new UpstreamClient.RelayRequest(
                 relayReq.baseUrl(), relayReq.apiKey(),
                 relayReq.requestPath(), relayReq.method(), finalBody,
-                relayReq.extraHeaders(), ctx.response()));
-            rlog.code = 200;
-            rlog.latencyMs = System.currentTimeMillis() - startMs;
-            RelayLogger.insert(rlog);
+                relayReq.extraHeaders(), ctx.response()),
+                (statusCode, tokens) -> {
+                    long latency = System.currentTimeMillis() - startMs;
+                    if (logId > 0) {
+                        RelayLogger.updateStreamResult(logId, statusCode, tokens, latency);
+                    }
+                });
             return;
         }
 

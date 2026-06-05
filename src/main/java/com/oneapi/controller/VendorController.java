@@ -18,11 +18,11 @@ public class VendorController {
         int pageSize = parseInt(ctx.request().getParam("page_size"), 50);
         int offset = page * pageSize;
 
-        var vendors = repo.findAll(offset, pageSize);
+        var results = repo.findAllWithCounts(offset, pageSize);
         var arr = new JsonArray();
-        for (Vendor v : vendors) {
-            JsonObject obj = toJson(v);
-            obj.put("instance_count", repo.countInstances(v.getId()));
+        for (var r : results) {
+            JsonObject obj = toJson(r.vendor());
+            obj.put("instance_count", r.instanceCount());
             arr.add(obj);
         }
 

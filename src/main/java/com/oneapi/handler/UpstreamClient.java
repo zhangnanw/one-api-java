@@ -8,12 +8,14 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.RequestOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.function.BiConsumer;
 
 /**
  * Terminal handler: forwards request to upstream vendor.
@@ -48,8 +50,11 @@ public class UpstreamClient {
             .onFailure(err -> log.error("relay failed: {}", err.getMessage()));
     }
 
-    /** Streaming relay — pipes upstream chunks directly to client. */
-    public void relayStream(RelayRequest req) {
+    /**
+     * Streaming relay — pipes upstream chunks directly to client.
+     * @param onComplete callback: (statusCode, totalTokens) — called once after pipe ends.
+     */
+    public void relayStream(RelayRequest req, BiConsumer<Integer, Integer> onComplete) {
         String url = buildUrl(req.baseUrl, req.requestPath);
         HttpServerResponse sink = req.sink;
 
@@ -72,34 +77,71 @@ public class UpstreamClient {
                     headers.forEach(h -> request.putHeader(h.getKey(), h.getValue()));
                     request.send(Buffer.buffer(req.body))
                         .onSuccess(upstream -> {
-                            sink.setStatusCode(upstream.statusCode());
+                            int statusCode = upstream.statusCode();
+                            sink.setStatusCode(statusCode);
                             upstream.headers().forEach(h -> sink.putHeader(h.getKey(), h.getValue()));
                             if (sink.headers().get("Content-Type") == null) {
                                 sink.putHeader("Content-Type", "text/event-stream");
                             }
                             sink.setChunked(true);
-                            upstream.pipeTo(sink)
-                                .onFailure(err2 -> {
-                                    log.error("pipe broke: {}", err2.getMessage());
-                                    if (!sink.ended()) sink.end();
-                                });
+
+                            // Accumulate chunks for SSE token parsing
+                            Buffer acc = Buffer.buffer();
+                            upstream.handler(chunk -> {
+                                acc.appendBuffer(chunk);
+                                sink.write(chunk);
+                                if (sink.writeQueueFull()) {
+                                    upstream.pause();
+                                    sink.drainHandler(v2 -> upstream.resume());
+                                }
+                            });
+                            upstream.endHandler(v -> {
+                                sink.end();
+                                int tokens = parseSSETokens(acc);
+                                log.debug("stream done: status={} tokens={}", statusCode, tokens);
+                                onComplete.accept(statusCode, tokens);
+                            });
+                            upstream.resume();
                         })
                         .onFailure(err -> {
                             log.warn("stream relay: upstream unreachable: {}", err.getMessage());
                             if (!sink.ended())
                                 sink.setStatusCode(502).end("{\"error\":{\"message\":\"upstream unreachable\"}}");
+                            onComplete.accept(502, 0);
                         });
                 })
                 .onFailure(err -> {
                     log.warn("stream relay: request failed: {}", err.getMessage());
                     if (!sink.ended())
                         sink.setStatusCode(502).end("{\"error\":{\"message\":\"request failed\"}}");
+                    onComplete.accept(502, 0);
                 });
         } catch (Exception e) {
             log.error("stream relay: bad URL {}: {}", url, e.getMessage());
             if (!sink.ended()) sink.setStatusCode(502)
                 .end("{\"error\":{\"message\":\"bad URL\"}}");
+            onComplete.accept(502, 0);
         }
+    }
+
+    /** Parse total_tokens from accumulated SSE chunks. Returns 0 if not found. */
+    private static int parseSSETokens(Buffer buf) {
+        String body = buf.toString();
+        int totalTokens = 0;
+        for (String line : body.split("\n")) {
+            if (line.startsWith("data: ") && !line.equals("data: [DONE]")) {
+                try {
+                    String json = line.substring(6);
+                    JsonObject obj = new JsonObject(json);
+                    JsonObject usage = obj.getJsonObject("usage");
+                    if (usage != null) {
+                        int t = usage.getInteger("total_tokens", 0);
+                        if (t > 0) totalTokens = t; // take the last non-zero value
+                    }
+                } catch (Exception ignore) {}
+            }
+        }
+        return totalTokens;
     }
 
     // --- URL building (matching Go) ---

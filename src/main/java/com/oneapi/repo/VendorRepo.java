@@ -1,6 +1,7 @@
 package com.oneapi.repo;
 
 import com.oneapi.model.Vendor;
+import com.oneapi.model.VendorWithCount;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,33 @@ public class VendorRepo extends BaseRepo {
             }
         } catch (SQLException e) {
             log.error("findAll vendors: {}", e.getMessage());
+        }
+        return list;
+    }
+
+    public List<VendorWithCount> findAllWithCounts(int offset, int limit) {
+        List<VendorWithCount> list = new ArrayList<>();
+        String sql = "SELECT v.id, v.name, v.description, v.status, " +
+                     "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.meta, " +
+                     "COUNT(i.id) AS instance_count " +
+                     "FROM vendors v LEFT JOIN instances i ON v.id = i.vendor_id AND i.status = 1 " +
+                     "GROUP BY v.id, v.name, v.description, v.status, " +
+                     "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.meta " +
+                     "ORDER BY v.id LIMIT ? OFFSET ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Vendor v = map(rs);
+                    int count = rs.getInt("instance_count");
+                    list.add(new VendorWithCount(v, count));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("findAllWithCounts: {}", e.getMessage());
         }
         return list;
     }
