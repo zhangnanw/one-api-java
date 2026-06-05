@@ -6,14 +6,14 @@ import com.oneapi.service.RouterService.RoutedVendor;
 import java.util.Comparator;
 
 /**
- * Stage 4 — Sort by max_pref descending (higher pref = better).
+ * 第四阶段 — 按 max_pref 降序排列（pref 越高越优）。
  */
 public class ByPref implements Comparator<RoutedVendor> {
     @Override
     public int compare(RoutedVendor a, RoutedVendor b) {
         int pa = MetaView.fromInstanceMeta(a.instanceMeta()).instanceMaxPref();
         int pb = MetaView.fromInstanceMeta(b.instanceMeta()).instanceMaxPref();
-        // Descending: higher pref first
+        // 降序：pref 高的在前
         return Integer.compare(pb, pa);
     }
 }

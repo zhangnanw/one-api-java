@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Resolved relay candidate — vendor + instance pair.
+ * 解析后的中继候选 — 供应商 + 实例对。
  */
 public record Candidate(
     Vendor vendor,

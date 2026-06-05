@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Stage 3 — Exclude candidates whose instance or vendor is on cooldown.
+ * 阶段 3 — 排除实例或供应商处于冷却期的候选。
  */
 public class CoolingFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(CoolingFilter.class);

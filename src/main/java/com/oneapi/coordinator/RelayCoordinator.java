@@ -22,19 +22,19 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: V2.1 streaming decorator chain
-// Currently streaming bypasses the decorator chain (Header/Reasoning/Retry)
-// because stream responses cannot be represented as Future<RelayResult>.
-// The hack below manually applies Header + Reasoning logic in relayStream().
+// TODO: V2.1 流式装饰器链
+// 当前流式传输绕过了装饰器链（Header/Reasoning/Retry）
+// 因为流式响应无法表示为 Future<RelayResult>。
+// 下面的 hack 在 relayStream() 中手动应用了 Header + Reasoning 逻辑。
 
 /**
- * V2 relay coordinator — 5-stage pipeline.
+ * V2 中继协调器 — 5 阶段流水线。
  *
- * Stage 1: RequestParser.parse(ctx) → RelayRequest (fail → 400)
- * Stage 2: 过滤器链 stage2Filters 跑 RelayContext
- * Stage 3: 从 RouterService 加载候选 → stage3Filters 过滤
- * Stage 4: Comparator.thenComparing 链排序
- * Stage 5: relayChain.execute(first candidate, relayRequest)
+ * 阶段 1：RequestParser.parse(ctx) → RelayRequest（失败 → 400）
+ * 阶段 2：过滤器链 stage2Filters 运行 RelayContext
+ * 阶段 3：从 RouterService 加载候选 → stage3Filters 过滤
+ * 阶段 4：Comparator.thenComparing 链排序
+ * 阶段 5：relayChain.execute(first candidate, relayRequest)
  */
 public class RelayCoordinator {
     private static final Logger log = LoggerFactory.getLogger(RelayCoordinator.class);
@@ -70,7 +70,7 @@ public class RelayCoordinator {
     }
 
     public void execute(RoutingContext ctx, byte[] rawBody) {
-        // Stage 1: Parse
+        // 第一阶段：解析
         RelayRequest req = RequestParser.parse(ctx, rawBody);
         if (req == null) {
             error(ctx, 400, "model name required");
@@ -78,14 +78,14 @@ public class RelayCoordinator {
         }
         ctx.put("model_name", req.requestedModel());
 
-        // Session tracking
+        // 会话跟踪
         var messages = SessionTracker.parseMessages(req.rawBody());
         if (!messages.isEmpty()) {
             String sessionId = sessions.match(messages);
             ctx.put("session_id", sessionId);
         }
 
-        // Stage 2: Model resolution
+        // 第二阶段：模型解析
         RelayContext relayCtx = new RelayContext(req.requestedModel());
         for (var f : stage2Filters) {
             relayCtx = f.apply(relayCtx);
@@ -95,13 +95,13 @@ public class RelayCoordinator {
             }
         }
 
-        // Resolve target model name (from stage 2 resolution)
+        // 解析目标模型名称（来自第二阶段解析结果）
         String targetModel = relayCtx.upstreamModel();
         if (targetModel == null || targetModel.isEmpty()) {
             targetModel = req.requestedModel();
         }
 
-        // Stage 3: Load candidates + filter
+        // 第三阶段：加载候选 + 过滤
         var candidates = router.loadCandidates(targetModel);
         if (candidates.isEmpty()) {
             error(ctx, 503, "no available instances for " + targetModel);
@@ -119,7 +119,7 @@ public class RelayCoordinator {
             return;
         }
 
-        // Stage 4: Sort
+        // 第四阶段：排序
         List<RoutedVendor> mutable = new ArrayList<>(filtered);
         mutable.sort(sorter);
         var first = mutable.get(0);
@@ -128,19 +128,19 @@ public class RelayCoordinator {
             first.instanceId(), first.vendor() != null ? first.vendor().getName() : "?",
             first.modelName(), first.upstreamModel());
 
-        // Build Candidate from RoutedVendor
+        // 从 RoutedVendor 构建 Candidate
         Candidate candidate = toCandidate(first);
 
-        // Reasoning header (set by VirtualModelLookup)
+        // Reasoning 头部（由 VirtualModelLookup 设置）
         if (relayCtx.reasoning()) {
             candidate.extraHeaders().put("X-Reasoning-Effort", "max");
         }
 
-        // Start relay log
+        // 启动中继日志
         long logId = recorder.start(req, candidate);
         long startMs = System.currentTimeMillis();
 
-        // Stage 5: Relay
+        // 第五阶段：中继
         if (req.isStreaming()) {
             relayStream(ctx, req, candidate, first, relayCtx, logId, startMs);
         } else {
@@ -148,13 +148,13 @@ public class RelayCoordinator {
         }
     }
 
-    // --- Buffered relay (with retry via relay chain) ---
+    // --- 缓冲式中继（通过中继链支持重试）---
 
     private void relayBuffered(RoutingContext ctx, RelayRequest req,
                                Candidate candidate, RoutedVendor first,
                                long logId, long startMs) {
 
-        // Substitute model name in body to match upstream model
+        // 替换请求体中的模型名称以匹配上游模型
         byte[] finalBody = substituteModel(req.rawBody(), first.upstreamModel(), first.modelName());
         RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody,
             new String(finalBody), false);
@@ -174,7 +174,7 @@ public class RelayCoordinator {
                     code = re.getError().httpStatus();
                     if (re.getError() instanceof RelayError.UpstreamFailure uf) {
                         String body = uf.responseBody();
-                        // Try to extract just the error message from upstream JSON response
+                        // 尝试从上游 JSON 响应中提取错误消息
                         try {
                             var respJson = new JsonObject(body);
                             var errorObj = respJson.getJsonObject("error");
@@ -195,27 +195,27 @@ public class RelayCoordinator {
             });
     }
 
-    // --- Streaming relay ---
-    // TODO: V2.1 — apply Header + Reasoning via real decorator chain,
-    // NOT by copy-pasting logic here.
+    // --- 流式中继 ---
+    // TODO: V2.1 — 通过真正的装饰器链应用 Header + Reasoning，
+    // 而不是在这里复制粘贴逻辑。
 
     private void relayStream(RoutingContext ctx, RelayRequest req,
                              Candidate candidate, RoutedVendor first,
                              RelayContext relayCtx,
                              long logId, long startMs) {
-        // Substitute model name in body
+        // 替换请求体中的模型名称
         byte[] finalBody = substituteModel(req.rawBody(), first.upstreamModel(), first.modelName());
 
         var extraHeaders = MultiMap.caseInsensitiveMultiMap();
         candidate.extraHeaders().forEach(extraHeaders::add);
 
-        // HACK: kimi.com UA (same as HeaderDecorator)
+        // HACK: kimi.com UA（与 HeaderDecorator 相同）
         if (first.vendor() != null && first.vendor().getBaseUrl() != null
             && first.vendor().getBaseUrl().contains("kimi.com")) {
             extraHeaders.set("User-Agent", "KimiCLI/1.6");
         }
 
-        // Reasoning header (same as ReasoningDecorator)
+        // Reasoning 头部（与 ReasoningDecorator 相同）
         if (relayCtx.reasoning()) {
             extraHeaders.set("X-Reasoning-Effort", "max");
         }
@@ -248,7 +248,7 @@ public class RelayCoordinator {
         });
     }
 
-    // --- Helpers ---
+    // --- 辅助方法 ---
 
     private Candidate toCandidate(RoutedVendor rv) {
         Instance inst = new Instance();
@@ -261,7 +261,7 @@ public class RelayCoordinator {
         return new Candidate(rv.vendor(), inst, rv.upstreamModel());
     }
 
-    /** Substitute the "model" field in the JSON body to the upstream model name. */
+    /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
     private static byte[] substituteModel(byte[] rawBody, String upstreamModel, String srcModel) {
         if (upstreamModel == null || upstreamModel.equals(srcModel)) return rawBody;
         try {

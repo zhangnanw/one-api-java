@@ -9,7 +9,7 @@ public class FilterUtils {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     /**
-     * Parse instance tags from meta JSON.
+     * 从 meta JSON 中解析实例标签。
      */
     public static List<String> parseTags(String meta) {
         if (meta == null || meta.isEmpty()) return List.of();
@@ -22,7 +22,7 @@ public class FilterUtils {
                 return tags;
             }
         } catch (Exception e) {
-            // ignore parse errors
+            // 忽略解析错误
         }
         return List.of();
     }

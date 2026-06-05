@@ -12,15 +12,15 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 
 /**
- * Streaming gate: pipes directly for streaming requests,
- * delegates to the decorator chain for non-streaming.
+ * 流式网关：流式请求直接管道传输，
+ * 非流式请求委托给装饰器链。
  * <p>
- * Streaming skips the decorator chain entirely because
- * stream responses cannot be represented as Future&lt;RelayResult&gt;.
+ * 流式请求完全跳过装饰器链，因为
+ * 流式响应无法表示为 Future&lt;RelayResult&gt;。
  */
 public class StreamingAdapter implements RelayExecutor {
     private static final String DEFAULT_PATH = "/v1/chat/completions";
-    private static final long STREAM_TIMEOUT_MS = 60_000; // 60s timeout
+    private static final long STREAM_TIMEOUT_MS = 60_000; // 60秒超时
 
     private final RelayExecutor inner;
     private final UpstreamClient upstreamClient;

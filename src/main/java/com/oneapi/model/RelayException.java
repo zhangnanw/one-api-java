@@ -1,9 +1,8 @@
 package com.oneapi.model;
 
 /**
- * Wraps a {@link RelayError} so it can be used in Vert.x {@code Future.failedFuture()}.
- * Since {@code RelayError} is a sealed interface (not a {@code Throwable}),
- * this exception acts as the bridge.
+ * 包装 {@link RelayError}，使其可用于 Vert.x 的 {@code Future.failedFuture()}。
+ * 由于 {@code RelayError} 是密封接口（不是 {@code Throwable}），此异常充当桥接。
  */
 public class RelayException extends RuntimeException {
     private final RelayError error;

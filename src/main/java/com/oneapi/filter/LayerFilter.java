@@ -10,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Stage 3 — Filter candidates by layer condition from MatchRule.
- * Only active when matchRule is LayerMatch.
+ * 阶段 3 — 根据 MatchRule 的层级条件过滤候选。
+ * 仅在 matchRule 为 LayerMatch 时生效。
  */
 public class LayerFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(LayerFilter.class);
@@ -20,7 +20,7 @@ public class LayerFilter implements Filter {
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
         if (!(rule instanceof MatchRule.LayerMatch lm)) {
-            return ctx; // No layer condition — pass through
+            return ctx; // 无层级条件 — 直接通过
         }
 
         String requiredLayer = lm.layer();

@@ -3,10 +3,10 @@ package com.oneapi.model;
 import java.util.*;
 
 /**
- * Stage context passed through the filter chain.
+ * 在过滤器链中传递的阶段上下文。
  */
 public class RelayContext {
-    // Stage 2: model resolution
+    // 阶段2：模型解析
     private String requestedModel;
     private String upstreamModel;
     private MatchRule matchRule;
@@ -14,13 +14,13 @@ public class RelayContext {
     private String capabilityRequired;
     private boolean reasoning;
     
-    // Stage 3: candidates
-    private List<Object> candidates;  // placeholder, typed later
+    // 阶段3：候选列表
+    private List<Object> candidates;  // 占位符，后续类型化
     
-    // Stage 4: sorted
+    // 阶段4：排序
     private List<Object> sortedCandidates;
     
-    // Error state
+    // 错误状态
     private RelayError relayError;
     private String errorMessage;
     
@@ -28,7 +28,7 @@ public class RelayContext {
         this.requestedModel = requestedModel;
     }
     
-    // Error methods
+    // 错误方法
     public boolean hasError() { return relayError != null; }
     public RelayError error() { return relayError; }
     public String errorMessage() { return errorMessage; }
@@ -37,7 +37,7 @@ public class RelayContext {
         this.errorMessage = msg;
     }
     
-    // getters/setters
+    // getter/setter
     public String requestedModel() { return requestedModel; }
     public void setRequestedModel(String v) { requestedModel = v; }
     

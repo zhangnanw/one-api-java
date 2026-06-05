@@ -4,15 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 
 /**
- * Parse VirtualModel.match JSON into a typed MatchRule.
- * Parse once — all consumers read the same object.
+ * 将 VirtualModel.match JSON 解析为类型化的 MatchRule。
+ * 一次解析——所有消费者读取同一对象。
  */
 public class MatchRuleParser {
     private static final ObjectMapper mapper = new ObjectMapper();
     
     /**
-     * Parse match JSON string.
-     * null, empty, or "{}" → AllMatch (match everything)
+     * 解析 match JSON 字符串。
+     * null、空字符串或 "{}" → AllMatch（匹配所有）
      */
     @SuppressWarnings("unchecked")
     public static MatchRule parse(String matchJson) {

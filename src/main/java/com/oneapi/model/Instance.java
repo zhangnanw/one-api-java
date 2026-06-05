@@ -17,7 +17,7 @@ public class Instance {
     private long createdTime;
     private String meta;
 
-    // Transient
+    // 瞬时字段（非持久化）
     private Vendor vendor;
 
     public Instance() {}

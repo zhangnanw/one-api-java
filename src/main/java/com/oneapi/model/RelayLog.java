@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class RelayLog {
     public long id;
-    public long ts;          // epoch seconds
+    public long ts;          // Unix 时间戳秒数
     @JsonProperty("channel_id")
-    public int instanceId;   // instance id
+    public int instanceId;   // 实例 ID
     public String baseUrl;
     public String tokenName;
     public int userId;

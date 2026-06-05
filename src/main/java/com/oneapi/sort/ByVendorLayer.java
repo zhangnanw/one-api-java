@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Stage 4 — Sort by vendor layer priority.
- * Default order: free (0) < subscription (1) < payg (2).
- * Unknown layers get MAX_VALUE (lowest priority).
+ * 第四阶段 — 按供应商层优先级排序。
+ * 默认顺序：free (0) &lt; subscription (1) &lt; payg (2)。
+ * 未知层取 MAX_VALUE（最低优先级）。
  */
 public class ByVendorLayer implements Comparator<RoutedVendor> {
     private final Map<String, Integer> layerOrder;
@@ -23,7 +23,7 @@ public class ByVendorLayer implements Comparator<RoutedVendor> {
         }
     }
 
-    /** Default: free < subscription < payg */
+    /** 默认顺序：free &lt; subscription &lt; payg */
     public ByVendorLayer() {
         this(List.of("free", "subscription", "payg"));
     }

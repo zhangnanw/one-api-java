@@ -1,7 +1,7 @@
 package com.oneapi.model;
 
 /**
- * Relay result (stage 5 output).
+ * 中继结果（阶段5输出）。
  */
 public record RelayResult(
     int httpStatus,

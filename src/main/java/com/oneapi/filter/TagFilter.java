@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Stage 3 — Filter candidates by tag conditions from MatchRule.TagMatch.
- * Supports ALL (must have all tags) and ANY (must have at least one).
+ * 阶段 3 — 根据 MatchRule.TagMatch 的标签条件过滤候选。
+ * 支持 ALL（必须包含所有标签）和 ANY（必须包含至少一个）。
  */
 public class TagFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(TagFilter.class);
@@ -21,7 +21,7 @@ public class TagFilter implements Filter {
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
         if (!(rule instanceof MatchRule.TagMatch tm)) {
-            return ctx; // No tag conditions — pass through
+            return ctx; // 无标签条件 — 直接通过
         }
 
         Set<String> allTags = tm.all();
@@ -35,7 +35,7 @@ public class TagFilter implements Filter {
         List<RoutedVendor> filtered = candidates.stream()
             .filter(rv -> {
                 MetaView mv = MetaView.fromInstanceMeta(rv.instanceMeta());
-                // ALL condition: instance must have every required tag
+                // ALL 条件：实例必须包含所有要求的标签
                 if (allTags != null && !allTags.isEmpty()) {
                     for (String tag : allTags) {
                         if (!mv.instanceHasTag(tag)) {
@@ -43,7 +43,7 @@ public class TagFilter implements Filter {
                         }
                     }
                 }
-                // ANY condition: instance must have at least one
+                // ANY 条件：实例必须包含至少一个
                 if (anyTags != null && !anyTags.isEmpty()) {
                     boolean hasAny = false;
                     for (String tag : anyTags) {

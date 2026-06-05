@@ -19,20 +19,20 @@ public class Main {
         int port = config.port();
         String sqlitePath = config.sqlitePath();
 
-        // Initialize database
+        // 初始化数据库
         DatabaseConfig.init(sqlitePath);
 
-        // Initialize relay-log.db (independent, silent failure)
+        // 初始化 relay-log.db（独立，静默失败）
         RelayLogger.init();
 
-        // Create Vert.x
+        // 创建 Vert.x
         Vertx vertx = Vertx.vertx();
 
-        // Build router
+        // 构建路由
         var routerConfig = new RouterConfig(vertx, config);
         var router = routerConfig.build();
 
-        // Start HTTP server
+        // 启动 HTTP 服务器
         HttpServer server = vertx.createHttpServer()
             .requestHandler(router)
             .listen(port, ar -> {
@@ -44,7 +44,7 @@ public class Main {
                 }
             });
 
-        // Graceful shutdown
+        // 优雅关闭
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Shutting down...");
             server.close();

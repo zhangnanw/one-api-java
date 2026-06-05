@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 public class RouterService {
     private final InstanceRepo instanceRepo = new InstanceRepo();
 
-    // 10s TTL cache (matching Go's cacheTTL)
+    // 10 秒 TTL 缓存（与 Go 版的 cacheTTL 一致）
     private final Cache<String, List<Instance>> instanceCache = Caffeine.newBuilder()
         .expireAfterWrite(10, TimeUnit.SECONDS).build();
 
@@ -29,9 +29,9 @@ public class RouterService {
     ) {}
 
     /**
-     * Load raw candidates for given model — no filtering, no sorting.
-     * Used by V2 coordinator which runs its own filter chain.
-     * Returns all instances with model_name matching the requested model.
+     * 为给定模型加载原始候选实例 — 不过滤、不排序。
+     * 由 V2 协调器使用，后者运行自己的过滤器链。
+     * 返回所有 model_name 匹配所请求模型名称的实例。
      */
     public List<RoutedVendor> loadCandidates(String modelName) {
         List<Instance> all = getCachedInstances();
@@ -54,7 +54,7 @@ public class RouterService {
             .toList();
     }
 
-    // --- caching ---
+    // --- 缓存 ---
 
     private List<Instance> getCachedInstances() {
         return instanceCache.get("all", k -> instanceRepo.findAllWithVendor());

@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Stage 3 — Keep only candidates with the highest max_pref value.
- * If all have 0 max_pref, all pass through.
+ * 阶段 3 — 仅保留 max_pref 值最高的候选。
+ * 如果所有候选的 max_pref 均为 0，则全部通过。
  */
 public class MaxPrefFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(MaxPrefFilter.class);
@@ -22,14 +22,14 @@ public class MaxPrefFilter implements Filter {
             return ctx;
         }
 
-        // Find the highest max_pref
+        // 查找最高的 max_pref
         int highest = candidates.stream()
             .mapToInt(rv -> MetaView.fromInstanceMeta(rv.instanceMeta()).instanceMaxPref())
             .max()
             .orElse(0);
 
         if (highest <= 0) {
-            return ctx; // No meaningful max_pref — pass all through
+            return ctx; // 无有意义的 max_pref — 全部通过
         }
 
         List<RoutedVendor> filtered = candidates.stream()

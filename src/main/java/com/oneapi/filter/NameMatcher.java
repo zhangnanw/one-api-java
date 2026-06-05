@@ -7,9 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Stage 2 — Check if requestedModel is a physical model name.
- * If found in instances table, sets ctx.matchedPhysical(true)
- * and short-circuits virtual model lookup.
+ * 阶段 2 — 检查 requestedModel 是否为物理模型名称。
+ * 如果在 instances 表中找到，则设置 ctx.matchedPhysical(true)
+ * 并跳过虚拟模型查找。
  */
 public class NameMatcher implements Filter {
     private static final Logger log = LoggerFactory.getLogger(NameMatcher.class);

@@ -6,7 +6,7 @@ import com.oneapi.model.RelayResult;
 import io.vertx.core.Future;
 
 /**
- * Injects vendor-specific headers. Currently only the kimi.com UA hack.
+ * 注入厂商特定的请求头。目前仅包含 kimi.com 的 UA 处理。
  */
 public class HeaderDecorator implements RelayExecutor {
     private final RelayExecutor inner;
@@ -19,7 +19,7 @@ public class HeaderDecorator implements RelayExecutor {
     public Future<RelayResult> execute(Candidate c, RelayRequest req) {
         String baseUrl = c.vendor().getBaseUrl();
         if (baseUrl != null && baseUrl.contains("kimi.com")) {
-            // HACK: kimi API requires CLI UA for access
+            // HACK：kimi API 需要 CLI UA 才能访问
             c.extraHeaders().put("User-Agent", "KimiCLI/1.6");
         }
         return inner.execute(c, req);

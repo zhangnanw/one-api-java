@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Typed config loaded from config.yaml. No defaults — fail-fast on missing.
+ * 从 config.yaml 加载的类型化配置。无默认值 — 缺失即快速失败。
  */
 public class AppConfig {
 
@@ -29,7 +29,7 @@ public class AppConfig {
     public int port() { return server != null ? server.getPort() : 13000; }
     public String sqlitePath() { return System.getProperty("user.home") + "/.one-api/one-api.db"; }
 
-    // --- Sub-configs ---
+    // --- 子配置 ---
 
     public static class ServerConfig {
         private int port = 13000;

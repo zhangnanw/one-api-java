@@ -6,8 +6,8 @@ import com.oneapi.model.RelayResult;
 import io.vertx.core.Future;
 
 /**
- * Injects X-Reasoning-Effort header when the requested model name
- * ends with the configured trigger suffix (default: "-max").
+ * 当请求的模型名称以配置的触发后缀（默认："-max"）结尾时，
+ * 注入 X-Reasoning-Effort 请求头。
  */
 public class ReasoningDecorator implements RelayExecutor {
     private final RelayExecutor inner;

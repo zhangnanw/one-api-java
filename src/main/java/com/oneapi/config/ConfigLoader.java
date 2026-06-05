@@ -9,22 +9,22 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * Load config.yaml from ~/.one-api/ or classpath.
- * Fail-fast on missing or malformed config.
+ * 从 ~/.one-api/ 或 classpath 加载 config.yaml。
+ * 配置缺失或格式错误时快速失败。
  */
 public class ConfigLoader {
     private static final Logger log = LoggerFactory.getLogger(ConfigLoader.class);
     private static final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
 
     public static AppConfig load() {
-        // 1. Try ~/.one-api/config.yaml
+        // 1. 尝试 ~/.one-api/config.yaml
         File homeConfig = new File(System.getProperty("user.home"), ".one-api/config.yaml");
         if (homeConfig.exists()) {
             log.info("Loading config from {}", homeConfig.getAbsolutePath());
             return parse(homeConfig);
         }
 
-        // 2. Fallback: classpath config.yaml
+        // 2. 回退：classpath 中的 config.yaml
         var is = ConfigLoader.class.getClassLoader().getResourceAsStream("config.yaml");
         if (is != null) {
             log.info("Loading config from classpath");
@@ -40,12 +40,12 @@ public class ConfigLoader {
             " or in classpath.");
     }
 
-    /** Default HTTP listen port. */
+    /** 默认 HTTP 监听端口。 */
     public static int port() {
         return 3000;
     }
 
-    /** Default SQLite database path. */
+    /** 默认 SQLite 数据库路径。 */
     public static String sqlitePath() {
         return System.getProperty("user.home") + "/.one-api/one-api.db";
     }

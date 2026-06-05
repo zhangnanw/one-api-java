@@ -5,7 +5,7 @@ import com.oneapi.service.RouterService.RoutedVendor;
 import java.util.Comparator;
 
 /**
- * Stage 4 — Stable tiebreaker: sort by instance id ascending.
+ * 第四阶段 — 稳定决胜：按实例 ID 升序排列。
  */
 public class ById implements Comparator<RoutedVendor> {
     @Override

@@ -3,8 +3,8 @@ package com.oneapi.model;
 import java.time.Duration;
 
 /**
- * Typed error hierarchy for all relay failures.
- * Replaces 503 + string-based error codes.
+ * 所有中继失败的类型化错误层次。
+ * 替代 503 + 基于字符串的错误码。
  */
 public sealed interface RelayError
     permits RelayError.ParseError, RelayError.ModelNotFound,
@@ -21,7 +21,7 @@ public sealed interface RelayError
     record UpstreamFailure(int httpCode, String responseBody) implements RelayError {}
     record Timeout(Duration duration) implements RelayError {}
     
-    /** Map to HTTP status code */
+    /** 映射到 HTTP 状态码 */
     default int httpStatus() {
         return switch (this) {
             case ParseError __ -> 400;
@@ -35,7 +35,7 @@ public sealed interface RelayError
         };
     }
     
-    /** Error type string for JSON response */
+    /** JSON 响应的错误类型字符串 */
     default String typeName() {
         return getClass().getSimpleName();
     }

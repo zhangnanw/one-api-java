@@ -9,8 +9,8 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Stage 4 — Sort by instance layer priority.
- * Default order: free (0) < subscription (1) < payg (2).
+ * 第四阶段 — 按实例层优先级排序。
+ * 默认顺序：free (0) &lt; subscription (1) &lt; payg (2)。
  */
 public class ByInstanceLayer implements Comparator<RoutedVendor> {
     private final Map<String, Integer> layerOrder;
@@ -22,7 +22,7 @@ public class ByInstanceLayer implements Comparator<RoutedVendor> {
         }
     }
 
-    /** Default: free < subscription < payg */
+    /** 默认顺序：free &lt; subscription &lt; payg */
     public ByInstanceLayer() {
         this(List.of("free", "subscription", "payg"));
     }

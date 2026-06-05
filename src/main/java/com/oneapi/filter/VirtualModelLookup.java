@@ -9,10 +9,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Stage 2 — Look up virtual model by name, parse match rules.
- * Strips {@code -max} suffix (per config) and sets context.reasoning=true.
- * If ctx.matchedPhysical is true, this is a no-op.
- * On DB miss, falls back to AllMatch (physical model passthrough).
+ * 阶段 2 — 按名称查找虚拟模型，解析匹配规则。
+ * 去除 {@code -max} 后缀（按配置）并设置 context.reasoning=true。
+ * 如果 ctx.matchedPhysical 为 true，则不执行任何操作。
+ * 数据库未命中时，回退到 AllMatch（物理模型直通）。
  */
 public class VirtualModelLookup implements Filter {
     private static final Logger log = LoggerFactory.getLogger(VirtualModelLookup.class);
@@ -27,7 +27,7 @@ public class VirtualModelLookup implements Filter {
 
     @Override
     public RelayContext apply(RelayContext ctx) {
-        // Already matched as physical — skip
+        // 已匹配为物理模型 — 跳过
         if (ctx.matchedPhysical()) {
             return ctx;
         }
@@ -37,7 +37,7 @@ public class VirtualModelLookup implements Filter {
             return ctx;
         }
 
-        // Strip -max suffix for virtual model lookup
+        // 去除 -max 后缀用于虚拟模型查找
         boolean reasoning = false;
         String lookupName = model;
         if (triggerSuffix != null && !triggerSuffix.isEmpty() && model.endsWith(triggerSuffix)) {
@@ -55,11 +55,11 @@ public class VirtualModelLookup implements Filter {
             return ctx;
         }
 
-        // Parse match JSON into typed MatchRule
+        // 将匹配 JSON 解析为类型化的 MatchRule
         MatchRule rule = MatchRuleParser.parse(vm.getMatch());
         ctx.setMatchRule(rule);
 
-        // Extract upstream model name from NameMatch if present
+        // 如果存在 NameMatch，从中提取上游模型名称
         if (rule instanceof MatchRule.NameMatch nm) {
             ctx.setUpstreamModel(nm.modelName());
         } else {

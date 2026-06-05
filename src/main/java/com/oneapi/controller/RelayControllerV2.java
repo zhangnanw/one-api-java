@@ -4,8 +4,8 @@ import com.oneapi.coordinator.RelayCoordinator;
 import io.vertx.ext.web.RoutingContext;
 
 /**
- * Thin HTTP boundary — receives body, delegates to coordinator.
- * Does NOT parse, filter, sort, or relay. All logic lives in RelayCoordinator.
+ * 薄 HTTP 边界 — 接收请求体，委托给协调器。
+ * 不做解析、过滤、排序或转发。所有逻辑均在 RelayCoordinator 中。
  */
 public class RelayControllerV2 {
     private final RelayCoordinator coordinator;

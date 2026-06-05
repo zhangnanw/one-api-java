@@ -3,10 +3,10 @@ package com.oneapi.filter;
 import com.oneapi.model.RelayContext;
 
 /**
- * Single-responsibility filter for instance/model selection pipeline.
+ * 实例/模型选择管道的单一职责过滤器。
  */
 @FunctionalInterface
 public interface Filter {
     RelayContext apply(RelayContext ctx);
-    // Returns ctx unchanged if pass; sets ctx.error if fail.
+    // 通过则原样返回 ctx；失败则设置 ctx.error。
 }

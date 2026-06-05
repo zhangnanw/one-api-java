@@ -6,8 +6,8 @@ import com.oneapi.model.RelayResult;
 import io.vertx.core.Future;
 
 /**
- * Execute a relay request against a candidate.
- * Decorator pattern — each implementation wraps or extends another.
+ * 针对候选项执行转发请求。
+ * 装饰器模式 —— 每个实现包装或扩展另一个实现。
  */
 public interface RelayExecutor {
     Future<RelayResult> execute(Candidate c, RelayRequest req);

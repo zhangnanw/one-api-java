@@ -6,8 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Stage 2 — If MatchRule requires a capability string, set marker on ctx.
- * The actual capability-based filtering happens in Stage 3.
+ * 阶段 2 — 如果 MatchRule 要求能力字符串，则在 ctx 上设置标记。
+ * 实际基于能力的过滤在阶段 3 中进行。
  */
 public class CapabilityFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(CapabilityFilter.class);

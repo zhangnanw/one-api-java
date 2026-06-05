@@ -5,8 +5,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 /**
- * Stage 1 — Parse HTTP body into RelayRequest.
- * Returns null if body is empty or model cannot be determined.
+ * 第一阶段 — 将 HTTP 请求体解析为 RelayRequest。
+ * 如果请求体为空或无法确定模型则返回 null。
  */
 public class RequestParser {
     public static RelayRequest parse(RoutingContext ctx, byte[] rawBody) {
@@ -17,14 +17,14 @@ public class RequestParser {
         if (model == null) {
             try {
                 model = new JsonObject(bodyStr).getString("model");
-            } catch (Exception e) { /* ignore */ }
+            } catch (Exception e) { /* 忽略 */ }
         }
         if (model == null || model.isEmpty()) return null;
 
         boolean isStream = false;
         try {
             isStream = new JsonObject(bodyStr).getBoolean("stream", false);
-        } catch (Exception e) { /* ignore */ }
+        } catch (Exception e) { /* 忽略 */ }
 
         return new RelayRequest(model, rawBody, bodyStr, isStream);
     }

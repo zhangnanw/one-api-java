@@ -22,7 +22,7 @@ public class Vendor {
 
     public Vendor() {}
 
-    // Getters/setters
+    // Getter/Setter 方法
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 

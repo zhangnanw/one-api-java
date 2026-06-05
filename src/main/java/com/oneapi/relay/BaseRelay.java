@@ -13,8 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Terminal executor: builds UpstreamClient.RelayRequest from Candidate + RelayRequest
- * and delegates to UpstreamClient.relay().
+ * 终端执行器：从 Candidate + RelayRequest 构建 UpstreamClient.RelayRequest
+ * 并委托给 UpstreamClient.relay()。
  */
 public class BaseRelay implements RelayExecutor {
     private static final Logger log = LoggerFactory.getLogger(BaseRelay.class);
@@ -62,7 +62,7 @@ public class BaseRelay implements RelayExecutor {
             })
             .recover(err -> {
                 if (err instanceof RelayException) {
-                    return Future.failedFuture(err);  // already wrapped, pass through
+                    return Future.failedFuture(err);  // 已包装，直接透传
                 }
                 log.error("relay failed: {}", err.getMessage());
                 return Future.failedFuture(

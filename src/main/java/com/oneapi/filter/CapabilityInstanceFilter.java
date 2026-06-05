@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Stage 3 — Filter candidates by capability requirement (set by CapabilityFilter in Stage 2).
- * Checks instance meta for matching "capability:&lt;name&gt;" tag.
+ * 阶段 3 — 根据能力需求（由阶段 2 的 CapabilityFilter 设置）过滤候选。
+ * 检查实例元数据中是否包含匹配的 "capability:&lt;名称&gt;" 标签。
  */
 public class CapabilityInstanceFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(CapabilityInstanceFilter.class);

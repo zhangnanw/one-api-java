@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Stage 3 — Keep only active instances (STATUS_RAW or STATUS_TAGGED).
- * Excludes DISABLED and DEPRECATED. Sorting (RawStatusLast) handles deprioritization of RAW.
+ * 阶段 3 — 仅保留活跃实例（STATUS_RAW 或 STATUS_TAGGED）。
+ * 排除 DISABLED 和 DEPRECATED。排序（RawStatusLast）处理 RAW 的降优先级。
  */
 public class RawStatusFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(RawStatusFilter.class);

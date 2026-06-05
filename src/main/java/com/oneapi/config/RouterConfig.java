@@ -49,7 +49,7 @@ public class RouterConfig {
     }
 
     public Router build() {
-        // Global middleware
+        // 全局中间件
         router.route().handler(new CORS());
 
         registerApiRoutes();
@@ -86,7 +86,7 @@ public class RouterConfig {
     }
 
     private void registerRelayRoutes() {
-        // /v1/models — OpenAI-compatible model list
+        // /v1/models — OpenAI 兼容模型列表
         router.get("/v1/models").handler(ctx -> {
             var repo = new VirtualModelRepo();
             var data = new io.vertx.core.json.JsonArray();
@@ -105,7 +105,7 @@ public class RouterConfig {
                     .toString());
         });
 
-        // /v1/chat/completions — V2 controller
+        // /v1/chat/completions — V2 控制器
         var requestSetup = new RequestSetup();
         var v2Ctrl = buildV2Controller();
         router.route("/v1/chat/completions").handler(requestSetup);
@@ -113,21 +113,21 @@ public class RouterConfig {
     }
 
     private RelayControllerV2 buildV2Controller() {
-        // ── Wiring: assemble all V2 dependencies ──
+        // ── 装配：组装所有 V2 依赖 ──
 
-        // Services
+        // 服务层
         var cooldown = new CooldownService();
         var routerSvc = new RouterService();
         var sessions = new SessionTracker();
 
-        // Stage 2 filters (model resolution)
+        // 第二阶段过滤器（模型解析）
         List<Filter> stage2 = List.of(
             new NameMatcher(new InstanceRepo()),
             new VirtualModelLookup(new VirtualModelRepo(), config.getPolicies().getReasoning().getTriggerSuffix()),
             new CapabilityFilter()
         );
 
-        // Stage 3 filters (candidate filtering)
+        // 第三阶段过滤器（候选实例筛选）
         List<Filter> stage3 = List.of(
             new CoolingFilter(cooldown),
             new CapabilityInstanceFilter(),
@@ -137,7 +137,7 @@ public class RouterConfig {
             new RawStatusFilter()
         );
 
-        // Stage 5: decorator chain
+        // 第五阶段：装饰器链
         var upstreamClient = new UpstreamClient(
             WebClient.create(vertx), vertx);
 
@@ -149,7 +149,7 @@ public class RouterConfig {
         var retryRelay = new RetryDecorator(headerRelay, maxRetries, cooldown, vertx);
         var streamRelay = new StreamingAdapter(retryRelay, upstreamClient, vertx);
 
-        // Coordinator
+        // 协调器
         var coordinator = new RelayCoordinator(
             routerSvc, cooldown, sessions, upstreamClient,
             stage2, stage3, streamRelay, config);

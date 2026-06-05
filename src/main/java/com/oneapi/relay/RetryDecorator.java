@@ -14,9 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Retries on 429 / 5xx failures. Calls CooldownService on 429.
- * Does NOT retry 4xx (except 429).
- * Adds backoff delay before 429 retry (1s, 2s, ...).
+ * 在 429 / 5xx 错误时进行重试。遇到 429 时调用 CooldownService。
+ * 不重试 4xx（429 除外）。
+ * 429 重试前增加退避延迟（1秒、2秒、……）。
  */
 public class RetryDecorator implements RelayExecutor {
     private static final Logger log = LoggerFactory.getLogger(RetryDecorator.class);
@@ -57,7 +57,7 @@ public class RetryDecorator implements RelayExecutor {
                         String tags = String.join(",",
                             FilterUtils.parseTags(c.instance().getMeta()));
                         cooldown.setInstanceCooldown(c.instance().getId(), tags);
-                        long delayMs = 1000L * (attempt + 1); // 1s, 2s, 3s, ...
+                        long delayMs = 1000L * (attempt + 1); // 1秒、2秒、3秒、……
                         Promise<RelayResult> retryPromise = Promise.promise();
                         vertx.setTimer(delayMs, tid -> {
                             executeWithRetry(c, req, attempt + 1)
@@ -71,7 +71,7 @@ public class RetryDecorator implements RelayExecutor {
                         return executeWithRetry(c, req, attempt + 1);
                     }
                 }
-                // 4xx (non-429) or non-UpstreamFailure → no retry
+                // 4xx（非 429）或非 UpstreamFailure → 不重试
                 return Future.failedFuture(err);
             });
     }

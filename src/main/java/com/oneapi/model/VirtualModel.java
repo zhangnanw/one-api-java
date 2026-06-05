@@ -10,7 +10,7 @@ public class VirtualModel {
 
     public VirtualModel() {}
 
-    /** Sentinel to prevent Caffeine from caching null lookups. */
+    /** 哨兵值，防止 Caffeine 缓存空查询结果。 */
     public static final VirtualModel NOT_FOUND = new VirtualModel();
 
     public int getId() { return id; }
