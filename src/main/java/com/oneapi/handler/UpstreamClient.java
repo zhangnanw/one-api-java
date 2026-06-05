@@ -5,6 +5,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.RequestOptions;
@@ -31,7 +32,10 @@ public class UpstreamClient {
 
     public UpstreamClient(WebClient client, Vertx vertx) {
         this.client = client;
-        this.rawClient = vertx.createHttpClient();
+        this.rawClient = vertx.createHttpClient(new HttpClientOptions()
+            .setConnectTimeout(10000)
+            .setIdleTimeout(30)
+            .setKeepAlive(false));
     }
 
     /** Buffered relay — returns full response body. Used for retry. */

@@ -10,6 +10,9 @@ public class VirtualModel {
 
     public VirtualModel() {}
 
+    /** Sentinel to prevent Caffeine from caching null lookups. */
+    public static final VirtualModel NOT_FOUND = new VirtualModel();
+
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 

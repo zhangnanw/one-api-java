@@ -69,24 +69,6 @@ public class RelayController {
             return;
         }
 
-        // --- CRITICAL: substitute instance model_name (not upstream_model!) ---
-        // Go version: c.GetString(ctxkey.ModelName) → rv.ModelName (fallback from upstream)
-        // SetUpContextForSelectedVendor: modelName = rv.UpstreamModel (or rv.ModelName if empty)
-        // Then text.go: textRequest.Model = ctxkey.ModelName (which is "deepseek-v4-pro")
-        byte[] effectiveBody = rawBody;
-        try {
-            String effectiveModel = result.best().upstreamModel();
-            if (effectiveModel == null || effectiveModel.isEmpty()) {
-                effectiveModel = result.best().modelName();
-            }
-            if (!effectiveModel.equals(requestedModel)) {
-                var json = new JsonObject(new String(rawBody));
-                json.put("model", effectiveModel);
-                effectiveBody = json.toString().getBytes();
-                log.debug("model substitution: {} → {}", requestedModel, effectiveModel);
-            }
-        } catch (Exception ignore) {}
-
         // Go: reasoning filter — restrict to reasoning-capable instances
         var relayCandidates = result.candidates();
         boolean isReasoningRequest = (requestedModel != null && requestedModel.endsWith("-max"))
@@ -103,7 +85,7 @@ public class RelayController {
         }
 
         // Relay with retry
-        tryRelay(ctx, effectiveBody, relayCandidates, 0, 0);
+        tryRelay(ctx, rawBody, relayCandidates, 0, 0);
     }
 
     private void tryRelay(RoutingContext ctx, byte[] rawBody,
@@ -173,6 +155,11 @@ public class RelayController {
                 relayReq.extraHeaders(), ctx.response()),
                 (statusCode, tokens) -> {
                     long latency = System.currentTimeMillis() - startMs;
+                    if (statusCode < 500) {
+                        router.clearCooldown(rv.instanceId(), rv.vendor().getId());
+                    } else {
+                        router.instanceCooldown(rv.instanceId(), rv.instanceTags());
+                    }
                     if (logId > 0) {
                         RelayLogger.updateStreamResult(logId, statusCode, tokens, latency);
                     }

@@ -109,11 +109,12 @@ public class CooldownService {
     }
 
     private void applyCooldown(Cache<Integer, CooldownEntry> cache, int id) {
-        var old = cache.getIfPresent(id);
-        int n = (old != null) ? old.n + 1 : 1;
-        long until = System.currentTimeMillis() / 1000 + calcDuration(n);
-        cache.put(id, new CooldownEntry(until, n));
-        log.debug("cooldown id={} n={} until={}", id, n, until);
+        cache.asMap().compute(id, (k, old) -> {
+            int n = (old != null) ? old.n + 1 : 1;
+            long until = System.currentTimeMillis() / 1000 + calcDuration(n);
+            log.debug("cooldown id={} n={} until={}", k, n, until);
+            return new CooldownEntry(until, n);
+        });
     }
 
     // --- inner class ---

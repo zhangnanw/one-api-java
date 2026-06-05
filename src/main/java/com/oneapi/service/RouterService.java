@@ -151,7 +151,7 @@ public class RouterService {
      */
     public FilterConfig buildFilters(String modelName) {
         VirtualModel vm = getCachedVM(modelName);
-        if (vm == null) return new FilterConfig(List.of(), null, Integer.MAX_VALUE);
+        if (vm == VirtualModel.NOT_FOUND) return new FilterConfig(List.of(), null, Integer.MAX_VALUE);
         String matchJson = vm.getMatch();
         List<Filter> filters = FilterUtils.fromMatchJson(matchJson);
         String layerAllow = FilterUtils.parseMatchLayer(matchJson);
@@ -168,7 +168,10 @@ public class RouterService {
     // --- caching ---
 
     private VirtualModel getCachedVM(String name) {
-        return vmCache.get(name, k -> vmRepo.findByName(k));
+        return vmCache.get(name, k -> {
+            var vm = vmRepo.findByName(k);
+            return vm != null ? vm : VirtualModel.NOT_FOUND;
+        });
     }
 
     private List<Instance> getCachedInstances() {
