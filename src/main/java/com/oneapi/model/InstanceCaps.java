@@ -8,12 +8,13 @@ import java.util.Set;
 public record InstanceCaps(
     Set<String> tags,    // 例如 ["capability:reasoning"]
     String layer,        // "free" | "subscription" | "payg" | ""
-    int maxPref          // 优先级上限，0 = 无限制
+    int pref,            // 优先级上限，0 = 无限制
+    int maxTokens        // 上游 max_tokens 上限，0 = 未配置
 ) {
     public static InstanceCaps empty() {
-        return new InstanceCaps(Set.of(), "", 0);
+        return new InstanceCaps(Set.of(), "", 0, 0);
     }
-    
+
     public boolean hasTag(String tag) {
         return tags != null && tags.contains(tag);
     }

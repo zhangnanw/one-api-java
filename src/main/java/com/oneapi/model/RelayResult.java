@@ -6,7 +6,7 @@ package com.oneapi.model;
 public record RelayResult(
     int httpStatus,
     String responseBody,
-    String actualModel,
+    String upstreamModel,
     int promptTokens,
     int completionTokens
 ) {}

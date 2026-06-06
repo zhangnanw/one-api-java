@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Terminal handler: forwards request to upstream vendor.
@@ -39,7 +40,7 @@ public class UpstreamClient {
     }
 
     /** Buffered relay — returns full response body. Used for retry. */
-    public Future<HttpResponse<Buffer>> relay(RelayRequest req) {
+    public Future<HttpResponse<Buffer>> relay(OutboundRequest req) {
         String url = buildUrl(req.baseUrl, req.requestPath);
 
         var headers = MultiMap.caseInsensitiveMultiMap();
@@ -63,9 +64,10 @@ public class UpstreamClient {
 
     /**
      * Streaming relay — pipes upstream chunks directly to client.
-     * @param onComplete callback: (statusCode, totalTokens) — called once after pipe ends.
+     * @param chunkConverter optional converter applied to each chunk before writing to sink.
      */
-    public void relayStream(RelayRequest req, BiConsumer<Integer, Integer> onComplete) {
+    public void relayStream(OutboundRequest req, BiConsumer<Integer, Integer> onComplete,
+                            Function<Buffer, String> chunkConverter) {
         String url = buildUrl(req.baseUrl, req.requestPath);
         HttpServerResponse sink = req.sink;
 
@@ -111,7 +113,14 @@ public class UpstreamClient {
                             final int[] tokensHolder = {0};
                             upstream.handler(chunk -> {
                                 parseTokensFromChunk(chunk, tokensHolder);
-                                sink.write(chunk);
+                                if (chunkConverter != null) {
+                                    String converted = chunkConverter.apply(chunk);
+                                    if (!converted.isEmpty()) {
+                                        sink.write(Buffer.buffer(converted));
+                                    }
+                                } else {
+                                    sink.write(chunk);
+                                }
                                 if (sink.writeQueueFull()) {
                                     upstream.pause();
                                     sink.drainHandler(v2 -> upstream.resume());
@@ -143,11 +152,6 @@ public class UpstreamClient {
                 .end("{\"error\":{\"message\":\"bad URL\"}}");
             onComplete.accept(502, 0);
         }
-    }
-
-    /** Parse total_tokens from accumulated SSE chunks. Returns 0 if not found. */
-    private static int parseSSETokens(Buffer buf) {
-        return parseTokensFromBody(buf.toString());
     }
 
     /** Parse tokens from a single chunk, updating holder with latest non-zero value. */
@@ -192,8 +196,8 @@ public class UpstreamClient {
             if (path.startsWith(prefix)) {
                 path = path.substring(prefix.length());
             } else if (isApiVersionEnding(baseVer) && isApiVersionPath(path)) {
-                int ndx = path.indexOf('/', 1);
-                if (ndx >= 0) path = path.substring(ndx);
+                int versionCut = path.indexOf('/', 1);
+                if (versionCut >= 0) path = path.substring(versionCut);
             }
         }
         return base + path;
@@ -207,9 +211,18 @@ public class UpstreamClient {
         return p.length() >= 3 && p.charAt(0) == '/' && p.charAt(1) == 'v' && Character.isDigit(p.charAt(2));
     }
 
-    // --- RelayRequest ---
+    // --- OutboundRequest ---
 
-    public record RelayRequest(
+    /**
+     * 出站传输：实际发往上游供应商的 HTTP 请求。
+     * <p>
+     * Outbound transport: the actual HTTP request sent to the upstream vendor.
+     * <p>
+     * Boundary: this is the transport-level record. It carries the upstream URL,
+     * credentials, method, body and optional sink for streaming. The domain-level
+     * inbound request is {@link com.oneapi.model.RelayRequest}.
+     */
+    public record OutboundRequest(
         String baseUrl,
         String apiKey,
         String requestPath,
@@ -218,8 +231,8 @@ public class UpstreamClient {
         MultiMap extraHeaders,
         HttpServerResponse sink
     ) {
-        public RelayRequest(String baseUrl, String apiKey, String requestPath,
-                            String method, byte[] body, MultiMap extraHeaders) {
+        public OutboundRequest(String baseUrl, String apiKey, String requestPath,
+                               String method, byte[] body, MultiMap extraHeaders) {
             this(baseUrl, apiKey, requestPath, method, body, extraHeaders, null);
         }
     }

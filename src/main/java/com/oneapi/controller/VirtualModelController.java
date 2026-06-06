@@ -6,17 +6,17 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
-public class VirtualModelController {
+public class VirtualModelController extends BaseController {
     private final VirtualModelRepo repo = new VirtualModelRepo();
 
     public void getAll(RoutingContext ctx) {
         var models = repo.findAll();
         var arr = new JsonArray();
-        for (var vm : models) {
+        for (var virtualModel : models) {
             arr.add(new JsonObject()
-                .put("id", vm.getId())
-                .put("name", vm.getName())
-                .put("match", vm.getMatch()));
+                .put("id", virtualModel.getId())
+                .put("name", virtualModel.getName())
+                .put("match", virtualModel.getMatch()));
         }
         ctx.response()
             .putHeader("Content-Type", "application/json")
@@ -29,8 +29,8 @@ public class VirtualModelController {
 
     public void getOne(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        VirtualModel vm = repo.findById(id);
-        if (vm == null) {
+        VirtualModel virtualModel = repo.findById(id);
+        if (virtualModel == null) {
             json(ctx, 404, "virtual model not found");
             return;
         }
@@ -40,9 +40,9 @@ public class VirtualModelController {
                 .put("success", true)
                 .put("message", "")
                 .put("data", new JsonObject()
-                    .put("id", vm.getId())
-                    .put("name", vm.getName())
-                    .put("match", vm.getMatch()))
+                    .put("id", virtualModel.getId())
+                    .put("name", virtualModel.getName())
+                    .put("match", virtualModel.getMatch()))
                 .toString());
     }
 
@@ -56,10 +56,10 @@ public class VirtualModelController {
             return;
         }
 
-        VirtualModel vm = new VirtualModel();
-        vm.setName(name);
-        vm.setMatch(match);
-        repo.insert(vm);
+        VirtualModel virtualModel = new VirtualModel();
+        virtualModel.setName(name);
+        virtualModel.setMatch(match);
+        repo.insert(virtualModel);
 
         ctx.response()
             .putHeader("Content-Type", "application/json")
@@ -83,15 +83,6 @@ public class VirtualModelController {
     public void delete(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
         repo.delete(id);
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
-    }
-
-    private void json(RoutingContext ctx, int status, String msg) {
-        ctx.response().setStatusCode(status)
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", status < 400)
-                .put("message", msg).toString());
+        ok(ctx);
     }
 }

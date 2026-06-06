@@ -1,9 +1,16 @@
 package com.oneapi.model;
 
-import java.util.*;
+import com.oneapi.service.RouterService.RoutedVendor;
+
+import java.util.List;
 
 /**
  * 在过滤器链中传递的阶段上下文。
+ * <p>
+ * Stage context carried through the filter chain.
+ * <p>
+ * Accessor style is record-like ({@code xxx()}), not JavaBean ({@code getXxx()}),
+ * to match {@link RelayRequest} and other value objects in the model package.
  */
 public class RelayContext {
     // 阶段2：模型解析
@@ -13,54 +20,60 @@ public class RelayContext {
     private boolean matchedPhysical;
     private String capabilityRequired;
     private boolean reasoning;
-    
+
     // 阶段3：候选列表
-    private List<Object> candidates;  // 占位符，后续类型化
-    
-    // 阶段4：排序
-    private List<Object> sortedCandidates;
-    
+    private List<RoutedVendor> candidates;
+
     // 错误状态
     private RelayError relayError;
+    /**
+     * 错误的人类可读消息。与 {@link #relayError} 同时设置。
+     * 典型用法：{@code relayError.toString()} 含类型信息（"upstream 429" / "model not found"），
+     * 而 errorMessage 用于附加上下文（上游返回的 message 字段）。
+     * 调用方可用其中任一字段，按可读性需要选用。
+     */
     private String errorMessage;
-    
+
     public RelayContext(String requestedModel) {
         this.requestedModel = requestedModel;
     }
-    
-    // 错误方法
+
+    // --- 错误方法 ---
+
     public boolean hasError() { return relayError != null; }
     public RelayError error() { return relayError; }
     public String errorMessage() { return errorMessage; }
+
+    /**
+     * Mark context as failed with a typed error and a message.
+     */
     public void markError(RelayError err, String msg) {
         this.relayError = err;
         this.errorMessage = msg;
     }
-    
-    // getter/setter
+
+    // --- 阶段2 访问器 ---
+
     public String requestedModel() { return requestedModel; }
-    public void setRequestedModel(String v) { requestedModel = v; }
-    
+    public void setRequestedModel(String v) { this.requestedModel = v; }
+
     public String upstreamModel() { return upstreamModel; }
-    public void setUpstreamModel(String v) { upstreamModel = v; }
-    
+    public void setUpstreamModel(String v) { this.upstreamModel = v; }
+
     public MatchRule matchRule() { return matchRule; }
-    public void setMatchRule(MatchRule v) { matchRule = v; }
-    
+    public void setMatchRule(MatchRule v) { this.matchRule = v; }
+
     public boolean matchedPhysical() { return matchedPhysical; }
-    public void setMatchedPhysical(boolean v) { matchedPhysical = v; }
-    
+    public void setMatchedPhysical(boolean v) { this.matchedPhysical = v; }
+
     public String capabilityRequired() { return capabilityRequired; }
-    public void setCapabilityRequired(String v) { capabilityRequired = v; }
-    
+    public void setCapabilityRequired(String v) { this.capabilityRequired = v; }
+
     public boolean reasoning() { return reasoning; }
-    public void setReasoning(boolean v) { reasoning = v; }
-    
-    @SuppressWarnings("unchecked")
-    public <T> List<T> candidates() { return (List<T>) (Object) candidates; }
-    public void setCandidates(List<?> v) { candidates = (List<Object>) v; }
-    
-    @SuppressWarnings("unchecked")
-    public <T> List<T> sortedCandidates() { return (List<T>) (Object) sortedCandidates; }
-    public void setSortedCandidates(List<?> v) { sortedCandidates = (List<Object>) v; }
+    public void setReasoning(boolean v) { this.reasoning = v; }
+
+    // --- 阶段3 / 4 访问器 ---
+
+    public List<RoutedVendor> candidates() { return candidates; }
+    public void setCandidates(List<RoutedVendor> v) { candidates = v; }
 }

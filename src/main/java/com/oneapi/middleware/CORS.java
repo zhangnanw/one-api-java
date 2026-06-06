@@ -20,7 +20,6 @@ public class CORS implements Handler<RoutingContext> {
             .putHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH")
             .putHeader("Access-Control-Allow-Headers",
                 "Authorization,Content-Type,X-Requested-With,Accept,User-Agent")
-            .putHeader("Access-Control-Allow-Credentials", "true")
             .putHeader("Access-Control-Max-Age", "86400");
 
         // Handle preflight (OPTIONS) requests

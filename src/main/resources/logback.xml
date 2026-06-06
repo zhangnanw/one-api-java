@@ -1,27 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <!--
+        Logging policy:
+        - Default level: INFO (override via -Droot.level=DEBUG)
+        - LOG_DIR env var: log file directory (default: ${user.dir})
+        - File: one-api.YYYY-MM-DD.log, rolling daily, keep 30 days
+        - All non-ASCII log content is the caller's responsibility;
+          this file only enforces encoder charset.
+    -->
+
+    <property name="LOG_DIR"     value="${LOG_DIR:-${user.dir}}"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    <property name="LOG_CHARSET" value="UTF-8"/>
+
+    <!-- Console: for local dev, single line, no color to keep grep-friendly -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <charset>UTF-8</charset>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>${LOG_CHARSET}</charset>
+            <pattern>${LOG_PATTERN}</pattern>
         </encoder>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>server.log</file>
-        <append>false</append>
+    <!-- File: rolling by day, archived, compressed -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/server.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/server.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
         <encoder>
-            <charset>UTF-8</charset>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>${LOG_CHARSET}</charset>
+            <pattern>${LOG_PATTERN}</pattern>
         </encoder>
     </appender>
 
-    <root level="INFO">
+    <!--
+        Quiet down third-party noise.
+        To raise verbosity for one lib temporarily:
+          -Dlogger.com.zaxxer.hikari.level=DEBUG
+    -->
+    <logger name="com.zaxxer.hikari"   level="WARN"/>
+    <logger name="io.vertx.core"        level="INFO"/>
+    <logger name="io.netty"             level="WARN"/>
+    <logger name="org.xerial.snappy"    level="WARN"/>
+
+    <root level="${root.level:-INFO}">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
     </root>
-
-    <!-- suppress noisy third-party libs -->
-    <logger name="com.zaxxer.hikari" level="WARN"/>
-    <logger name="io.vertx.core" level="INFO"/>
 </configuration>

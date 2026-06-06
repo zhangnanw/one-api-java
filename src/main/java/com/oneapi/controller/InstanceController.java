@@ -6,87 +6,62 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
-public class InstanceController {
+public class InstanceController extends BaseController {
     private final InstanceRepo repo = new InstanceRepo();
 
     public void getAll(RoutingContext ctx) {
         var instances = repo.findAll();
         var arr = new JsonArray();
-        for (Instance i : instances) {
-            arr.add(toJson(i));
+        for (Instance instance : instances) {
+            arr.add(toJson(instance));
         }
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject()
-                .put("success", true)
-                .put("message", "")
-                .put("data", arr)
-                .toString());
+        ok(ctx, new JsonObject().put("data", arr));
     }
 
     public void getOne(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        Instance i = repo.findById(id);
-        if (i == null) {
-            json(ctx, 404, "instance not found");
+        Instance instance = repo.findById(id);
+        if (instance == null) {
+            notFound(ctx, "instance");
             return;
         }
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject()
-                .put("success", true)
-                .put("message", "")
-                .put("data", toJson(i))
-                .toString());
+        ok(ctx, toJson(instance));
     }
 
     public void update(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
         Instance existing = repo.findById(id);
         if (existing == null) {
-            json(ctx, 404, "instance not found");
+            notFound(ctx, "instance");
             return;
         }
         var body = ctx.body().asJsonObject();
         if (body.containsKey("status")) existing.setStatus(body.getInteger("status"));
         if (body.containsKey("meta")) existing.setMeta(body.getString("meta"));
         repo.update(existing);
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
+        ok(ctx);
     }
 
     public void toggle(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
         repo.toggleStatus(id);
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
+        ok(ctx);
     }
 
     public void delete(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
         repo.delete(id);
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
+        ok(ctx);
     }
 
-    private JsonObject toJson(Instance i) {
+    private JsonObject toJson(Instance instance) {
         return new JsonObject()
-            .put("id", i.getId())
-            .put("model_name", i.getModelName())
-            .put("status", i.getStatus())
-            .put("upstream_model", i.getUpstreamModel())
-            .put("vendor_id", i.getVendorId())
-            .put("created_time", i.getCreatedTime())
-            .put("meta", i.getMeta());
-    }
-
-    private void json(RoutingContext ctx, int status, String msg) {
-        ctx.response().setStatusCode(status)
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", status < 400)
-                .put("message", msg).toString());
+            .put("id", instance.getId())
+            .put("model_name", instance.getModelName())
+            .put("status", instance.getStatus())
+            .put("upstream_model", instance.getUpstreamModel())
+            .put("vendor_id", instance.getVendorId())
+            .put("created_time", instance.getCreatedTime())
+            .put("meta", instance.getMeta());
     }
 }

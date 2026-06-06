@@ -1,6 +1,7 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
+import com.oneapi.model.RelayError;
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.MatchRuleParser;
 import com.oneapi.model.VirtualModel;
@@ -19,10 +20,12 @@ public class VirtualModelLookup implements Filter {
 
     private final VirtualModelRepo vmRepo;
     private final String triggerSuffix;
+    private final boolean requireVirtualModel;
 
-    public VirtualModelLookup(VirtualModelRepo vmRepo, String triggerSuffix) {
+    public VirtualModelLookup(VirtualModelRepo vmRepo, String triggerSuffix, boolean requireVirtualModel) {
         this.vmRepo = vmRepo;
         this.triggerSuffix = triggerSuffix;
+        this.requireVirtualModel = requireVirtualModel;
     }
 
     @Override
@@ -47,8 +50,17 @@ public class VirtualModelLookup implements Filter {
                 triggerSuffix, lookupName);
         }
 
-        VirtualModel vm = vmRepo.findByName(lookupName);
-        if (vm == null || vm == VirtualModel.NOT_FOUND) {
+        VirtualModel virtualModel = vmRepo.findByName(lookupName);
+        if (virtualModel == null || virtualModel == VirtualModel.NOT_FOUND) {
+            // 严格模式：未命中虚拟模型 → 404，禁止物理 model_name 兜底直通
+            // 设计：API 表面只暴露虚拟模型，不暴露具体实例
+            if (requireVirtualModel) {
+                log.info("VirtualModelLookup: {} not registered, reject (strict mode)", lookupName);
+                ctx.markError(new RelayError.ModelNotFound(lookupName),
+                    "model not registered: " + lookupName);
+                return ctx;
+            }
+            // 旧行为：fallback 到 AllMatch，物理名直通（仅在 requireVirtualModel=false 时）
             log.debug("VirtualModelLookup: {} not found, fallback to AllMatch", lookupName);
             ctx.setMatchRule(new MatchRule.AllMatch());
             ctx.setUpstreamModel(lookupName);
@@ -56,12 +68,12 @@ public class VirtualModelLookup implements Filter {
         }
 
         // 将匹配 JSON 解析为类型化的 MatchRule
-        MatchRule rule = MatchRuleParser.parse(vm.getMatch());
+        MatchRule rule = MatchRuleParser.parse(virtualModel.getMatch());
         ctx.setMatchRule(rule);
 
         // 如果存在 NameMatch，从中提取上游模型名称
-        if (rule instanceof MatchRule.NameMatch nm) {
-            ctx.setUpstreamModel(nm.modelName());
+        if (rule instanceof MatchRule.NameMatch(String modelName)) {
+            ctx.setUpstreamModel(modelName);
         } else {
             ctx.setUpstreamModel(lookupName);
         }

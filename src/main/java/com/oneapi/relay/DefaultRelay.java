@@ -7,39 +7,38 @@ import com.oneapi.model.RelayException;
 import com.oneapi.model.RelayRequest;
 import com.oneapi.model.RelayResult;
 import io.vertx.core.Future;
-import io.vertx.core.MultiMap;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 终端执行器：从 Candidate + RelayRequest 构建 UpstreamClient.RelayRequest
- * 并委托给 UpstreamClient.relay()。
+ * Default terminal executor: builds an {@link UpstreamClient.OutboundRequest} from a
+ * {@link Candidate} + {@link RelayRequest} and delegates to {@link UpstreamClient#relay}.
  */
-public class BaseRelay implements RelayExecutor {
-    private static final Logger log = LoggerFactory.getLogger(BaseRelay.class);
+public class DefaultRelay implements RelayExecutor {
+    private static final Logger log = LoggerFactory.getLogger(DefaultRelay.class);
     private static final String DEFAULT_PATH = "/v1/chat/completions";
 
     private final UpstreamClient upstreamClient;
 
-    public BaseRelay(UpstreamClient upstreamClient) {
+    public DefaultRelay(UpstreamClient upstreamClient) {
         this.upstreamClient = upstreamClient;
     }
 
     @Override
-    public Future<RelayResult> execute(Candidate c, RelayRequest req) {
-        MultiMap extraHeaders = MultiMap.caseInsensitiveMultiMap();
-        if (c.extraHeaders() != null && !c.extraHeaders().isEmpty()) {
-            c.extraHeaders().forEach(extraHeaders::add);
+    public Future<RelayResult> execute(Candidate candidate, RelayRequest req) {
+        if (candidate.vendor() == null) {
+            return Future.failedFuture(new RelayException(
+                new RelayError.UpstreamFailure(503, "vendor is null")));
         }
 
-        UpstreamClient.RelayRequest upstreamReq = new UpstreamClient.RelayRequest(
-            c.vendor().getBaseUrl(),
-            c.vendor().getApiKey(),
+        UpstreamClient.OutboundRequest upstreamReq = new UpstreamClient.OutboundRequest(
+            candidate.vendor().getBaseUrl(),
+            candidate.vendor().getApiKey(),
             DEFAULT_PATH,
             "POST",
             req.rawBody(),
-            extraHeaders
+            candidate.extraHeaders()
         );
 
         return upstreamClient.relay(upstreamReq)
@@ -50,7 +49,7 @@ public class BaseRelay implements RelayExecutor {
                     return Future.succeededFuture(new RelayResult(
                         status,
                         body,
-                        c.upstreamModel(),
+                        candidate.upstreamModel(),
                         parsePromptTokens(body),
                         parseCompletionTokens(body)
                     ));
@@ -62,7 +61,7 @@ public class BaseRelay implements RelayExecutor {
             })
             .recover(err -> {
                 if (err instanceof RelayException) {
-                    return Future.failedFuture(err);  // 已包装，直接透传
+                    return Future.failedFuture(err);  // already wrapped, pass through
                 }
                 log.error("relay failed: {}", err.getMessage());
                 return Future.failedFuture(

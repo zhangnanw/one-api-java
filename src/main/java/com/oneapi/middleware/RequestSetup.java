@@ -2,6 +2,9 @@ package com.oneapi.middleware;
 
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -15,6 +18,7 @@ import java.security.NoSuchAlgorithmException;
  */
 public class RequestSetup implements Handler<RoutingContext> {
 
+    private static final Logger log = LoggerFactory.getLogger(RequestSetup.class);
     private static final int USER_ID = 1; // single-user deployment
 
     @Override
@@ -22,8 +26,8 @@ public class RequestSetup implements Handler<RoutingContext> {
         // Token hash (used by router for affinity / stats)
         String auth = ctx.request().getHeader("Authorization");
         String tokenHash = sha256(auth != null ? auth : "");
-        ctx.put("token_hash", tokenHash);
-        ctx.put("user_id", USER_ID);
+        ctx.put("tokenHash", tokenHash);
+        ctx.put("userId", USER_ID);
 
         ctx.next();
     }
@@ -38,7 +42,8 @@ public class RequestSetup implements Handler<RoutingContext> {
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            return input; // fallback
+            log.warn("SHA-256 unavailable, token hash will be raw input");
+            return input; // fallback — should never happen on standard JVM
         }
     }
 }

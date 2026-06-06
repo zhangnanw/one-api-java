@@ -6,11 +6,8 @@ import com.oneapi.service.VendorRefreshService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class VendorController {
-    private static final Logger log = LoggerFactory.getLogger(VendorController.class);
+public class VendorController extends BaseController {
     private final VendorRepo repo = new VendorRepo();
 
     public void getAll(RoutingContext ctx) {
@@ -20,9 +17,9 @@ public class VendorController {
 
         var results = repo.findAllWithCounts(offset, pageSize);
         var arr = new JsonArray();
-        for (var r : results) {
-            JsonObject obj = toJson(r.vendor());
-            obj.put("instance_count", r.instanceCount());
+        for (var routedVendor : results) {
+            JsonObject obj = toJson(routedVendor.vendor());
+            obj.put("instance_count", routedVendor.instanceCount());
             arr.add(obj);
         }
 
@@ -37,8 +34,8 @@ public class VendorController {
 
     public void getOne(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        Vendor v = repo.findById(id);
-        if (v == null) {
+        Vendor vendor = repo.findById(id);
+        if (vendor == null) {
             notFound(ctx, "vendor");
             return;
         }
@@ -47,23 +44,23 @@ public class VendorController {
             .end(new JsonObject()
                 .put("success", true)
                 .put("message", "")
-                .put("data", toJson(v))
+                .put("data", toJson(vendor))
                 .toString());
     }
 
     public void create(RoutingContext ctx) {
-        Vendor v = parseBody(ctx);
-        if (v.getName() == null || v.getName().isEmpty()) {
+        Vendor vendor = parseBody(ctx);
+        if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
             return;
         }
-        if (v.getBaseUrl() == null || v.getBaseUrl().isEmpty()) {
+        if (vendor.getBaseUrl() == null || vendor.getBaseUrl().isEmpty()) {
             badRequest(ctx, "base_url is required");
             return;
         }
         // Default status
-        if (v.getStatus() == 0) v.setStatus(1);
-        repo.insert(v);
+        if (vendor.getStatus() == 0) vendor.setStatus(1);
+        repo.insert(vendor);
         ctx.response()
             .putHeader("Content-Type", "application/json")
             .end(new JsonObject().put("success", true).put("message", "").toString());
@@ -71,15 +68,15 @@ public class VendorController {
 
     public void update(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        Vendor v = parseBody(ctx);
-        if (v.getName() == null || v.getName().isEmpty()) {
+        Vendor vendor = parseBody(ctx);
+        if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
             return;
         }
-        v.setId(id);
-        repo.update(id, v);
-        if (v.getApiKey() != null && !v.getApiKey().isEmpty()) {
-            repo.updateApiKey(id, v.getApiKey());
+        vendor.setId(id);
+        repo.update(id, vendor);
+        if (vendor.getApiKey() != null && !vendor.getApiKey().isEmpty()) {
+            repo.updateApiKey(id, vendor.getApiKey());
         }
         ctx.response()
             .putHeader("Content-Type", "application/json")
@@ -96,10 +93,7 @@ public class VendorController {
 
     public void refreshModels(RoutingContext ctx) {
         var svc = new VendorRefreshService();
-        ctx.vertx().executeBlocking(() -> {
-            var result = svc.refreshAll();
-            return result;
-        }).onSuccess(result -> {
+        ctx.vertx().executeBlocking(svc::refreshAll).onSuccess(result -> {
             ctx.response()
                 .putHeader("Content-Type", "application/json")
                 .end(new JsonObject()
@@ -120,51 +114,37 @@ public class VendorController {
 
     // --- helpers ---
 
-    private JsonObject toJson(Vendor v) {
+    private JsonObject toJson(Vendor vendor) {
         return new JsonObject()
-            .put("id", v.getId())
-            .put("name", v.getName())
-            .put("description", v.getDescription())
-            .put("status", v.getStatus())
-            .put("group", v.getGroupName())
-            .put("priority", v.getPriority())
-            .put("created_time", v.getCreatedTime())
-            .put("base_url", v.getBaseUrl())
-            .put("api_key", v.getApiKey())
-            .put("meta", v.getMeta());
+            .put("id", vendor.getId())
+            .put("name", vendor.getName())
+            .put("description", vendor.getDescription())
+            .put("status", vendor.getStatus())
+            .put("group", vendor.getGroup())
+            .put("priority", vendor.getPriority())
+            .put("created_time", vendor.getCreatedTime())
+            .put("base_url", vendor.getBaseUrl())
+            .put("api_key", vendor.getApiKey())
+            .put("meta", vendor.getMeta());
     }
 
     private Vendor parseBody(RoutingContext ctx) {
         var body = ctx.body().asJsonObject();
-        Vendor v = new Vendor();
-        if (body.containsKey("name")) v.setName(body.getString("name"));
-        if (body.containsKey("description")) v.setDescription(body.getString("description"));
-        if (body.containsKey("status")) v.setStatus(body.getInteger("status"));
-        if (body.containsKey("group")) v.setGroupName(body.getString("group"));
-        if (body.containsKey("priority")) v.setPriority(body.getInteger("priority", 0));
-        if (body.containsKey("base_url")) v.setBaseUrl(body.getString("base_url"));
-        if (body.containsKey("api_key")) v.setApiKey(body.getString("api_key"));
-        if (body.containsKey("meta")) v.setMeta(body.getString("meta"));
-        return v;
+        Vendor vendor = new Vendor();
+        if (body.containsKey("name")) vendor.setName(body.getString("name"));
+        if (body.containsKey("description")) vendor.setDescription(body.getString("description"));
+        if (body.containsKey("status")) vendor.setStatus(body.getInteger("status"));
+        if (body.containsKey("group")) vendor.setGroup(body.getString("group"));
+        if (body.containsKey("priority")) vendor.setPriority(body.getInteger("priority", 0));
+        if (body.containsKey("base_url")) vendor.setBaseUrl(body.getString("base_url"));
+        if (body.containsKey("api_key")) vendor.setApiKey(body.getString("api_key"));
+        if (body.containsKey("meta")) vendor.setMeta(body.getString("meta"));
+        return vendor;
     }
 
     private int parseInt(String val, int defaultVal) {
         if (val == null) return defaultVal;
         try { return Integer.parseInt(val); }
         catch (NumberFormatException e) { return defaultVal; }
-    }
-
-    private void notFound(RoutingContext ctx, String entity) {
-        ctx.response().setStatusCode(404)
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", false)
-                .put("message", entity + " not found").toString());
-    }
-
-    private void badRequest(RoutingContext ctx, String msg) {
-        ctx.response().setStatusCode(400)
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", false)
-                .put("message", msg).toString());
     }
 }

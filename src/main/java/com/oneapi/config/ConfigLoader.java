@@ -40,19 +40,13 @@ public class ConfigLoader {
             " or in classpath.");
     }
 
-    /** 默认 HTTP 监听端口。 */
-    public static int port() {
-        return 3000;
-    }
-
-    /** 默认 SQLite 数据库路径。 */
-    public static String sqlitePath() {
-        return System.getProperty("user.home") + "/.one-api/one-api.db";
-    }
-
+    // 端口和路径统一从 AppConfig 取值，Main.java 用 config.port() / config.sqlitePath()
     private static AppConfig parse(File file) {
         try {
             AppConfig config = yamlMapper.readValue(file, AppConfig.class);
+            if (config.getRelay() == null) {
+                throw new RuntimeException("config.yaml missing 'relay:' section");
+            }
             log.info("Config loaded: maxRetries={}, cacheTtl={}, layerOrder={}",
                 config.getRelay().getMaxRetries(),
                 config.getRelay().getCacheTtlSeconds(),

@@ -16,7 +16,7 @@ public sealed interface MatchRule
     record NameMatch(String modelName) implements MatchRule {}
     
     /** 按标签存在性匹配（例如 "capability:reasoning"） */
-    record TagMatch(java.util.Set<String> all, java.util.Set<String> any) implements MatchRule {}
+    record TagMatch(java.util.Set<String> allTags, java.util.Set<String> anyTags) implements MatchRule {}
     
     /** 按能力字符串匹配（例如 "vision"） */
     record CapabilityMatch(String capability) implements MatchRule {}

@@ -39,20 +39,53 @@ public class SessionTracker {
      * Returns sessionID (new or existing).
      */
     public String match(List<Message> messages) {
-        List<String> lines = normalizeMessages(messages);
+        List<String> lines = normalize(messages);
         if (lines.isEmpty()) return "";
 
-        MessageDigest md = sha256();
+        SessionTracker.MatchResult result = incrementalHash(lines);
+        SessionTrack matched = result.matched();
+        int matchedAt = result.matchedAt();
+        MessageDigest digest = result.digest();
+
+        if (matched != null) {
+            for (int i = matchedAt + 1; i < lines.size(); i++) {
+                digest.update(lines.get(i).getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        return lookupOrCreate(matched, hex(digest.digest()));
+    }
+
+    /** 归一化消息 → 文本行。 */
+    private List<String> normalize(List<Message> messages) {
+        List<String> lines = new ArrayList<>();
+        for (Message m : messages) {
+            if ("system".equals(m.role)) continue;
+            String content = extractContentText(m.content);
+            if (content.isEmpty()) continue;
+
+            if (content.contains("# conversation")) {
+                lines.addAll(extractFromConversation(content));
+            } else {
+                lines.add(content);
+            }
+        }
+        return lines;
+    }
+
+    /** 增量哈希前 N 行，命中 store 即停。返回 digest 状态。 */
+    private MatchResult incrementalHash(List<String> lines) {
+        MessageDigest digest = sha256();
         SessionTrack matched = null;
         int matchedAt = -1;
 
         for (int i = 0; i < lines.size(); i++) {
-            md.update(lines.get(i).getBytes(StandardCharsets.UTF_8));
+            digest.update(lines.get(i).getBytes(StandardCharsets.UTF_8));
             if (i < MIN_MATCH_LINES - 1) continue;
 
-            MessageDigest snapshot = copyDigest(md);
+            MessageDigest snapshot = copyDigest(digest);
             String hexHash = hex(snapshot.digest());
-            // md unchanged, continues accumulating
+            // digest unchanged, continues accumulating
 
             SessionTrack found = store.get(hexHash);
             if (found != null) {
@@ -61,17 +94,12 @@ public class SessionTracker {
                 break;
             }
         }
+        return new MatchResult(matched, matchedAt, digest);
+    }
 
-        // Feed remaining lines
-        if (matched != null) {
-            for (int i = matchedAt + 1; i < lines.size(); i++) {
-                md.update(lines.get(i).getBytes(StandardCharsets.UTF_8));
-            }
-        }
-
-        String finalHash = hex(md.digest());
+    /** 命中即复用，miss 即创建新会话；写回 store。 */
+    private String lookupOrCreate(SessionTrack matched, String finalHash) {
         String sessionId;
-
         if (matched == null) {
             sessionId = UUID.randomUUID().toString();
             matched = new SessionTrack(sessionId, finalHash);
@@ -83,6 +111,9 @@ public class SessionTracker {
         store.put(finalHash, matched);
         return sessionId;
     }
+
+    /** 内部记录：哈希过程中的（命中状态 + digest 指针）。 */
+    private record MatchResult(SessionTrack matched, int matchedAt, MessageDigest digest) {}
 
     /**
      * Update session hash with response summary (compressed conversation).

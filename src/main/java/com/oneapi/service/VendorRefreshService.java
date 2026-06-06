@@ -2,6 +2,7 @@ package com.oneapi.service;
 
 import com.oneapi.model.Vendor;
 import com.oneapi.model.Instance;
+import com.oneapi.model.MetaKeys;
 import com.oneapi.repo.VendorRepo;
 import com.oneapi.repo.InstanceRepo;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,18 +40,18 @@ public class VendorRefreshService {
             int created = 0, deprecated = 0;
             List<String> errors = new ArrayList<>();
 
-            for (Vendor v : vendorRepo.findAllActive()) {
-                if (v.getBaseUrl() == null || v.getBaseUrl().isEmpty()
-                    || v.getApiKey() == null || v.getApiKey().isEmpty()) {
+            for (Vendor vendor : vendorRepo.findAllActive()) {
+                if (vendor.getBaseUrl() == null || vendor.getBaseUrl().isEmpty()
+                    || vendor.getApiKey() == null || vendor.getApiKey().isEmpty()) {
                     continue;
                 }
                 try {
-                    var r = refreshOne(v);
-                    created += r.created;
-                    deprecated += r.deprecated;
-                    errors.addAll(r.errors);
-                } catch (Exception e) {
-                    errors.add("vendor " + v.getName() + ": " + e.getMessage());
+                    var result = refreshOne(vendor);
+                    created += result.created;
+                    deprecated += result.deprecated;
+                    errors.addAll(result.errors);
+                } catch (Exception ex) {
+                    errors.add("vendor " + vendor.getName() + ": " + ex.getMessage());
                 }
             }
             return new RefreshResult(created, deprecated, errors);
@@ -61,14 +62,14 @@ public class VendorRefreshService {
 
     record OneResult(int created, int deprecated, List<String> errors) {}
 
-    private OneResult refreshOne(Vendor v) {
+    private OneResult refreshOne(Vendor vendor) {
         List<String> errors = new ArrayList<>();
-        String url = v.getBaseUrl().replaceAll("/+$", "") + "/models";
+        String url = vendor.getBaseUrl().replaceAll("/+$", "") + "/models";
 
         try {
             var req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + v.getApiKey())
+                .header("Authorization", "Bearer " + vendor.getApiKey())
                 .header("User-Agent", "one-api-refresh/1.0")
                 .timeout(Duration.ofSeconds(15))
                 .GET()
@@ -76,14 +77,14 @@ public class VendorRefreshService {
 
             var resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
-                errors.add("vendor " + v.getName() + ": " + url + " returned " + resp.statusCode());
+                errors.add("vendor " + vendor.getName() + ": " + url + " returned " + resp.statusCode());
                 return new OneResult(0, 0, errors);
             }
 
             JsonNode root = mapper.readTree(resp.body());
             JsonNode data = root.get("data");
             if (data == null || !data.isArray()) {
-                errors.add("vendor " + v.getName() + ": invalid models response");
+                errors.add("vendor " + vendor.getName() + ": invalid models response");
                 return new OneResult(0, 0, errors);
             }
 
@@ -99,7 +100,7 @@ public class VendorRefreshService {
             var allInstances = instanceRepo.findAllWithVendor();
             Map<String, Instance> existingMap = new HashMap<>();
             for (Instance inst : allInstances) {
-                if (inst.getVendorId() != v.getId()) continue;
+                if (inst.getVendorId() != vendor.getId()) continue;
                 String identity = inst.getUpstreamModel();
                 if (identity == null || identity.isEmpty()) identity = inst.getModelName();
                 existingMap.put(identity, inst);
@@ -114,7 +115,7 @@ public class VendorRefreshService {
                     if (inst.getStatus() == InstanceRepo.STATUS_DEPRECATED) {
                         // §J2-D1: restore to PrevStatus, not forced TAGGED
                         inst.setStatus(InstanceRepo.STATUS_RAW);
-                        inst.setMeta(mergeVendorTags(inst.getMeta(), v.getMeta()));
+                        inst.setMeta(mergeVendorTags(inst.getMeta(), vendor.getMeta()));
                         instanceRepo.update(inst);
                     }
                     existingMap.remove(id);
@@ -123,9 +124,9 @@ public class VendorRefreshService {
                     Instance newInst = new Instance();
                     newInst.setModelName(id);
                     newInst.setUpstreamModel(id);
-                    newInst.setVendorId(v.getId());
+                    newInst.setVendorId(vendor.getId());
                     newInst.setStatus(InstanceRepo.STATUS_RAW);
-                    newInst.setMeta(mergeVendorTags("{}", v.getMeta()));
+                    newInst.setMeta(mergeVendorTags("{}", vendor.getMeta()));
                     instanceRepo.insert(newInst);
                     created++;
                 }
@@ -142,8 +143,8 @@ public class VendorRefreshService {
             }
 
             return new OneResult(created, deprecated, errors);
-        } catch (Exception e) {
-            errors.add("vendor " + v.getName() + ": " + e.getMessage());
+        } catch (Exception ex) {
+            errors.add("vendor " + vendor.getName() + ": " + ex.getMessage());
             return new OneResult(0, 0, errors);
         }
     }
@@ -153,19 +154,20 @@ public class VendorRefreshService {
         try {
             var iMeta = mapper.readTree(instMeta);
             var vMeta = mapper.readTree(vendorMeta);
-            var vTags = vMeta.get("tags");
+            var vTags = vMeta.get(MetaKeys.TAGS);
 
             if (vTags != null && vTags.isArray()) {
-                var iTags = iMeta.get("tags");
+                var iTags = iMeta.get(MetaKeys.TAGS);
                 Set<String> tagSet = new HashSet<>();
                 if (iTags != null && iTags.isArray()) {
                     iTags.forEach(t -> tagSet.add(t.asText()));
                 }
                 vTags.forEach(t -> tagSet.add(t.asText()));
 
-                var merged = mapper.createObjectNode();
-                merged.setAll((com.fasterxml.jackson.databind.node.ObjectNode) iMeta);
-                var arr = merged.putArray("tags");
+                var merged = iMeta.isObject()
+                    ? (com.fasterxml.jackson.databind.node.ObjectNode) iMeta.deepCopy()
+                    : mapper.createObjectNode();
+                var arr = merged.putArray(MetaKeys.TAGS);
                 tagSet.forEach(arr::add);
                 return mapper.writeValueAsString(merged);
             }

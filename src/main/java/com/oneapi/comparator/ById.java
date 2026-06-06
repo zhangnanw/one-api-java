@@ -1,4 +1,4 @@
-package com.oneapi.sort;
+package com.oneapi.comparator;
 
 import com.oneapi.service.RouterService.RoutedVendor;
 

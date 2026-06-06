@@ -9,14 +9,14 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * 阶段 3 — 排除实例或供应商处于冷却期的候选。
+ * 闃舵 3 鈥?鎺掗櫎瀹炰緥鎴栦緵搴斿晢澶勪簬鍐峰嵈鏈熺殑鍊欓€夈€?
  */
-public class CoolingFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(CoolingFilter.class);
+public class CooldownFilter implements Filter {
+    private static final Logger log = LoggerFactory.getLogger(CooldownFilter.class);
 
     private final CooldownService cooldown;
 
-    public CoolingFilter(CooldownService cooldown) {
+    public CooldownFilter(CooldownService cooldown) {
         this.cooldown = cooldown;
     }
 
@@ -28,21 +28,21 @@ public class CoolingFilter implements Filter {
         }
 
         List<RoutedVendor> filtered = candidates.stream()
-            .filter(rv -> {
+            .filter(routedVendor -> {
                 boolean instanceCool = cooldown.isInstanceInCooldown(
-                    rv.instanceId(), rv.instanceTags());
-                boolean vendorCool = cooldown.isVendorInCooldown(
-                    rv.vendor() != null ? rv.vendor().getId() : 0);
+                    routedVendor.instanceId(), routedVendor.instanceTags());
+                boolean vendorCool = routedVendor.vendor() != null
+                    && cooldown.isVendorInCooldown(routedVendor.vendor().getId());
                 if (instanceCool || vendorCool) {
-                    log.debug("CoolingFilter: skip instance={} vendor={}",
-                        rv.instanceId(), rv.vendor() != null ? rv.vendor().getName() : "null");
+                    log.debug("CooldownFilter: skip instance={} vendor={}",
+                        routedVendor.instanceId(), routedVendor.vendor() != null ? routedVendor.vendor().getName() : "null");
                     return false;
                 }
                 return true;
             })
             .toList();
 
-        log.debug("CoolingFilter: {} → {} candidates",
+        log.debug("CooldownFilter: {} -> {} candidates",
             candidates.size(), filtered.size());
         ctx.setCandidates(filtered);
         return ctx;

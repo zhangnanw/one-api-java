@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 阶段 3 — 根据 MatchRule.TagMatch 的标签条件过滤候选。
- * 支持 ALL（必须包含所有标签）和 ANY（必须包含至少一个）。
+ * 闃舵 3 鈥?鏍规嵁 MatchRule.TagMatch 鐨勬爣绛炬潯浠惰繃婊ゅ€欓€夈€?
+ * 鏀寔 ALL锛堝繀椤诲寘鍚墍鏈夋爣绛撅級鍜?ANY锛堝繀椤诲寘鍚嚦灏戜竴涓級銆?
  */
 public class TagFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(TagFilter.class);
@@ -20,12 +20,9 @@ public class TagFilter implements Filter {
     @Override
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
-        if (!(rule instanceof MatchRule.TagMatch tm)) {
-            return ctx; // 无标签条件 — 直接通过
+        if (!(rule instanceof MatchRule.TagMatch(Set<String> allTags, Set<String> anyTags))) {
+            return ctx; // 鏃犳爣绛炬潯浠?鈥?鐩存帴閫氳繃
         }
-
-        Set<String> allTags = tm.all();
-        Set<String> anyTags = tm.any();
 
         List<RoutedVendor> candidates = ctx.candidates();
         if (candidates == null || candidates.isEmpty()) {
@@ -33,9 +30,9 @@ public class TagFilter implements Filter {
         }
 
         List<RoutedVendor> filtered = candidates.stream()
-            .filter(rv -> {
-                MetaView mv = MetaView.fromInstanceMeta(rv.instanceMeta());
-                // ALL 条件：实例必须包含所有要求的标签
+            .filter(routedVendor -> {
+                MetaView mv = MetaView.fromInstanceMeta(routedVendor.instanceMeta());
+                // ALL 鏉′欢锛氬疄渚嬪繀椤诲寘鍚墍鏈夎姹傜殑鏍囩
                 if (allTags != null && !allTags.isEmpty()) {
                     for (String tag : allTags) {
                         if (!mv.instanceHasTag(tag)) {
@@ -43,7 +40,7 @@ public class TagFilter implements Filter {
                         }
                     }
                 }
-                // ANY 条件：实例必须包含至少一个
+                // ANY 鏉′欢锛氬疄渚嬪繀椤诲寘鍚嚦灏戜竴涓?
                 if (anyTags != null && !anyTags.isEmpty()) {
                     boolean hasAny = false;
                     for (String tag : anyTags) {
@@ -60,7 +57,7 @@ public class TagFilter implements Filter {
             })
             .toList();
 
-        log.debug("TagFilter: {} → {} candidates", candidates.size(), filtered.size());
+        log.debug("TagFilter: {} 鈫?{} candidates", candidates.size(), filtered.size());
         ctx.setCandidates(filtered);
         return ctx;
     }

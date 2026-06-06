@@ -12,18 +12,18 @@ import com.oneapi.service.RelayLogger;
  */
 public class RelayRecorder {
     /** 启动日志条目，返回日志 ID 供后续更新。 */
-    public long start(RelayRequest req, Candidate c) {
-        RelayLog rlog = new RelayLog();
-        rlog.ts = System.currentTimeMillis() / 1000;
-        rlog.modelOrig = req.requestedModel();
-        rlog.modelReal = c.upstreamModel();
-        rlog.baseUrl = c.vendor() != null ? c.vendor().getBaseUrl() : "";
-        if (c.instance() != null) {
-            rlog.instanceId = c.instance().getId();
+    public long start(RelayRequest req, Candidate candidate) {
+        RelayLog relayLog = new RelayLog();
+        relayLog.setTimestamp(System.currentTimeMillis() / 1000);
+        relayLog.setModelOrig(req.requestedModel());
+        relayLog.setUpstreamModel(candidate.upstreamModel());
+        relayLog.setBaseUrl(candidate.vendor() != null ? candidate.vendor().getBaseUrl() : "");
+        if (candidate.instance() != null) {
+            relayLog.setInstanceId(candidate.instance().getId());
         }
-        rlog.stream = req.isStreaming();
-        rlog.bodySize = req.rawBody() != null ? req.rawBody().length : 0;
-        return RelayLogger.insert(rlog);
+        relayLog.setStream(req.streaming());
+        relayLog.setBodySize(req.rawBody() != null ? req.rawBody().length : 0);
+        return RelayLogger.insert(relayLog);
     }
 
     /** 缓冲式成功 — 更新状态码 + token 数 + 延迟。 */
@@ -35,7 +35,7 @@ public class RelayRecorder {
 
     /** 失败 — 更新错误字段。 */
     public void fail(long logId, int code, String err, long latencyMs) {
-        RelayLogger.updateStreamResult(logId, code, 0, latencyMs);
+        RelayLogger.updateStreamResult(logId, code, 0, latencyMs, err);
     }
 
     /** 流式完成 — 更新最终统计。 */

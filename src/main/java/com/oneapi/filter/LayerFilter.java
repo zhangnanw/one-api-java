@@ -10,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * 阶段 3 — 根据 MatchRule 的层级条件过滤候选。
- * 仅在 matchRule 为 LayerMatch 时生效。
+ * 闃舵 3 鈥?鏍规嵁 MatchRule 鐨勫眰绾ф潯浠惰繃婊ゅ€欓€夈€?
+ * 浠呭湪 matchRule 涓?LayerMatch 鏃剁敓鏁堛€?
  */
 public class LayerFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(LayerFilter.class);
@@ -19,11 +19,10 @@ public class LayerFilter implements Filter {
     @Override
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
-        if (!(rule instanceof MatchRule.LayerMatch lm)) {
-            return ctx; // 无层级条件 — 直接通过
+        if (!(rule instanceof MatchRule.LayerMatch(String requiredLayer))) {
+            return ctx; // 鏃犲眰绾ф潯浠?鈥?鐩存帴閫氳繃
         }
 
-        String requiredLayer = lm.layer();
         if (requiredLayer == null || requiredLayer.isEmpty()) {
             return ctx;
         }
@@ -34,13 +33,13 @@ public class LayerFilter implements Filter {
         }
 
         List<RoutedVendor> filtered = candidates.stream()
-            .filter(rv -> {
-                MetaView mv = MetaView.fromInstanceMeta(rv.instanceMeta());
+            .filter(routedVendor -> {
+                MetaView mv = MetaView.fromInstanceMeta(routedVendor.instanceMeta());
                 return requiredLayer.equals(mv.instanceLayer());
             })
             .toList();
 
-        log.debug("LayerFilter layer={}: {} → {} candidates",
+        log.debug("LayerFilter layer={}: {} 鈫?{} candidates",
             requiredLayer, candidates.size(), filtered.size());
         ctx.setCandidates(filtered);
         return ctx;

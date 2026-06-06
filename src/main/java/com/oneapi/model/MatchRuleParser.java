@@ -1,6 +1,9 @@
 package com.oneapi.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 
 /**
@@ -8,6 +11,7 @@ import java.util.*;
  * 一次解析——所有消费者读取同一对象。
  */
 public class MatchRuleParser {
+    private static final Logger log = LoggerFactory.getLogger(MatchRuleParser.class);
     private static final ObjectMapper mapper = new ObjectMapper();
     
     /**
@@ -40,6 +44,7 @@ public class MatchRuleParser {
             
             return new MatchRule.AllMatch();
         } catch (Exception e) {
+            log.warn("Failed to parse match JSON, falling back to AllMatch: {}", e.getMessage());
             return new MatchRule.AllMatch();
         }
     }

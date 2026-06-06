@@ -60,20 +60,20 @@ public class RelayLogger {
             "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setLong(1, rlog.ts);
-            ps.setInt(2, rlog.instanceId);
-            ps.setString(3, rlog.baseUrl);
-            ps.setString(4, rlog.tokenName);
-            ps.setInt(5, rlog.userId);
-            ps.setString(6, rlog.modelOrig);
-            ps.setString(7, rlog.modelReal);
-            ps.setInt(8, rlog.stream ? 1 : 0);
-            ps.setInt(9, rlog.bodySize);
-            ps.setInt(10, rlog.code);
-            ps.setInt(11, rlog.respSize);
-            ps.setInt(12, rlog.tokens);
-            ps.setLong(13, rlog.latencyMs);
-            ps.setString(14, rlog.err);
+            ps.setLong(1, rlog.getTimestamp());
+            ps.setInt(2, rlog.getInstanceId());
+            ps.setString(3, rlog.getBaseUrl());
+            ps.setString(4, rlog.getTokenName());
+            ps.setInt(5, rlog.getUserId());
+            ps.setString(6, rlog.getModelOrig());
+            ps.setString(7, rlog.getUpstreamModel());
+            ps.setInt(8, rlog.isStream() ? 1 : 0);
+            ps.setInt(9, rlog.getBodySize());
+            ps.setInt(10, rlog.getHttpStatus());
+            ps.setInt(11, rlog.getRespSize());
+            ps.setInt(12, rlog.getTokens());
+            ps.setLong(13, rlog.getLatencyMs());
+            ps.setString(14, rlog.getErrorMessage());
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) return rs.getLong(1);
@@ -98,16 +98,22 @@ public class RelayLogger {
         }
     }
 
-    /** 流式结束后回填 code、tokens、latency。静默失败。 */
+    /** 流式结束后回填 code、tokens、latency + error。静默失败。 */
     public static void updateStreamResult(long id, int code, int tokens, long latencyMs) {
+        updateStreamResult(id, code, tokens, latencyMs, null);
+    }
+
+    /** 同上，附带错误消息。 */
+    public static void updateStreamResult(long id, int code, int tokens, long latencyMs, String err) {
         if (ds == null) return;
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                 "UPDATE relay_logs SET code = ?, tokens = ?, latency_ms = ?, err = NULL WHERE id = ?")) {
+                 "UPDATE relay_logs SET code = ?, tokens = ?, latency_ms = ?, err = ? WHERE id = ?")) {
             ps.setInt(1, code);
             ps.setInt(2, tokens);
             ps.setLong(3, latencyMs);
-            ps.setLong(4, id);
+            ps.setString(4, err);
+            ps.setLong(5, id);
             ps.executeUpdate();
         } catch (SQLException e) {
             log.debug("relay log updateStreamResult failed: {}", e.getMessage());

@@ -18,19 +18,14 @@ import com.oneapi.middleware.RequestSetup;
 import com.oneapi.filter.Filter;
 import com.oneapi.filter.NameMatcher;
 import com.oneapi.filter.VirtualModelLookup;
-import com.oneapi.filter.CapabilityFilter;
+import com.oneapi.filter.CapabilityRequirementMarker;
 import com.oneapi.filter.CapabilityInstanceFilter;
-import com.oneapi.filter.CoolingFilter;
+import com.oneapi.filter.CooldownFilter;
 import com.oneapi.filter.TagFilter;
 import com.oneapi.filter.LayerFilter;
-import com.oneapi.filter.MaxPrefFilter;
-import com.oneapi.filter.RawStatusFilter;
+import com.oneapi.filter.ActiveStatusFilter;
 import com.oneapi.handler.UpstreamClient;
-import com.oneapi.relay.BaseRelay;
-import com.oneapi.relay.ReasoningDecorator;
-import com.oneapi.relay.HeaderDecorator;
-import com.oneapi.relay.RetryDecorator;
-import com.oneapi.relay.StreamingAdapter;
+import com.oneapi.relay.DefaultRelay;
 import com.oneapi.service.CooldownService;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.SessionTracker;
@@ -52,14 +47,17 @@ public class RouterConfig {
         // 全局中间件
         router.route().handler(new CORS());
 
-        registerApiRoutes();
-        registerRelayRoutes();
+        // CooldownService 在所有路由之前单例化，/api/status 与 /v1/chat/completions 共用
+        var cooldown = new CooldownService();
+
+        registerApiRoutes(cooldown);
+        registerRelayRoutes(cooldown);
         registerFallback();
         return router;
     }
 
-    private void registerApiRoutes() {
-        var misc = new MiscController();
+    private void registerApiRoutes(CooldownService cooldown) {
+        var misc = new MiscController(cooldown);
         router.get("/api/status").handler(misc::status);
 
         var vendorCtrl = new VendorController();
@@ -85,14 +83,14 @@ public class RouterConfig {
         router.delete("/api/virtual-models/:id").handler(vmCtrl::delete);
     }
 
-    private void registerRelayRoutes() {
+    private void registerRelayRoutes(CooldownService cooldown) {
         // /v1/models — OpenAI 兼容模型列表
         router.get("/v1/models").handler(ctx -> {
             var repo = new VirtualModelRepo();
             var data = new io.vertx.core.json.JsonArray();
-            for (var vm : repo.findAll()) {
+            for (var virtualModel : repo.findAll()) {
                 data.add(new JsonObject()
-                    .put("id", vm.getName())
+                    .put("id", virtualModel.getName())
                     .put("object", "model")
                     .put("created", 1700000000)
                     .put("owned_by", "one-api"));
@@ -107,52 +105,46 @@ public class RouterConfig {
 
         // /v1/chat/completions — V2 控制器
         var requestSetup = new RequestSetup();
-        var v2Ctrl = buildV2Controller();
+        var v2Ctrl = buildV2Controller(cooldown);
         router.route("/v1/chat/completions").handler(requestSetup);
         router.route("/v1/chat/completions").handler(v2Ctrl::handle);
     }
 
-    private RelayControllerV2 buildV2Controller() {
+    private RelayControllerV2 buildV2Controller(CooldownService cooldown) {
         // ── 装配：组装所有 V2 依赖 ──
 
-        // 服务层
-        var cooldown = new CooldownService();
+        // 服务层（cooldown 由 RouterConfig.build() 单例传入）
         var routerSvc = new RouterService();
         var sessions = new SessionTracker();
 
         // 第二阶段过滤器（模型解析）
+        boolean requireVM = config.getRelay() != null && config.getRelay().isRequireVirtualModel();
         List<Filter> stage2 = List.of(
-            new NameMatcher(new InstanceRepo()),
-            new VirtualModelLookup(new VirtualModelRepo(), config.getPolicies().getReasoning().getTriggerSuffix()),
-            new CapabilityFilter()
+            new NameMatcher(new InstanceRepo(), requireVM),
+            new VirtualModelLookup(new VirtualModelRepo(),
+                config.getPolicies().getReasoning().getTriggerSuffix(),
+                requireVM),
+            new CapabilityRequirementMarker()
         );
 
         // 第三阶段过滤器（候选实例筛选）
         List<Filter> stage3 = List.of(
-            new CoolingFilter(cooldown),
+            new CooldownFilter(cooldown),
             new CapabilityInstanceFilter(),
             new TagFilter(),
             new LayerFilter(),
-            new MaxPrefFilter(),
-            new RawStatusFilter()
+            new ActiveStatusFilter()
         );
 
-        // 第五阶段：装饰器链
+        // 第五阶段：上游客户端
         var upstreamClient = new UpstreamClient(
             WebClient.create(vertx), vertx);
-
-        var baseRelay = new BaseRelay(upstreamClient);
-        String triggerSuffix = config.getPolicies().getReasoning().getTriggerSuffix();
-        var reasoningRelay = new ReasoningDecorator(baseRelay, triggerSuffix);
-        var headerRelay = new HeaderDecorator(reasoningRelay);
-        int maxRetries = config.getRelay().getMaxRetries();
-        var retryRelay = new RetryDecorator(headerRelay, maxRetries, cooldown, vertx);
-        var streamRelay = new StreamingAdapter(retryRelay, upstreamClient, vertx);
+        var baseRelay = new DefaultRelay(upstreamClient);
 
         // 协调器
         var coordinator = new RelayCoordinator(
             routerSvc, cooldown, sessions, upstreamClient,
-            stage2, stage3, streamRelay, config);
+            stage2, stage3, baseRelay, config);
         return new RelayControllerV2(coordinator);
     }
 

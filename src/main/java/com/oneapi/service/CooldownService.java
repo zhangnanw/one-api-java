@@ -2,10 +2,12 @@ package com.oneapi.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
 
 /**
  * In-memory cooldown matching Go's sync.Map + damping decay.
@@ -18,10 +20,12 @@ public class CooldownService {
     private final Cache<Integer, CooldownEntry> instanceCooldowns = Caffeine.newBuilder()
         .maximumSize(10000)
         .expireAfterAccess(100, TimeUnit.MINUTES)  // max 100 min
+        .recordStats()
         .build();
     private final Cache<Integer, CooldownEntry> vendorCooldowns = Caffeine.newBuilder()
         .maximumSize(10000)
         .expireAfterAccess(100, TimeUnit.MINUTES)
+        .recordStats()
         .build();
 
     /**
@@ -35,7 +39,7 @@ public class CooldownService {
     }
 
     public boolean hasNoCoolTag(String tags) {
-        return tags != null && tags.contains("nocool:true");
+        return tags != null && Arrays.asList(tags.split(",")).contains("nocool:true");
     }
 
     public boolean isInstanceInCooldown(int instanceId, String tags) {
@@ -118,6 +122,29 @@ public class CooldownService {
             return new CooldownEntry(until, n);
         });
     }
+
+    /**
+     * 两个 cooldown 缓存的合并 stats。用于 /api/status 健康检查段。
+     * 字段：hitCount / missCount / evictionCount / estimatedSize（两者相加）。
+     */
+    public CooldownStats getStats() {
+        CacheStats inst = instanceCooldowns.stats();
+        CacheStats vend = vendorCooldowns.stats();
+        return new CooldownStats(
+            inst.hitCount() + vend.hitCount(),
+            inst.missCount() + vend.missCount(),
+            inst.evictionCount() + vend.evictionCount(),
+            instanceCooldowns.estimatedSize() + vendorCooldowns.estimatedSize()
+        );
+    }
+
+    /** Cooldown 缓存合并指标。 */
+    public record CooldownStats(
+        long hitCount,
+        long missCount,
+        long evictionCount,
+        long estimatedSize
+    ) {}
 
     // --- inner class ---
 

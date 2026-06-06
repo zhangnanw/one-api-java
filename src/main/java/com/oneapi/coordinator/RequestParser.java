@@ -14,18 +14,23 @@ public class RequestParser {
 
         String bodyStr = new String(rawBody);
         String model = ctx.request().getParam("model");
+        boolean streaming = false;
+
+        // 解析一次 JSON，同时取 model 和 stream
         if (model == null) {
             try {
-                model = new JsonObject(bodyStr).getString("model");
+                JsonObject json = new JsonObject(bodyStr);
+                model = json.getString("model");
+                streaming = json.getBoolean("stream", false);
+            } catch (Exception e) { /* 忽略 */ }
+        } else {
+            try {
+                streaming = new JsonObject(bodyStr).getBoolean("stream", false);
             } catch (Exception e) { /* 忽略 */ }
         }
+
         if (model == null || model.isEmpty()) return null;
 
-        boolean isStream = false;
-        try {
-            isStream = new JsonObject(bodyStr).getBoolean("stream", false);
-        } catch (Exception e) { /* 忽略 */ }
-
-        return new RelayRequest(model, rawBody, bodyStr, isStream);
+        return new RelayRequest(model, rawBody, streaming);
     }
 }

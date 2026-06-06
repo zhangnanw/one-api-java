@@ -2,6 +2,7 @@ package com.oneapi.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.oneapi.model.Candidate;
 import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
 import com.oneapi.repo.InstanceRepo;
@@ -26,7 +27,23 @@ public class RouterService {
         String instanceTags,
         String instanceMeta,
         int instanceStatus
-    ) {}
+    ) {
+        /**
+         * 从路由后中间表示转换为中继候选。
+         * 重建 Instance 壳（包含 modelName/upstreamModel/vendor/status/meta），
+         * 供 RelayCoordinator 选路使用。
+         */
+        public Candidate toCandidate() {
+            Instance instance = new Instance();
+            instance.setId(instanceId);
+            instance.setModelName(modelName);
+            instance.setUpstreamModel(upstreamModel);
+            instance.setVendor(vendor);
+            instance.setStatus(instanceStatus);
+            instance.setMeta(instanceMeta);
+            return new Candidate(vendor, instance, upstreamModel);
+        }
+    }
 
     /**
      * 为给定模型加载原始候选实例 — 不过滤、不排序。

@@ -9,11 +9,10 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * 阶段 3 — 仅保留活跃实例（STATUS_RAW 或 STATUS_TAGGED）。
- * 排除 DISABLED 和 DEPRECATED。排序（RawStatusLast）处理 RAW 的降优先级。
+ * 闃舵 3 鈥?浠呬繚鐣欐椿璺冨疄渚嬶紙STATUS_RAW 鎴?STATUS_TAGGED锛夛紝鎺掗櫎 DISABLED 鍜?DEPRECATED銆?
  */
-public class RawStatusFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(RawStatusFilter.class);
+public class ActiveStatusFilter implements Filter {
+    private static final Logger log = LoggerFactory.getLogger(ActiveStatusFilter.class);
 
     @Override
     public RelayContext apply(RelayContext ctx) {
@@ -23,11 +22,11 @@ public class RawStatusFilter implements Filter {
         }
 
         List<RoutedVendor> filtered = candidates.stream()
-            .filter(rv -> rv.instanceStatus() == InstanceRepo.STATUS_RAW
-                       || rv.instanceStatus() == InstanceRepo.STATUS_TAGGED)
+            .filter(routedVendor -> routedVendor.instanceStatus() == InstanceRepo.STATUS_RAW
+                       || routedVendor.instanceStatus() == InstanceRepo.STATUS_TAGGED)
             .toList();
 
-        log.debug("RawStatusFilter: {} → {} candidates",
+        log.debug("ActiveStatusFilter: {} 鈫?{} candidates",
             candidates.size(), filtered.size());
         ctx.setCandidates(filtered);
         return ctx;

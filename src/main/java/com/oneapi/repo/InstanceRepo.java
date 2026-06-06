@@ -9,6 +9,19 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 实例仓库。
+ * <p>
+ * 查找语义：
+ * - {@link #findByName}：按 model_name 精确匹配，可能返回多个（一个模型可被多个供应商供应）
+ * - {@link #findAll}、{@link #findAllWithVendor}：全表按 id 升序
+ * - {@link #findAllWithVendor}：LEFT JOIN vendors 用于候选排序时获取 vendor 信息
+ * <p>
+ * 状态字段（{@code status}）语义：1=RAW（自动发现）、2=TAGGED（手动配置）、
+ * 3=DISABLED（管理员停用）、4=DEPRECATED（上游不再提供）。
+ * <p>
+ * 错误处理：SQLException 一律 log 后返回空集合或 null。
+ */
 public class InstanceRepo extends BaseRepo {
     private static final Logger log = LoggerFactory.getLogger(InstanceRepo.class);
 
@@ -44,7 +57,7 @@ public class InstanceRepo extends BaseRepo {
                 vendor.setName(rs.getString("v_name"));
                 vendor.setDescription(rs.getString("v_desc"));
                 vendor.setStatus(rs.getInt("v_status"));
-                vendor.setGroupName(rs.getString("v_group"));
+                vendor.setGroup(rs.getString("v_group"));
                 vendor.setPriority(rs.getInt("v_priority"));
                 vendor.setCreatedTime(rs.getLong("v_created_time"));
                 vendor.setBaseUrl(rs.getString("v_base_url"));

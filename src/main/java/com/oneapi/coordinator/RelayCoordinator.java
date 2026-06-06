@@ -2,18 +2,19 @@ package com.oneapi.coordinator;
 
 import com.oneapi.config.AppConfig;
 import com.oneapi.filter.Filter;
+import com.oneapi.filter.ParamClamp;
 import com.oneapi.handler.UpstreamClient;
 import com.oneapi.model.*;
-import com.oneapi.relay.RelayExecutor;
+import com.oneapi.relay.DefaultRelay;
 import com.oneapi.service.CooldownService;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.RouterService.RoutedVendor;
 import com.oneapi.service.SessionTracker;
-import com.oneapi.sort.*;
+import com.oneapi.comparator.ById;
+import com.oneapi.comparator.ByPref;
+import com.oneapi.comparator.ByStatusDesc;
 
-import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
@@ -21,11 +22,6 @@ import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-// TODO: V2.1 流式装饰器链
-// 当前流式传输绕过了装饰器链（Header/Reasoning/Retry）
-// 因为流式响应无法表示为 Future<RelayResult>。
-// 下面的 hack 在 relayStream() 中手动应用了 Header + Reasoning 逻辑。
 
 /**
  * V2 中继协调器 — 5 阶段流水线。
@@ -46,7 +42,7 @@ public class RelayCoordinator {
     private final List<Filter> stage2Filters;
     private final List<Filter> stage3Filters;
     private final Comparator<RoutedVendor> sorter;
-    private final RelayExecutor relayChain;
+    private final DefaultRelay baseRelay;
     private final AppConfig config;
     private final RelayRecorder recorder;
 
@@ -55,7 +51,7 @@ public class RelayCoordinator {
                             UpstreamClient upstreamClient,
                             List<Filter> stage2Filters,
                             List<Filter> stage3Filters,
-                            RelayExecutor relayChain,
+                            DefaultRelay baseRelay,
                             AppConfig config) {
         this.router = router;
         this.cooldown = cooldown;
@@ -63,7 +59,7 @@ public class RelayCoordinator {
         this.upstreamClient = upstreamClient;
         this.stage2Filters = stage2Filters;
         this.stage3Filters = stage3Filters;
-        this.relayChain = relayChain;
+        this.baseRelay = baseRelay;
         this.config = config;
         this.recorder = new RelayRecorder();
         this.sorter = buildSorter(config);
@@ -76,13 +72,13 @@ public class RelayCoordinator {
             error(ctx, 400, "model name required");
             return;
         }
-        ctx.put("model_name", req.requestedModel());
+        ctx.put("modelName", req.requestedModel());
 
         // 会话跟踪
         var messages = SessionTracker.parseMessages(req.rawBody());
         if (!messages.isEmpty()) {
             String sessionId = sessions.match(messages);
-            ctx.put("session_id", sessionId);
+            ctx.put("sessionId", sessionId);
         }
 
         // 第二阶段：模型解析
@@ -120,46 +116,85 @@ public class RelayCoordinator {
         }
 
         // 第四阶段：排序
-        List<RoutedVendor> mutable = new ArrayList<>(filtered);
-        mutable.sort(sorter);
-        var first = mutable.get(0);
-
-        log.info("V2 selected: instance={} vendor={} model={} upstream={}",
-            first.instanceId(), first.vendor() != null ? first.vendor().getName() : "?",
-            first.modelName(), first.upstreamModel());
-
-        // 从 RoutedVendor 构建 Candidate
-        Candidate candidate = toCandidate(first);
-
-        // Reasoning 头部（由 VirtualModelLookup 设置）
-        if (relayCtx.reasoning()) {
-            candidate.extraHeaders().put("X-Reasoning-Effort", "max");
-        }
-
-        // 启动中继日志
-        long logId = recorder.start(req, candidate);
-        long startMs = System.currentTimeMillis();
+        LinkedList<RoutedVendor> queue = new LinkedList<>(filtered);
+        queue.sort(sorter);
 
         // 第五阶段：中继
-        if (req.isStreaming()) {
-            relayStream(ctx, req, candidate, first, relayCtx, logId, startMs);
+        ctx.put("relayContext", relayCtx);
+        executePipeline(ctx, req, queue, relayCtx);
+    }
+
+    /**
+     * 调度：按 streaming 标志分派到 buffered 或 stream 路径。
+     * Pure dispatcher — 不直接中继、不持状态。
+     */
+    private void executePipeline(RoutingContext ctx, RelayRequest req,
+                                  LinkedList<RoutedVendor> queue, RelayContext relayCtx) {
+        if (req.streaming()) {
+            tryStream(ctx, req, queue, relayCtx);
         } else {
-            relayBuffered(ctx, req, candidate, first, logId, startMs);
+            tryBuffered(ctx, req, queue);
         }
     }
 
-    // --- 缓冲式中继（通过中继链支持重试）---
+    /** 非流式中继：遍历候选队列，重试直到成功。 */
+    private void tryBuffered(RoutingContext ctx, RelayRequest req,
+                              LinkedList<RoutedVendor> queue) {
+        relayBufferedInner(ctx, req, queue, null);
+    }
+
+    /** 流式中继：只试第一个候选，失败由外层 caller 处理（当前实现不重试流式）。 */
+    private void tryStream(RoutingContext ctx, RelayRequest req,
+                            LinkedList<RoutedVendor> queue, RelayContext relayCtx) {
+        relayStream(ctx, req, queue, relayCtx);
+    }
+
+    // --- 缓冲式中继：遍历候选队列，逐个尝试 ---
 
     private void relayBuffered(RoutingContext ctx, RelayRequest req,
-                               Candidate candidate, RoutedVendor first,
-                               long logId, long startMs) {
+                               LinkedList<RoutedVendor> queue) {
+        relayBufferedInner(ctx, req, queue, null);
+    }
 
-        // 替换请求体中的模型名称以匹配上游模型
-        byte[] finalBody = substituteModel(req.rawBody(), first.upstreamModel(), first.modelName());
-        RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody,
-            new String(finalBody), false);
+    private void relayBufferedInner(RoutingContext ctx, RelayRequest req,
+                                    LinkedList<RoutedVendor> queue,
+                                    String lastUpstreamError) {
+        if (queue.isEmpty()) {
+            String msg = lastUpstreamError != null
+                ? lastUpstreamError
+                : "no available instances for " + req.requestedModel();
+            error(ctx, 503, msg);
+            return;
+        }
 
-        relayChain.execute(candidate, finalReq)
+        RoutedVendor routedVendor = queue.removeFirst();
+        Candidate candidate = routedVendor.toCandidate();
+        String vendorName = routedVendor.vendor() != null ? routedVendor.vendor().getName() : "?";
+
+        // Reasoning 头部
+        var relayCtxObj = ctx.get("relayContext");
+        if (relayCtxObj instanceof RelayContext rc && rc.reasoning()) {
+            candidate.extraHeaders().add("X-Reasoning-Effort", "max");
+        }
+
+        // Kimi API 需要 CLI UA
+        if (routedVendor.vendor() != null && routedVendor.vendor().getBaseUrl() != null
+                && routedVendor.vendor().getBaseUrl().contains("kimi.com")) {
+            candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
+        }
+
+        log.info("V2 trying: instance={} vendor={} model={} upstream={}",
+            routedVendor.instanceId(), vendorName, routedVendor.modelName(), routedVendor.upstreamModel());
+
+        long logId = recorder.start(req, candidate);
+        long startMs = System.currentTimeMillis();
+
+        byte[] finalBody = ParamClamp.clamp(
+            substituteModel(req.rawBody(), routedVendor.upstreamModel(), routedVendor.modelName()),
+            MetaView.fromInstanceMeta(routedVendor.instanceMeta()).instanceCaps());
+        RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody, false);
+
+        baseRelay.execute(candidate, finalReq)
             .onSuccess(result -> {
                 recorder.complete(logId, result, startMs);
                 ctx.response()
@@ -168,68 +203,91 @@ public class RelayCoordinator {
             })
             .onFailure(err -> {
                 long latency = System.currentTimeMillis() - startMs;
-                int code = 503;
-                String errMsg = err.getMessage() != null ? err.getMessage() : "relay failed";
-                if (err instanceof RelayException re) {
-                    code = re.getError().httpStatus();
-                    if (re.getError() instanceof RelayError.UpstreamFailure uf) {
-                        String body = uf.responseBody();
-                        // 尝试从上游 JSON 响应中提取错误消息
-                        try {
-                            var respJson = new JsonObject(body);
-                            var errorObj = respJson.getJsonObject("error");
-                            if (errorObj != null && errorObj.getString("message") != null) {
-                                errMsg = "upstream: " + errorObj.getString("message");
-                            } else {
-                                errMsg = "upstream " + uf.httpCode();
-                            }
-                        } catch (Exception e) {
-                            errMsg = "upstream " + uf.httpCode();
-                        }
-                    } else {
-                        errMsg = re.getMessage() != null ? re.getMessage() : errMsg;
-                    }
+                int status = extractHttpStatus(err);
+                String errMsg = extractErrorMessage(err);
+
+                // 任何上游错误 → 试下一个，队空才报错
+                log.warn("{} from vendor={}, try next ({} left)",
+                    status, vendorName, queue.size());
+                if (status == 429 && routedVendor.vendor() != null) {
+                    cooldown.setVendorCooldown(routedVendor.vendor().getId());
                 }
-                recorder.fail(logId, code, errMsg, latency);
-                error(ctx, code, errMsg);
+                recorder.fail(logId, status, errMsg, latency);
+                relayBufferedInner(ctx, req, queue, errMsg);
             });
     }
 
-    // --- 流式中继 ---
-    // TODO: V2.1 — 通过真正的装饰器链应用 Header + Reasoning，
-    // 而不是在这里复制粘贴逻辑。
+    private static int extractHttpStatus(Throwable err) {
+        if (err instanceof RelayException re
+                && re.getError() instanceof RelayError.UpstreamFailure upstreamFailure) {
+            return upstreamFailure.httpCode();
+        }
+        return 503;
+    }
+
+    private static String extractErrorMessage(Throwable err) {
+        if (err instanceof RelayException re
+                && re.getError() instanceof RelayError.UpstreamFailure upstreamFailure) {
+            String body = upstreamFailure.responseBody();
+            if (body != null) {
+                try {
+                    var json = new JsonObject(body);
+                    var errorNode = json.getJsonObject("error");
+                    if (errorNode != null && errorNode.getString("message") != null) {
+                        return "upstream: " + errorNode.getString("message");
+                    }
+                } catch (Exception ignored) {}
+            }
+            return "upstream " + upstreamFailure.httpCode();
+        }
+        return err.getMessage() != null ? err.getMessage() : "relay failed";
+    }
+
+    // --- 流式中继：遍历候选队列直到成功 ---
 
     private void relayStream(RoutingContext ctx, RelayRequest req,
-                             Candidate candidate, RoutedVendor first,
-                             RelayContext relayCtx,
-                             long logId, long startMs) {
-        // 替换请求体中的模型名称
-        byte[] finalBody = substituteModel(req.rawBody(), first.upstreamModel(), first.modelName());
+                             LinkedList<RoutedVendor> queue,
+                             RelayContext relayCtx) {
+        if (queue.isEmpty()) {
+            error(ctx, 503, "no available instances for " + req.requestedModel());
+            return;
+        }
+        RoutedVendor first = queue.removeFirst();
+        Candidate candidate = first.toCandidate();
 
-        var extraHeaders = MultiMap.caseInsensitiveMultiMap();
-        candidate.extraHeaders().forEach(extraHeaders::add);
-
-        // HACK: kimi.com UA（与 HeaderDecorator 相同）
-        if (first.vendor() != null && first.vendor().getBaseUrl() != null
-            && first.vendor().getBaseUrl().contains("kimi.com")) {
-            extraHeaders.set("User-Agent", "KimiCLI/1.6");
+        if (first.vendor() == null) {
+            log.warn("stream: vendor null for instance={}, skip", first.instanceId());
+            relayStream(ctx, req, queue, relayCtx);
+            return;
         }
 
-        // Reasoning 头部（与 ReasoningDecorator 相同）
+        // Kimi API 需要 CLI UA
+        if (first.vendor().getBaseUrl() != null
+                && first.vendor().getBaseUrl().contains("kimi.com")) {
+            candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
+        }
+
+        // Reasoning 头部
         if (relayCtx.reasoning()) {
-            extraHeaders.set("X-Reasoning-Effort", "max");
+            candidate.extraHeaders().add("X-Reasoning-Effort", "max");
         }
 
-        var relayReq = new UpstreamClient.RelayRequest(
+        long logId = recorder.start(req, candidate);
+        long startMs = System.currentTimeMillis();
+        byte[] finalBody = ParamClamp.clamp(
+            substituteModel(req.rawBody(), first.upstreamModel(), first.modelName()),
+            MetaView.fromInstanceMeta(first.instanceMeta()).instanceCaps());
+
+        var relayReq = new UpstreamClient.OutboundRequest(
             first.vendor().getBaseUrl(),
             first.vendor().getApiKey(),
-            ctx.request().path(),
+            "/v1/chat/completions",
             ctx.request().method().name(),
             finalBody,
-            extraHeaders,
+            candidate.extraHeaders(),
             ctx.response());
 
-        String reqId = ctx.get("req_id") != null ? (String) ctx.get("req_id") : "";
+        String reqId = ctx.get("sessionId") != null ? (String) ctx.get("sessionId") : "";
         log.info("[req={}] stream relay -> {} #{} model={}",
             reqId, first.vendor().getName(), first.instanceId(), first.upstreamModel());
 
@@ -242,43 +300,29 @@ public class RelayCoordinator {
             } else {
                 cooldown.setInstanceCooldown(first.instanceId(), first.instanceTags());
             }
-            if (logId > 0) {
-                recorder.completeStream(logId, statusCode, tokens, latency);
-            }
-        });
+            recorder.completeStream(logId, statusCode, tokens, latency);
+        }, null);
     }
 
     // --- 辅助方法 ---
 
-    private Candidate toCandidate(RoutedVendor rv) {
-        Instance inst = new Instance();
-        inst.setId(rv.instanceId());
-        inst.setModelName(rv.modelName());
-        inst.setUpstreamModel(rv.upstreamModel());
-        inst.setVendor(rv.vendor());
-        inst.setStatus(rv.instanceStatus());
-        inst.setMeta(rv.instanceMeta());
-        return new Candidate(rv.vendor(), inst, rv.upstreamModel());
-    }
-
     /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
+
     private static byte[] substituteModel(byte[] rawBody, String upstreamModel, String srcModel) {
         if (upstreamModel == null || upstreamModel.equals(srcModel)) return rawBody;
         try {
             JsonObject json = new JsonObject(new String(rawBody));
             json.put("model", upstreamModel);
             return json.encode().getBytes();
-        } catch (Exception e) {
+        } catch (Exception ex) {
             return rawBody;
         }
     }
 
     private static Comparator<RoutedVendor> buildSorter(AppConfig config) {
-        List<String> layerOrder = config.getRelay().getLayerOrder();
+        // pref 排序 = 基础 pref + layer 偏移（free+0, subscription+10000, payg+20000）
         return new ByPref()
-            .thenComparing(new ByInstanceLayer(layerOrder))
-            .thenComparing(new ByVendorLayer(layerOrder))
-            .thenComparing(new RawStatusLast())
+            .thenComparing(new ByStatusDesc())
             .thenComparing(new ById());
     }
 

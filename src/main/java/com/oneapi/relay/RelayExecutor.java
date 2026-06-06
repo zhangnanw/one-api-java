@@ -10,5 +10,5 @@ import io.vertx.core.Future;
  * 装饰器模式 —— 每个实现包装或扩展另一个实现。
  */
 public interface RelayExecutor {
-    Future<RelayResult> execute(Candidate c, RelayRequest req);
+    Future<RelayResult> execute(Candidate candidate, RelayRequest req);
 }
