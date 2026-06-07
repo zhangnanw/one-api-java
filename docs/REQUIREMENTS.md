@@ -1,7 +1,7 @@
 # one-api-java 需求文档
 
-> Go → Java 重写。对照 [Go 版 docs/REQUIREMENTS.md](../../one-api/docs/REQUIREMENTS.md)。
-> 架构决策已更新为 Java 实现。
+> **Java 版为唯一主版本。** Go 版（`project/one-api/`）已废弃，仅作历史参考，不再维护。
+> 架构决策、需求变更、代码演进以本文档和 Java 源码为准。
 
 ---
 
