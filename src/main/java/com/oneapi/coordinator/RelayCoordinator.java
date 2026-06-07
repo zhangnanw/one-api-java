@@ -292,14 +292,17 @@ public class RelayCoordinator {
             error(ctx, 503, "no available instances for " + req.requestedModel());
             return;
         }
-        RoutedVendor first = queue.removeFirst();
-        Candidate candidate = first.toCandidate();
-
-        if (first.vendor() == null) {
-            log.warn("stream: vendor null for instance={}, skip", first.instanceId());
-            relayStream(ctx, req, queue, relayCtx);
+        // 跳过 vendor 为 null 的候选（防御性）
+        while (!queue.isEmpty() && queue.getFirst().vendor() == null) {
+            log.warn("stream: vendor null for instance={}, skip", queue.removeFirst().instanceId());
+        }
+        if (queue.isEmpty()) {
+            error(ctx, 503, "V2 stream: no candidates left");
             return;
         }
+        RoutedVendor first = queue.removeFirst();
+
+        Candidate candidate = first.toCandidate();
 
         // Kimi API 需要 CLI UA
         if (first.vendor().getBaseUrl() != null
