@@ -60,14 +60,14 @@ public class VirtualModelLookup implements Filter {
         MatchRule rule = MatchRuleParser.parse(virtualModel.getMatch());
         ctx.setMatchRule(rule);
 
-        // 设置上游模型名称
-        // ModelsMatch：设 modelNames，不设上游模型名（RelayCoordinator 以此为准）
+        // 设置路由模型名称
+        // ModelsMatch：设 modelNames，不设路由模型名（RelayCoordinator 以此为准）
         if (rule instanceof MatchRule.ModelsMatch mm) {
             ctx.setModelNames(mm.modelNames());
         } else if (rule instanceof MatchRule.NameMatch(String modelName)) {
-            ctx.setUpstreamModel(modelName);
+            ctx.setRoutingModelName(modelName);
         } else {
-            ctx.setUpstreamModel(lookupName);
+            ctx.setRoutingModelName(lookupName);
         }
 
         if (reasoning) {
@@ -78,7 +78,7 @@ public class VirtualModelLookup implements Filter {
             log.debug("VirtualModelLookup: {} → {} (rule=ModelsMatch, {} models)",
                 model, lookupName, mm.modelNames().size());
         } else {
-            log.debug("VirtualModelLookup: {} → {} (rule={})", model, ctx.upstreamModel(),
+            log.debug("VirtualModelLookup: {} → {} (rule={})", model, ctx.routingModelName(),
                 rule.getClass().getSimpleName());
         }
         return ctx;

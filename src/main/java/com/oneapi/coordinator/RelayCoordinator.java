@@ -107,8 +107,8 @@ public class RelayCoordinator {
                 }
             }
         } else {
-            // 原路径：单 upstreamModel
-            String targetModel = relayCtx.upstreamModel();
+            // 原路径：单 routingModelName
+            String targetModel = relayCtx.routingModelName();
             if (targetModel == null || targetModel.isEmpty()) {
                 targetModel = req.requestedModel();
             }

@@ -30,13 +30,13 @@ class RelayContextTest {
     @Test
     void settersAndGetters_roundTrip() {
         RelayContext ctx = new RelayContext("kimi-k2.6");
-        ctx.setUpstreamModel("deepseek-v3");
+        ctx.setRoutingModelName("deepseek-v3");
         ctx.setMatchRule(new MatchRule.AllMatch());
         ctx.setMatchedPhysical(true);
         ctx.setCapabilityRequired("reasoning");
         ctx.setReasoning(true);
 
-        assertThat(ctx.upstreamModel()).isEqualTo("deepseek-v3");
+        assertThat(ctx.routingModelName()).isEqualTo("deepseek-v3");
         assertThat(ctx.matchRule()).isInstanceOf(MatchRule.AllMatch.class);
         assertThat(ctx.matchedPhysical()).isTrue();
         assertThat(ctx.capabilityRequired()).isEqualTo("reasoning");

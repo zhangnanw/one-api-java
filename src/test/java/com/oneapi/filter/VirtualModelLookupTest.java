@@ -102,7 +102,7 @@ class VirtualModelLookupTest {
         assertEquals(2, result.modelNames().size());
         assertEquals("deepseek-v4-flash", result.modelNames().get(0));
         assertEquals("deepseek-v4-pro", result.modelNames().get(1));
-        // upstreamModel should NOT be set for ModelsMatch
-        assertNull(result.upstreamModel());
+        // routingModelName should NOT be set for ModelsMatch
+        assertNull(result.routingModelName());
     }
 }

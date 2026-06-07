@@ -15,7 +15,7 @@ import java.util.List;
 public class RelayContext {
     // 阶段2：模型解析
     private String requestedModel;
-    private String upstreamModel;
+    private String routingModelName;
     private MatchRule matchRule;
     private boolean matchedPhysical;
     private String capabilityRequired;
@@ -24,7 +24,7 @@ public class RelayContext {
     // 阶段3：候选列表
     private List<RoutedVendor> candidates;
     
-    /** ModelsMatch 的逻辑模型名列表。非空时 RelayCoordinator 以此为准，忽略 upstreamModel。 */
+    /** ModelsMatch 的逻辑模型名列表。非空时 RelayCoordinator 以此为准，忽略 routingModelName。 */
     private List<String> modelNames;
 
     // 错误状态
@@ -60,8 +60,8 @@ public class RelayContext {
     public String requestedModel() { return requestedModel; }
     public void setRequestedModel(String v) { this.requestedModel = v; }
 
-    public String upstreamModel() { return upstreamModel; }
-    public void setUpstreamModel(String v) { this.upstreamModel = v; }
+    public String routingModelName() { return routingModelName; }
+    public void setRoutingModelName(String v) { this.routingModelName = v; }
 
     public MatchRule matchRule() { return matchRule; }
     public void setMatchRule(MatchRule v) { this.matchRule = v; }

@@ -36,7 +36,7 @@ class NameMatcherTest {
 
         // 严格模式：filter 不 set 任何字段
         assertThat(ctx.matchRule()).isNull();
-        assertThat(ctx.upstreamModel()).isNull();
+        assertThat(ctx.routingModelName()).isNull();
     }
 
     @Test
@@ -48,7 +48,7 @@ class NameMatcherTest {
 
         // 物理实例表里也没有 → filter 不动 ctx，留给后续 filter
         assertThat(ctx.matchRule()).isNull();
-        assertThat(ctx.upstreamModel()).isNull();
+        assertThat(ctx.routingModelName()).isNull();
     }
 
     @Test
@@ -59,7 +59,7 @@ class NameMatcherTest {
 
         // 早 return：ctx 默认 state，filter 没动
         assertThat(ctx.matchRule()).isNull();
-        assertThat(ctx.upstreamModel()).isNull();
+        assertThat(ctx.routingModelName()).isNull();
         assertThat(ctx.matchedPhysical()).isFalse();
     }
 }
