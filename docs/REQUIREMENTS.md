@@ -331,12 +331,12 @@ one-api-java/
 ### §F.1 架构
 
 ```
-请求 → 阶段2（模型解析）→ 阶段3（实例过滤）→ 排序 → 转发
+请求 → 阶段2（模型解析）→ 阶段3（候选过滤）→ 排序 → 转发
               │                    │
      NameMatcher              CooldownFilter
      VirtualModelLookup       TagFilter
-     CapabilityMarker ←──  NEW (req body检测)
-                              LayerFilter
+     CapabilityRequirementMarker / ImageDetectionFilter
+     (TODO) BodyLimitFilter   LayerFilter
                               ActiveStatusFilter
                               CapabilityInstanceFilter
 ```
@@ -352,43 +352,61 @@ one-api-java/
 
 ### §F.3 动态 Filter
 
-#### §F.3.1 VisionFilter
+#### §F.3.1 VisionFilter → ImageDetectionFilter
 
 **触发条件：** 请求体 `messages` 中包含 `image_url` 类型内容。
 
-**行为：** 阶段2 设置 `capabilityRequired = "vision"`，阶段3 `CapabilityInstanceFilter` 过滤候选实例——只保留 `model_catalog.capabilities` 包含 `"vision"` 的模型对应的实例。无候选时返回 503。
+**行为：** 阶段2 设置 `capabilityRequired = "vision"`，阶段3 `CapabilityInstanceFilter` 过滤候选实例——只保留 `model_catalog.capabilities` 包含 `"vision"` 的模型对应的实例。无候选时返回 400（与 §M.6 统一）。
 
 **示例：**
 
 ```
-请求: model="kimi", messages=[{"type":"image_url", ...}]
-kimi 入口 models: [kimi-k2.6, kimi-k2.5]
-  kimi-k2.6 → catalog: ["code","chat","vision"]  ✅ 保留
-  kimi-k2.5 → catalog: ["code","chat"]            ❌ 筛掉
-→ 只剩 kimi-k2.6 的实例参与路由
+请求: model="minimax", messages=[{"type":"image_url", ...}]
+minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
+  minimax-m2.7 → catalog: ["chat","code"]              ❌ 筛掉
+  minimax-m3   → catalog: ["chat","code","vision"]      ✅ 保留
+  minimax-m2.5 → catalog: ["chat"]                      ❌ 筛掉
+→ 只剩 minimax-m3 的实例参与路由
 ```
 
-#### §F.3.2 BodyLimitFilter
+#### §F.3.2 架构变更：实例→画像
 
-**触发条件：** 请求体 > 100KB。
+**Go 版：** VisionFilter 筛选**实例**——检查实例 meta 是否有 `capability:vision` 标签。
 
-**行为：** 拒绝转发，返回 413 `body_too_large`。不做静默截断。
+**Java 版（新）：** 有了模型画像概念后，筛选**画像**——检查 `model_catalog.capabilities` 是否包含 `"vision"`。不支持的画像对应的所有实例均被排除。更上层、更早中断。
+
+> 此变更适用于所有能力过滤场景，不仅限于 vision。
+
+**理由：** 画像标注的是模型本身的属性（能否看图），实例 meta 标注的是部署属性（哪个供应商、什么 plan）。能力是模型层面的概念，应放在画像里。
+
+**前提：** `RoutedVendor` 需暴露 `modelName` 字段（目前仅有 vendor、instanceMeta 等），CapabilityInstanceFilter 需要它能按 modelName 查 catalog。
+
+#### §F.3.3 BodyLimitFilter → 待办
+
+**状态：** 待讨论。
+
+> 模型画像引入后，请求体大小限制是否应该进入画像（不同模型窗口不同）、还是全局一刀切、还是由供应商限制——需要重新讨论。暂不入实现计划。
 
 ### §F.4 Go→Java 迁移差异
 
-| Go | Java 现状 | 差 |
-|----|----------|-----|
-| VisionFilter 动态激活，检测 image_url | ❌ 不存在 | 缺失 |
-| CapabilityMatch 规则设 capability | ✅ CapabilityRequirementMarker | 同名但逻辑不同 |
-| CapabilityInstanceFilter 查实例 meta 标签 | ✅ 查实例 meta 标签 | 应改为查 model_catalog.capabilities |
-| BodyLimitFilter (>100KB) | ❌ 不存在 | 缺失 |
+| Go | Java 现状 | 处置 |
+|----|----------|------|
+| VisionFilter 动态激活，检测 image_url | ❌ 不存在 | 待实现——改为筛画像（ImageDetectionFilter） |
+| — | — | — |
+| CapabilityMatch 规则设 capability | ✅ CapabilityRequirementMarker | 保留 |
+| CapabilityInstanceFilter 查实例 meta 标签 | ✅ 查实例 meta 标签 | 待改——改为查 model_catalog.capabilities |
+| BodyLimitFilter (>100KB) | ❌ 不存在 | 待办，需重新讨论 |
 
 ### §F.5 实施计划
 
-1. **BodyFilter**：阶段2 检测请求体，含 image_url → `capabilityRequired = "vision"`，>100KB → 拒绝
-2. **CapabilityInstanceFilter 改造**：从查实例 meta 标签 → 查 model_catalog.capabilities
-3. **CapabilityRequirementMarker 扩展**：ModelsMatch 也走动态检测，不依赖 CapabilityMatch 规则
-4. 移除 CapabilityMatch 规则的 capability detection（已被 BodyFilter 覆盖）
+1. **`RoutedVendor` 加 `modelName`**：暴露实例的 model_name，供 CapabilityInstanceFilter 按画像名查 catalog
+2. **ImageDetectionFilter（阶段2）**：检测请求体含 `image_url` → 设 `capabilityRequired = "vision"`
+3. **CapabilityInstanceFilter 改造（阶段3）**：从查实例 meta 标签 → 查 `model_catalog.capabilities`（通过 `RoutedVendor.modelName()` → `ModelCatalogRepo`）
+4. CapabilityRequirementMarker 保留（CapabilityMatch 规则场景）
+5. 并发能力需求（CapabilityMatch + ImageDetectionFilter 同时激活）→ 当前取 last-write-wins，后续支持多值
+6. `CapabilityInstanceFilterTest` 重写（4 个旧测试基于实例 meta，需改写为 catalog 查表）
+7. 错误码：无候选 → 400（OpenAI 兼容），与 §M.6 统一
+8. BodyLimitFilter → 待办（§F.3.3）
 
 ---
 
