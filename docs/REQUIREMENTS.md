@@ -5,12 +5,46 @@
 
 ---
 
+## 核心概念
+
+### 关系
+
+```
+用户请求 model="deepseek"
+         │
+         ▼
+   模型入口 ──(models 列表)──→ 逻辑模型（模型画像）
+         │                         │  能力/价格/窗口
+         │                         │  每个画像有多个实例
+         │                         ▼
+         │                    模型实例（队列）
+         │                         │  vendor 绑在实例上，不单独选
+         │                         ▼
+         │                    排序 → 依次尝试
+         │                         │
+         ◄─────────────────────────┘
+              上游模型名替换，发请求
+```
+
+### 四个概念
+
+| 概念 | 等价名 | 一句话 | 例子 |
+|------|--------|--------|------|
+| **模型入口** | 虚拟模型 | 用户请求的 model 参数，指定"要用哪些模型" | `deepseek`、`coding` |
+| **逻辑模型** | 模型画像 | 描述模型能干什么、多贵、多大窗口。挑画像比挑实例更专注 | `deepseek-v4-flash`：能力=["code"]，窗口=131072，输入=1.0¥/M token |
+| **模型实例** | — | 实际跑 LLM 的端点。vendor 绑在实例上 | 火山引擎部署的 deepseek-v4-pro 端点 |
+| **上游模型名** | — | 发请求时替换给上游 API 的 model 值 | `doubao-seed-2.0-pro-260215` |
+
+**关系：** 入口说"谁行"（画像名列表）→ 画像说"什么属性"→ 实例说"走哪条路"（vendor/端点）。**入口不直接挑实例。**
+
+---
+
 ## 迁移状态
 
 | 模块 | 状态 | 技术栈 |
 |------|------|--------|
 | 路由 + 冷却 + 过滤 | ✅ | Caffeine cache (Go: sync.Map) |
-| 虚拟模型 | ✅ | Vert.x Router |
+| 模型入口 | ✅ | Vert.x Router |
 | CRUD 管理 API | ✅ | Vert.x Router + HikariCP SQLite |
 | Relay 转发 | ✅ | WebClient (buffered) + HttpClient (pipe) |
 | CORS + tokenHash | ✅ | Vert.x Route handler |
@@ -32,9 +66,8 @@
 | **模型入口**（即虚拟模型） | 用户看到的 API 入口名。`/v1/chat/completions` 的 `model` 参数。在 `virtual_models` 表中有一条记录 | `deepseek-v4-pro`、`coding`、`auto` |
 | **match 规则** | 模型入口关联实例的筛选条件，存在 `virtual_models.match` 字段（JSON）。**不是名字绑定，是过滤器：可按 model_name / tag / capability / layer 筛选** | `{"model_name":"deepseek-v4-pro"}` — 名字匹配；`{"all":["capability:reasoning"]}` — 标签匹配 |
 | **模型实例** | 实际运行 LLM 的服务端点。有 `modelName`、`tags`、`vendor`、`meta`、`status` 等属性。存在 `instances` 表中 | vendor=deepseek 的 deepseek-v4-pro 实例，vendor=volcengine 的 doubao 实例 |
-| **上游模型名** | 中继时发给上游 API 的 `model` 参数。存于 `instances.upstream_model`，**可以跟虚拟模型名不同** | 虚拟模型叫 `doubao-seed-2.0-pro`，上游模型名叫 `doubao-seed-2.0-pro-260215` |
-| **逻辑模型** | 跨越 vendor 的抽象模型概念。多个 vendor 可以提供同一个逻辑模型的不同实例。在 `model_catalog` 表（模型画像）中有一条记录 | `deepseek-v4-pro` 是一个逻辑模型，deepseek 和 volcengine 都可以部署它的实例 |
-| **模型画像**（model_catalog） | 描述逻辑模型的能力属性：支持的能力标签、上下文窗口、输入/输出价格 | `deepseek-v4-flash`：capabilities=`["code"]`, context=131072, input=1.0 ¥/M token |
+| **上游模型名** | 中继时发给上游 API 的 `model` 参数。存于 `instances.upstream_model`，**可以跟入口名不同** | 入口叫 `doubao-seed-2.0-pro`，上游模型名叫 `doubao-seed-2.0-pro-260215` |
+| **逻辑模型**（模型画像，model_catalog） | 跨越 vendor 的抽象模型概念。描述能力属性：能力标签、上下文窗口、输入/输出价格。存于 `model_catalog` 表 | `deepseek-v4-flash`：capabilities=`["code"]`, context=131072, input=1.0 ¥/M token，deepseek 和 volcengine 都可以部署它的实例 |
 | **用例模型入口** | 按使用场景命名的模型入口。match 规则筛选出多个逻辑模型的实例，排序后依次尝试 | `coding` → 包含 mimo-v2.5、minimax-m2.7、deepseek-v4-flash 等多个逻辑模型的实例 |
 
 **关联关系：**
@@ -44,7 +77,7 @@
     │
     │  匹配到的实例属于某个逻辑模型
     ↓
-逻辑模型 (模型画像)
+逻辑模型
     │
     │  提供 cost / context_window / capabilities 等事实数据
     ↓
@@ -136,7 +169,7 @@ deploy-java.bat
 
 | 需求 | Go | Java |
 |------|-----|------|
-| 虚拟模型 CRUD | ✅ | ✅ |
+| 模型入口 CRUD | ✅ | ✅ |
 | Vendor CRUD | ✅ | ✅ |
 | Instance CRUD | ✅ | ✅ |
 | vendor/refresh-models | ✅ | ✅（executeBlocking） |
