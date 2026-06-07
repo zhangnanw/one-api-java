@@ -63,8 +63,8 @@
 
 | 概念 | 是什么 | 例子 |
 |------|--------|------|
-| **模型入口**（即虚拟模型） | 用户看到的 API 入口名。`/v1/chat/completions` 的 `model` 参数。在 `virtual_models` 表中有一条记录 | `deepseek-v4-pro`、`coding`、`auto` |
-| **match 规则** | 模型入口关联实例的筛选条件，存在 `virtual_models.match` 字段（JSON）。**不是名字绑定，是过滤器：可按 model_name / tag / capability / layer 筛选** | `{"model_name":"deepseek-v4-pro"}` — 名字匹配；`{"all":["capability:reasoning"]}` — 标签匹配 |
+| **模型入口**（即虚拟模型） | 用户看到的 API 入口名。`/v1/chat/completions` 的 `model` 参数。在 `virtual_models` 表中有一条记录 | `deepseek-v4-pro`、`coding` |
+| **match 规则** | 模型入口的 `models` 字段，列出逻辑模型名列表。**入口不绑定实例，只声明"哪些画像可用"** | `{"models":["deepseek-v4-flash","deepseek-v4-pro"]}` — 列表顺序=弱→强，在同 layer/pref 的实例间作为排序依据 |
 | **模型实例** | 实际运行 LLM 的服务端点。有 `modelName`、`tags`、`vendor`、`meta`、`status` 等属性。存在 `instances` 表中 | vendor=deepseek 的 deepseek-v4-pro 实例，vendor=volcengine 的 doubao 实例 |
 | **上游模型名** | 中继时发给上游 API 的 `model` 参数。存于 `instances.upstream_model`，**可以跟入口名不同** | 入口叫 `doubao-seed-2.0-pro`，上游模型名叫 `doubao-seed-2.0-pro-260215` |
 | **逻辑模型**（模型画像，model_catalog） | 跨越 vendor 的抽象模型概念。描述能力属性：能力标签、上下文窗口、输入/输出价格。存于 `model_catalog` 表 | `deepseek-v4-flash`：capabilities=`["code"]`, context=131072, input=1.0 ¥/M token，deepseek 和 volcengine 都可以部署它的实例 |
@@ -184,7 +184,7 @@ deploy-java.bat
 | request_logs | ✅ | ❌ |
 | GPU 双探针 | ✅ | ❌ |
 | 上下文压缩识别 | ✅ | ❌ |
-| 亲和路由（已关闭） | 代码保留 | ❌ |
+| 亲和路由（软粘性） | ✅ | ✅ |
 
 ---
 
@@ -250,33 +250,73 @@ one-api-java/
     ├── Main.java
     ├── config/
     │   ├── AppConfig.java
+    │   ├── ConfigLoader.java
     │   ├── DatabaseConfig.java   HikariCP + SQLite
     │   └── RouterConfig.java     Vert.x Router
     ├── model/
-    │   ├── Vendor.java
-    │   ├── Instance.java
-    │   └── VirtualModel.java
+    │   ├── Vendor.java / VendorCaps.java / VendorWithCount.java
+    │   ├── Instance.java / InstanceCaps.java / MetaKeys.java / MetaView.java
+    │   ├── VirtualModel.java
+    │   ├── MatchRule.java / MatchRuleParser.java
+    │   ├── ModelSpec.java
+    │   ├── Candidate.java
+    │   ├── RelayContext.java / RelayRequest.java / RelayResult.java
+    │   ├── RelayLog.java
+    │   └── RelayError.java / RelayException.java
     ├── repo/
+    │   ├── BaseRepo.java
     │   ├── VendorRepo.java       手写 SQL
     │   ├── InstanceRepo.java
-    │   └── VirtualModelRepo.java
+    │   ├── VirtualModelRepo.java
+    │   └── ModelCatalogRepo.java
     ├── middleware/
     │   ├── CORS.java
     │   └── RequestSetup.java     tokenHash
+    ├── comparator/               ← 排序链
+    │   ├── ById.java
+    │   ├── ByPref.java
+    │   ├── ByStatusDesc.java
+    │   ├── ByCost.java          （待加）
+    │   ├── ByReliability.java   （待加）前置：relay-log.db
+    │   ├── ByLatency.java       （待加）前置：relay-log.db
+    │   └── ByModelWeakness.java （待加）
+    ├── filter/                   ← stage3 过滤
+    │   ├── Filter.java
+    │   ├── ActiveStatusFilter.java
+    │   ├── CapabilityInstanceFilter.java
+    │   ├── CapabilityRequirementMarker.java
+    │   ├── CooldownFilter.java
+    │   ├── LayerFilter.java
+    │   ├── NameMatcher.java
+    │   ├── ParamClamp.java
+    │   ├── TagFilter.java
+    │   └── VirtualModelLookup.java
+    ├── coordinator/              ← 中继编排
+    │   ├── RelayCoordinator.java
+    │   ├── RelayRecorder.java
+    │   └── RequestParser.java
+    ├── relay/                    ← 上游转发
+    │   ├── RelayExecutor.java
+    │   └── DefaultRelay.java
     ├── service/
     │   ├── CooldownService.java  Caffeine
-    │   ├── FilterService.java
+    │   ├── FilterUtils.java
     │   ├── RouterService.java
-    │   ├── SessionTracker.java   SHA256
-    │   └── VendorRefreshService.java
+    │   ├── SessionTracker.java   SHA256 + 软粘性
+    │   ├── VendorRefreshService.java
+    │   └── RelayLogger.java
     ├── handler/
-    │   └── OpenAICompatHandler.java  WebClient + HttpClient
-    └── controller/
-        ├── MiscController.java
-        ├── VendorController.java
-        ├── InstanceController.java
-        ├── VirtualModelController.java
-        └── RelayController.java
+    │   └── UpstreamClient.java   WebClient + HttpClient
+    ├── controller/
+    │   ├── BaseController.java
+    │   ├── MiscController.java
+    │   ├── VendorController.java
+    │   ├── InstanceController.java
+    │   ├── VirtualModelController.java
+    │   └── RelayControllerV2.java
+    └── scoring/                  ← 待清理（c11d887 遗留）
+        ├── InstanceScorer.java
+        └── NoopInstanceScorer.java
 ```
 
 ## §M 模型选择（v0.2）
@@ -330,7 +370,7 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 **决策：**
 - 两种类型走相同逻辑（无差别）
 - `auto` 虚拟模型**删除**——太泛，无法推断用例
-- 列表顺序 = 弱→强（先试便宜的/简单的，失败再升级）
+- 列表顺序 = 弱→强，**在同 layer/pref 的实例间作为排序依据**（由 ByModelWeakness Comparator 实现）。真正优先级由排序链（§M.4.3）决定——实例维度（layer/pref/cost/指标）优先于模型维度（弱→强）
 - 列表顺序由人工手写——不依赖字母序或自动推断
 - 能力过滤作用于列表中的每个模型
 - 过滤后列表为空 → 返回错误（不静默 fallback）
@@ -349,7 +389,8 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 1. 加载候选          loadCandidates(targetModel)
 2. stage3 过滤        能力 / Cooldown
 3. 排序              按 Comparator 链
-4. 队列试错          失败切下一个候选
+4. 软粘性 boost      上次实例移到队首
+5. 队列试错          失败切下一个候选
 ```
 
 #### §M.4.3 排序链
@@ -361,8 +402,8 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 | 1 | layer | instance meta | ByPref（已有） |
 | 2 | pref | instance meta | ByPref（已有） |
 | 3 | cost | model_catalog | ByCost（待加） |
-| 4 | reliability | relay-log.db | ByReliability（待加） |
-| 5 | latency | relay-log.db | ByLatency（待加） |
+| 4 | reliability | relay-log.db | ByReliability（待加）<br>前置：relay-log.db |
+| 5 | latency | relay-log.db | ByLatency（待加）<br>前置：relay-log.db |
 | 6 | model 弱→强 | virtual_model.match | ByModelWeakness（待加） |
 
 **关键洞察：** 实例层（layer / pref / cost / 指标）比模型层（弱→强）优先级高。"免费的先用"是 layer 维度的具体表现。
@@ -452,6 +493,7 @@ HTTP 状态码 `400`，与 OpenAI 的 `invalid_request_error` 一致。
 | 改 RelayCoordinator 主路径 | 已有逻辑回归 | 全量回归测试 + 单测覆盖 |
 | 改 SessionTracker 数据结构 | 老数据不兼容 | 字段加 default（null/0） |
 | cost/reliability/latency 数据源延迟 | 排序可能用旧数据 | TTL 短（5min） |
+| 数据源不存在时 comparator 降级 | ByReliability/ByLatency 依赖 relay-log.db，不存在时降级为中性分值 | comparator 内部 null-safe + fallback 为 0 |
 | 现有 15 个虚拟模型改造 | 数据迁移 | SQL 脚本一次性更新 |
 | 用户预期与系统行为不一致 | 中 | 文档说明 + 错误码清晰 |
 
