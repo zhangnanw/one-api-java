@@ -2,3 +2,4 @@ target/
 *.log
 .idea/
 dependency-reduced-pom.xml
+"server.*.log.gz"  

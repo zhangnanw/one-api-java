@@ -64,9 +64,6 @@ public class AppConfig {
         private int maxRetries = 2;
         private int cacheTtlSeconds = 10;
         private List<String> layerOrder = List.of("free", "subscription", "payg");
-        // 严格模式：未命中虚拟模型时直接 404，不允许按物理 model_name 兜底
-        // 设计原则：API 表面只暴露虚拟模型，不暴露具体实例
-        private boolean requireVirtualModel = true;
 
     }
 

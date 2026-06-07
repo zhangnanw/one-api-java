@@ -118,12 +118,10 @@ public class RouterConfig {
         var sessions = new SessionTracker();
 
         // 第二阶段过滤器（模型解析）
-        boolean requireVM = config.getRelay() != null && config.getRelay().isRequireVirtualModel();
         List<Filter> stage2 = List.of(
-            new NameMatcher(new InstanceRepo(), requireVM),
+            new NameMatcher(new InstanceRepo()),
             new VirtualModelLookup(new VirtualModelRepo(),
-                config.getPolicies().getReasoning().getTriggerSuffix(),
-                requireVM),
+                config.getPolicies().getReasoning().getTriggerSuffix()),
             new CapabilityRequirementMarker()
         );
 

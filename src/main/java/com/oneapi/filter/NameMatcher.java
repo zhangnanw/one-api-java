@@ -8,18 +8,17 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 阶段 2 — 检查 requestedModel 是否为物理模型名称。
- * 如果在 instances 表中找到，则设置 ctx.matchedPhysical(true)
- * 并跳过虚拟模型查找。
+ * 物理模型名命中 instances 表时，不设任何 ctx 字段，交给
+ * VirtualModelLookup 处理（最终 404）。
+ * API 表面只暴露虚拟模型，不暴露具体实例。
  */
 public class NameMatcher implements Filter {
     private static final Logger log = LoggerFactory.getLogger(NameMatcher.class);
 
     private final InstanceRepo instanceRepo;
-    private final boolean requireVirtualModel;
 
-    public NameMatcher(InstanceRepo instanceRepo, boolean requireVirtualModel) {
+    public NameMatcher(InstanceRepo instanceRepo) {
         this.instanceRepo = instanceRepo;
-        this.requireVirtualModel = requireVirtualModel;
     }
 
     @Override
@@ -30,17 +29,7 @@ public class NameMatcher implements Filter {
         }
 
         if (instanceRepo.existsByModelName(model)) {
-            // 严格模式：物理 model_name 命中 instances 表也不允许直通
-            // 设计：API 表面只暴露虚拟模型，不暴露具体实例
-            if (requireVirtualModel) {
-                log.debug("NameMatcher: {} is a physical model, but strict mode forbids direct use", model);
-                // 不设 matchedPhysical，让 VirtualModelLookup 处理（最终会 404）
-                return ctx;
-            }
-            log.debug("NameMatcher: {} is a physical model", model);
-            ctx.setMatchedPhysical(true);
-            ctx.setMatchRule(new MatchRule.AllMatch());
-            ctx.setUpstreamModel(model);
+            log.debug("NameMatcher: {} is a physical model, direct use forbidden", model);
         }
 
         return ctx;
