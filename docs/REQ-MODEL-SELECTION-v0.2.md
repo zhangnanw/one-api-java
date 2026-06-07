@@ -153,7 +153,22 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 | # | 问题 | 状态 |
 |---|------|------|
 | 1 | relay-log.db schema 现状？需要补哪些字段？ | 未查 |
-| 2 | 列表为空错误码和错误信息格式 | 未定 |
+| 2 | 列表为空错误码和错误信息格式 | ✅ 决策：OpenAI 兼容 `400` + 标准错误 JSON |
+
+### 6.1 列表为空错误格式（已定）
+
+```json
+{
+  "error": {
+    "message": "The virtual model 'deepseek-v4-pro' has no model supporting the requested capabilities",
+    "type": "invalid_request_error",
+    "param": null,
+    "code": "unsupported_capability"
+  }
+}
+```
+
+HTTP 状态码 `400`，与 OpenAI 的 `invalid_request_error` 一致。
 
 ## 7. 不在本版本
 

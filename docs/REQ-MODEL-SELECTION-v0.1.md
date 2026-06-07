@@ -93,7 +93,7 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 | # | 问题 | 决策状态 |
 |---|------|---------|
 | 1 | 候选模型列表的来源：扩 virtual_model.match JSON 加 `models` 字段？还是另开机制？ | ✅ 决策：扩 match JSON 加 `models` 字段 |
-| 2 | 弱→强排序依据：模型名？人工指定？benchmark？ | 模型名（待确认） |
+| 2 | 弱→强排序依据：模型名？人工指定？benchmark？ | ✅ 决策：列表顺序由人工手写，作为弱→强的最终依据 |
 | 3 | relay-log.db schema 现状？需要补哪些字段？ | 未查 |
 | 4 | cost / reliability / latency 三个 Comparator 怎么写？ | 未设计 |
 | 5 | "用例"如何识别？ | ✅ 决策：用户主动请求虚拟模型名，零识别开销 |

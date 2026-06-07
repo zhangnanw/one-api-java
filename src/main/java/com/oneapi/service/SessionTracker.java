@@ -11,7 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+import java.util.OptionalLong;
 
 /**
  * Session tracker — identifies agents by conversation content hash.
@@ -28,6 +30,7 @@ public class SessionTracker {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     private static final int MIN_MATCH_LINES = 3;
+    private static final long STICKY_TTL_MS = 300_000; // 5 minutes
     private static final Pattern TEXT_LINE_RE = Pattern.compile("^\\[text\\]: (.+)");
 
     // key = hex(SHA256), value = SessionTrack
@@ -35,7 +38,16 @@ public class SessionTracker {
         .maximumSize(500)
         .build();
 
-    public record SessionTrack(String sessionId, String hash, int updateCount) {}
+    // 反向索引：sessionId → hash，O(1) 查 session
+    private final Map<String, String> sessionToHash = new ConcurrentHashMap<>();
+
+    public record SessionTrack(String sessionId, String hash, int updateCount,
+                                Long lastInstanceId, long lastUsedAt) {
+        /** Backward-compatible constructor (defaults for soft-stickiness fields). */
+        public SessionTrack(String sessionId, String hash, int updateCount) {
+            this(sessionId, hash, updateCount, null, 0L);
+        }
+    }
 
     /**
      * Match conversation to a session.
@@ -102,17 +114,15 @@ public class SessionTracker {
 
     /** 命中即复用，miss 即创建新会话；写回 store。 */
     private String lookupOrCreate(SessionTrack matched, String finalHash) {
-        String sessionId;
         if (matched == null) {
-            sessionId = UUID.randomUUID().toString();
-            matched = new SessionTrack(sessionId, finalHash, 0);
-        } else {
-            store.invalidate(matched.hash);
-            matched = new SessionTrack(matched.sessionId, finalHash, matched.updateCount() + 1);
-            sessionId = matched.sessionId;
+            String sessionId = UUID.randomUUID().toString();
+            store.put(finalHash, new SessionTrack(sessionId, finalHash, 0));
+            sessionToHash.put(sessionId, finalHash);
+            return sessionId;
         }
-        store.put(finalHash, matched);
-        return sessionId;
+        // 复用已有会话，走原子替换
+        swapSessionHash(matched.sessionId, matched.hash, finalHash);
+        return matched.sessionId;
     }
 
     /** 内部记录：哈希过程中的（命中状态 + digest 指针）。 */
@@ -126,26 +136,69 @@ public class SessionTracker {
 
         String newHash = hex(sha256().digest(summary.getBytes(StandardCharsets.UTF_8)));
 
-        // Find and update session by ID
-        for (var entry : store.asMap().entrySet()) {
-            if (entry.getValue().sessionId.equals(sessionId)) {
-                store.invalidate(entry.getKey());
-                store.put(newHash, new SessionTrack(sessionId, newHash, entry.getValue().updateCount() + 1));
-                return;
-            }
-        }
+        String oldHash = sessionToHash.get(sessionId);
+        if (oldHash == null) return;
+
+        swapSessionHash(sessionId, oldHash, newHash);
+    }
+
+    /**
+     * 原子化替换 session hash：
+     * 同步读取现有 track → increment updateCount → invalidate(oldHash) → put(newHash) → 更新反向索引。
+     * 返回 null 表示 session 已不存在（并发移除），调用方静默忽略。
+     */
+    private synchronized SessionTrack swapSessionHash(String sessionId, String oldHash, String newHash) {
+        SessionTrack existing = store.getIfPresent(oldHash);
+        if (existing == null) return null;
+        store.invalidate(oldHash);
+        SessionTrack upgraded = new SessionTrack(sessionId, newHash, existing.updateCount() + 1,
+            existing.lastInstanceId(), existing.lastUsedAt());
+        store.put(newHash, upgraded);
+        sessionToHash.put(sessionId, newHash);
+        return upgraded;
     }
 
     /**
      * Lookup session by ID.
      */
     public SessionTrack lookup(String sessionId) {
-        for (var entry : store.asMap().entrySet()) {
-            if (entry.getValue().sessionId.equals(sessionId)) {
-                return entry.getValue();
-            }
+        String hash = sessionToHash.get(sessionId);
+        if (hash == null) return null;
+        return store.getIfPresent(hash);
+    }
+
+    /**
+     * 记录会话使用的实例（成功中继后调用）。
+     * 如果 session 不在缓存中，静默忽略。
+     */
+    public void recordInstance(String sessionId, long instanceId) {
+        String hash = sessionToHash.get(sessionId);
+        if (hash == null) return;
+        synchronized (this) {
+            SessionTrack old = store.getIfPresent(hash);
+            if (old == null) return;
+            store.put(hash, new SessionTrack(
+                old.sessionId(), old.hash(), old.updateCount(),
+                instanceId, System.currentTimeMillis()));
         }
-        return null;
+    }
+
+    /**
+     * 查询会话的上次实例（软粘性）。
+     * 返回 OptionalLong.empty() 如果：
+     * - 无记录
+     * - lastInstanceId 为 null
+     * - 已过期（超过 STICKY_TTL_MS）
+     */
+    public OptionalLong getPreferredInstance(String sessionId) {
+        String hash = sessionToHash.get(sessionId);
+        if (hash == null) return OptionalLong.empty();
+        SessionTrack track = store.getIfPresent(hash);
+        if (track == null) return OptionalLong.empty();
+        if (track.lastInstanceId() == null) return OptionalLong.empty();
+        if ((System.currentTimeMillis() - track.lastUsedAt()) > STICKY_TTL_MS)
+            return OptionalLong.empty();
+        return OptionalLong.of(track.lastInstanceId());
     }
 
     // --- Message model ---
@@ -187,22 +240,6 @@ public class SessionTracker {
     }
 
     // --- Normalization ---
-
-    private static List<String> normalizeMessages(List<Message> messages) {
-        List<String> lines = new ArrayList<>();
-        for (Message m : messages) {
-            if ("system".equals(m.role)) continue;
-            String content = extractContentText(m.content);
-            if (content.isEmpty()) continue;
-
-            if (content.contains("# conversation")) {
-                lines.addAll(extractFromConversation(content));
-            } else {
-                lines.add(content);
-            }
-        }
-        return lines;
-    }
 
     @SuppressWarnings("unchecked")
     private static String extractContentText(Object content) {

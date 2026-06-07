@@ -115,6 +115,22 @@ public class RelayCoordinator {
             return;
         }
 
+        // 软粘性 boost：同一会话优先用上次实例
+        Object sidObj = ctx.get("sessionId");
+        if (sidObj instanceof String sid && !sid.isEmpty()) {
+            long preferredId = sessions.getPreferredInstance(sid).orElse(-1L);
+            if (preferredId > 0) {
+                filtered = new ArrayList<>(filtered);
+                for (int i = 0; i < filtered.size(); i++) {
+                    if (filtered.get(i).instanceId() == preferredId) {
+                        var prev = filtered.remove(i);
+                        filtered.add(0, prev);
+                        break;
+                    }
+                }
+            }
+        }
+
         // 第四阶段：排序
         LinkedList<RoutedVendor> queue = new LinkedList<>(filtered);
         queue.sort(sorter);
@@ -197,6 +213,10 @@ public class RelayCoordinator {
         baseRelay.execute(candidate, finalReq)
             .onSuccess(result -> {
                 recorder.complete(logId, result, startMs);
+                Object sidObj = ctx.get("sessionId");
+                if (sidObj instanceof String sid && !sid.isEmpty()) {
+                    sessions.recordInstance(sid, routedVendor.instanceId());
+                }
                 ctx.response()
                     .putHeader("Content-Type", "application/json")
                     .end(result.responseBody());
@@ -304,6 +324,10 @@ public class RelayCoordinator {
             long latency = System.currentTimeMillis() - startMs;
             if (statusCode < 500) {
                 cooldown.clearCooldown(first.instanceId(), first.vendor().getId());
+                Object sidObj = ctx.get("sessionId");
+                if (sidObj instanceof String sid && !sid.isEmpty()) {
+                    sessions.recordInstance(sid, first.instanceId());
+                }
             } else {
                 cooldown.setInstanceCooldown(first.instanceId(), first.instanceTags());
             }
