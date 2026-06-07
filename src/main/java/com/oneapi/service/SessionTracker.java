@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.OptionalLong;
 
@@ -37,9 +36,6 @@ public class SessionTracker {
     private final Cache<String, SessionTrack> store = Caffeine.newBuilder()
         .maximumSize(500)
         .build();
-
-    // 反向索引：sessionId → hash，O(1) 查 session
-    private final Map<String, String> sessionToHash = new ConcurrentHashMap<>();
 
     public record SessionTrack(String sessionId, String hash, int updateCount,
                                 Long lastInstanceId, long lastUsedAt) {
@@ -113,15 +109,24 @@ public class SessionTracker {
     }
 
     /** 命中即复用，miss 即创建新会话；写回 store。 */
-    private String lookupOrCreate(SessionTrack matched, String finalHash) {
+    private synchronized String lookupOrCreate(SessionTrack matched, String finalHash) {
         if (matched == null) {
             String sessionId = UUID.randomUUID().toString();
             store.put(finalHash, new SessionTrack(sessionId, finalHash, 0));
-            sessionToHash.put(sessionId, finalHash);
             return sessionId;
         }
-        // 复用已有会话，走原子替换
-        swapSessionHash(matched.sessionId, matched.hash, finalHash);
+        // 复用已有会话：重扫描找当前 hash（incrementalHash 到此处之间可能被改过）
+        for (var entry : store.asMap().entrySet()) {
+            if (entry.getValue().sessionId().equals(matched.sessionId)) {
+                SessionTrack existing = entry.getValue();
+                store.invalidate(entry.getKey());
+                store.put(finalHash, new SessionTrack(matched.sessionId, finalHash,
+                    existing.updateCount() + 1,
+                    existing.lastInstanceId(), existing.lastUsedAt()));
+                return matched.sessionId;
+            }
+        }
+        // 会话在 incrementalHash 到此处之间被驱逐了，仍然返回原 sessionId
         return matched.sessionId;
     }
 
@@ -131,55 +136,46 @@ public class SessionTracker {
     /**
      * Update session hash with response summary (compressed conversation).
      */
-    public void captureSummary(String sessionId, String summary) {
+    public synchronized void captureSummary(String sessionId, String summary) {
         if (summary == null || summary.isEmpty()) return;
 
         String newHash = hex(sha256().digest(summary.getBytes(StandardCharsets.UTF_8)));
 
-        String oldHash = sessionToHash.get(sessionId);
-        if (oldHash == null) return;
-
-        swapSessionHash(sessionId, oldHash, newHash);
-    }
-
-    /**
-     * 原子化替换 session hash：
-     * 同步读取现有 track → increment updateCount → invalidate(oldHash) → put(newHash) → 更新反向索引。
-     * 返回 null 表示 session 已不存在（并发移除），调用方静默忽略。
-     */
-    private synchronized SessionTrack swapSessionHash(String sessionId, String oldHash, String newHash) {
-        SessionTrack existing = store.getIfPresent(oldHash);
-        if (existing == null) return null;
-        store.invalidate(oldHash);
-        SessionTrack upgraded = new SessionTrack(sessionId, newHash, existing.updateCount() + 1,
-            existing.lastInstanceId(), existing.lastUsedAt());
-        store.put(newHash, upgraded);
-        sessionToHash.put(sessionId, newHash);
-        return upgraded;
+        for (var entry : store.asMap().entrySet()) {
+            if (entry.getValue().sessionId().equals(sessionId)) {
+                SessionTrack existing = entry.getValue();
+                store.invalidate(entry.getKey());
+                store.put(newHash, new SessionTrack(sessionId, newHash,
+                    existing.updateCount() + 1,
+                    existing.lastInstanceId(), existing.lastUsedAt()));
+                return;
+            }
+        }
     }
 
     /**
      * Lookup session by ID.
      */
     public SessionTrack lookup(String sessionId) {
-        String hash = sessionToHash.get(sessionId);
-        if (hash == null) return null;
-        return store.getIfPresent(hash);
+        for (var entry : store.asMap().entrySet()) {
+            if (entry.getValue().sessionId().equals(sessionId)) return entry.getValue();
+        }
+        return null;
     }
 
     /**
      * 记录会话使用的实例（成功中继后调用）。
      * 如果 session 不在缓存中，静默忽略。
      */
-    public void recordInstance(String sessionId, long instanceId) {
-        String hash = sessionToHash.get(sessionId);
-        if (hash == null) return;
-        synchronized (this) {
-            SessionTrack old = store.getIfPresent(hash);
-            if (old == null) return;
-            store.put(hash, new SessionTrack(
-                old.sessionId(), old.hash(), old.updateCount(),
-                instanceId, System.currentTimeMillis()));
+    public synchronized void recordInstance(String sessionId, long instanceId) {
+        for (var entry : store.asMap().entrySet()) {
+            if (entry.getValue().sessionId().equals(sessionId)) {
+                SessionTrack old = entry.getValue();
+                store.put(entry.getKey(), new SessionTrack(
+                    old.sessionId(), old.hash(), old.updateCount(),
+                    instanceId, System.currentTimeMillis()));
+                return;
+            }
         }
     }
 
@@ -191,14 +187,16 @@ public class SessionTracker {
      * - 已过期（超过 STICKY_TTL_MS）
      */
     public OptionalLong getPreferredInstance(String sessionId) {
-        String hash = sessionToHash.get(sessionId);
-        if (hash == null) return OptionalLong.empty();
-        SessionTrack track = store.getIfPresent(hash);
-        if (track == null) return OptionalLong.empty();
-        if (track.lastInstanceId() == null) return OptionalLong.empty();
-        if ((System.currentTimeMillis() - track.lastUsedAt()) > STICKY_TTL_MS)
-            return OptionalLong.empty();
-        return OptionalLong.of(track.lastInstanceId());
+        for (var entry : store.asMap().entrySet()) {
+            SessionTrack track = entry.getValue();
+            if (track.sessionId().equals(sessionId)) {
+                if (track.lastInstanceId() == null) return OptionalLong.empty();
+                if ((System.currentTimeMillis() - track.lastUsedAt()) > STICKY_TTL_MS)
+                    return OptionalLong.empty();
+                return OptionalLong.of(track.lastInstanceId());
+            }
+        }
+        return OptionalLong.empty();
     }
 
     // --- Message model ---
