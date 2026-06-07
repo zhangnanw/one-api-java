@@ -1,7 +1,7 @@
 # ModelsMatch 设计 — v0.2 模型入口列表支持
 
 > 状态：已审核（r1 打回 7 修复，r2 打回 3 修复）
-> 依赖：REQUIREMENTS.md 术语章节、REQ-MODEL-SELECTION-v0.2.md §4.1
+> 依赖：REQUIREMENTS.md 术语章节、REQUIREMENTS.md §M.4
 
 ## 用户故事
 
