@@ -221,7 +221,7 @@ public class RelayCoordinator {
         long startMs = System.currentTimeMillis();
 
         byte[] finalBody = ParamClamp.clamp(
-            substituteModel(req.rawBody(), routedVendor.upstreamModel(), routedVendor.modelName()),
+            substituteModel(req.rawBody(), routedVendor.upstreamModel(), req.requestedModel()),
             MetaView.fromInstanceMeta(routedVendor.instanceMeta()).instanceCaps());
         RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody, false);
 
@@ -318,7 +318,7 @@ public class RelayCoordinator {
         long logId = recorder.start(req, candidate);
         long startMs = System.currentTimeMillis();
         byte[] finalBody = ParamClamp.clamp(
-            substituteModel(req.rawBody(), first.upstreamModel(), first.modelName()),
+            substituteModel(req.rawBody(), first.upstreamModel(), req.requestedModel()),
             MetaView.fromInstanceMeta(first.instanceMeta()).instanceCaps());
 
         var relayReq = new UpstreamClient.OutboundRequest(
