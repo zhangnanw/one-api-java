@@ -2,6 +2,8 @@ package com.oneapi.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -30,7 +32,10 @@ public class SessionTracker {
     private static final Pattern TEXT_LINE_RE = Pattern.compile("^\\[text\\]: (.+)");
 
     // key = hex(SHA256), value = SessionTrack
-    private final ConcurrentHashMap<String, SessionTrack> store = new ConcurrentHashMap<>();
+    private final Cache<String, SessionTrack> store = Caffeine.newBuilder()
+        .expireAfterAccess(30, TimeUnit.MINUTES)
+        .maximumSize(10_000)
+        .build();
 
     public record SessionTrack(String sessionId, String hash) {}
 
@@ -87,7 +92,7 @@ public class SessionTracker {
             String hexHash = hex(snapshot.digest());
             // digest unchanged, continues accumulating
 
-            SessionTrack found = store.get(hexHash);
+            SessionTrack found = store.getIfPresent(hexHash);
             if (found != null) {
                 matched = found;
                 matchedAt = i;
@@ -104,7 +109,7 @@ public class SessionTracker {
             sessionId = UUID.randomUUID().toString();
             matched = new SessionTrack(sessionId, finalHash);
         } else {
-            store.remove(matched.hash);
+            store.invalidate(matched.hash);
             matched = new SessionTrack(matched.sessionId, finalHash);
             sessionId = matched.sessionId;
         }
@@ -124,9 +129,9 @@ public class SessionTracker {
         String newHash = hex(sha256().digest(summary.getBytes(StandardCharsets.UTF_8)));
 
         // Find and update session by ID
-        for (var entry : store.entrySet()) {
+        for (var entry : store.asMap().entrySet()) {
             if (entry.getValue().sessionId.equals(sessionId)) {
-                store.remove(entry.getKey());
+                store.invalidate(entry.getKey());
                 store.put(newHash, new SessionTrack(sessionId, newHash));
                 return;
             }
@@ -137,7 +142,7 @@ public class SessionTracker {
      * Lookup session by ID.
      */
     public SessionTrack lookup(String sessionId) {
-        for (var entry : store.entrySet()) {
+        for (var entry : store.asMap().entrySet()) {
             if (entry.getValue().sessionId.equals(sessionId)) {
                 return entry.getValue();
             }
