@@ -84,4 +84,41 @@ class SessionTrackTest {
         sessions.recordInstance(sid, 99L);
         assertEquals(OptionalLong.of(99L), sessions.getPreferredInstance(sid));
     }
+
+    // --- lookup ---
+
+    @Test
+    void testLookup_ReturnsSessionTrack() {
+        String sid = sessions.match(List.of(
+            new SessionTracker.Message("user", "hello")
+        ));
+        var track = sessions.lookup(sid);
+        assertNotNull(track);
+        assertEquals(sid, track.sessionId());
+        assertEquals(0, track.updateCount());
+    }
+
+    @Test
+    void testLookup_NotFound_ReturnsNull() {
+        assertNull(sessions.lookup("nonexistent"));
+    }
+
+    // --- recordInstance lastUsedAt ---
+
+    @Test
+    void testRecordInstance_UpdatesLastUsedAt() {
+        String sid = sessions.match(List.of(
+            new SessionTracker.Message("user", "hello")
+        ));
+
+        sessions.recordInstance(sid, 1L);
+        long firstUsedAt = sessions.lookup(sid).lastUsedAt();
+        assertTrue(firstUsedAt > 0, "lastUsedAt should be set");
+
+        // 等 1ms 确保时间戳不同，再记录另一个实例
+        try { Thread.sleep(1); } catch (InterruptedException ignored) {}
+        sessions.recordInstance(sid, 2L);
+        long secondUsedAt = sessions.lookup(sid).lastUsedAt();
+        assertTrue(secondUsedAt > firstUsedAt, "lastUsedAt should be refreshed");
+    }
 }

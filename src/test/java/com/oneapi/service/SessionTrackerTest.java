@@ -95,6 +95,48 @@ class SessionTrackerTest {
         assertThat(parsed).isEmpty();
     }
 
+    // --- lookup ---
+
+    @Test
+    void lookup_findsSession() {
+        String sid = tracker.match(messages("a", "b", "c"));
+        var track = tracker.lookup(sid);
+        assertThat(track).isNotNull();
+        assertThat(track.sessionId()).isEqualTo(sid);
+        assertThat(track.updateCount()).isEqualTo(0);
+    }
+
+    @Test
+    void lookup_sessionNotFound_returnsNull() {
+        assertThat(tracker.lookup("no-such-session")).isNull();
+    }
+
+    // --- captureSummary ---
+
+    @Test
+    void captureSummary_nullOrEmpty_noops() {
+        String sid = tracker.match(messages("a", "b", "c"));
+        String oldHash = tracker.lookup(sid).hash();
+
+        tracker.captureSummary(sid, null);
+        assertThat(tracker.lookup(sid).hash()).isEqualTo(oldHash);
+
+        tracker.captureSummary(sid, "");
+        assertThat(tracker.lookup(sid).hash()).isEqualTo(oldHash);
+    }
+
+    @Test
+    void captureSummary_incrementsUpdateCount() {
+        String sid = tracker.match(messages("a", "b", "c"));
+        assertThat(tracker.lookup(sid).updateCount()).isEqualTo(0);
+
+        tracker.captureSummary(sid, "summary after first response");
+        assertThat(tracker.lookup(sid).updateCount()).isEqualTo(1);
+
+        tracker.captureSummary(sid, "summary after second response");
+        assertThat(tracker.lookup(sid).updateCount()).isEqualTo(2);
+    }
+
     @Test
     void captureSummary_updatesHash() {
         List<Message> msgs = messages("line1", "line2", "line3");
