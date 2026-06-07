@@ -353,8 +353,7 @@ public class RelayCoordinator {
     private static Comparator<RoutedVendor> buildSorter(AppConfig config) {
         // pref 排序 = 基础 pref + layer 偏移（free+0, subscription+10000, payg+20000）
         return new ByPref()
-            .thenComparing(new ByStatusDesc())
-            .thenComparing(new ById());
+            .thenComparing(new ByStatusDesc());
     }
 
     private static void error(RoutingContext ctx, int code, String msg) {

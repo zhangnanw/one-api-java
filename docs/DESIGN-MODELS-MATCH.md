@@ -191,11 +191,10 @@ UPDATE virtual_models SET name='deepseek', match='{"models":["deepseek-v4-flash"
 | `ModelsMatch` 列表为空 | `parse()` 返回空列表，`RelayCoordinator` 走原 `upstreamModel` 路径 → 503 "no instances" |
 | 列表中的模型名无实例 | `loadCandidates` 返回空，循环跳过，全空时最终 503 |
 | 与现有 `AllMatch`/`TagMatch` 等冲突 | `models` 字段优先检查，不会和其他规则共存 |
-| **排序链覆盖列表顺序** | 当前 Comparator 链（ByPref→ById）会在同 layer 实例中打乱 models 列表的弱→强顺序。需要 `ByModelWeakness` Comparator 来保证。**不阻塞本设计，但合并前须补齐。** |
 
 ## 7. 依赖
 
-- **ByModelWeakness**（v0.2 §5 #11）：按 models 列表顺序对候选排序。ModelsMatch 合并候选后若不加此 Comparator，列表顺序只在同 layer 内生效（ByPref tie-break 后仍被 ById 打乱）。下一个设计。
+- **ByModelWeakness**（v0.2 §5 #11）：按 models 列表顺序排序候选。当前排序链 `ByPref→ByStatusDesc` 在同 layer/pref 实例中不区分顺序，ByModelWeakness 追加后保证列表的弱→强顺序。下一个设计。
 
 ---
 
