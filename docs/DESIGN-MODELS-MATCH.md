@@ -1,25 +1,25 @@
-# ModelsMatch 设计 — v0.2 虚拟模型列表支持
+# ModelsMatch 设计 — v0.2 模型入口列表支持
 
 > 状态：已审核（r1 打回 7 修复，r2 打回 3 修复）
 > 依赖：REQUIREMENTS.md 术语章节、REQ-MODEL-SELECTION-v0.2.md §4.1
 
 ## 用户故事
 
-用户请求虚拟模型 `deepseek` → 系统按 `models` 列表顺序加载实例：先 `deepseek-v4-flash`（便宜快），无可用实例时升级到 `deepseek-v4-pro`，再不行到 `deepseek-v4-pro-max`（最强推理）。一个入口自动 fallback，用户不关心具体实例。
+用户请求模型入口 `deepseek` → 系统按 `models` 列表顺序加载实例：先 `deepseek-v4-flash`（便宜快），无可用实例时升级到 `deepseek-v4-pro`，再不行到 `deepseek-v4-pro-max`（最强推理）。一个入口自动 fallback，用户不关心具体实例。
 
 **核心术语**：见 [REQUIREMENTS.md 术语章节](./REQUIREMENTS.md#术语)。速查：
 
 | 术语 | 一句话 |
 |------|--------|
-| 虚拟模型 | 用户请求的入口名（API `model` 参数） |
+| 模型入口（即虚拟模型） | 用户请求的入口名（API `model` 参数） |
 | 逻辑模型 | 跨 vendor 的模型概念（如 `deepseek-v4-pro`），多个 vendor 可部署其实例 |
 | match 规则 | 虚拟模型 → 实例的过滤器（JSON），**不是名字绑定** |
 
 ## 1. 问题
 
-当前 `MatchRule` 只支持单模型匹配（`NameMatch`、`TagMatch`、`CapabilityMatch`、`LayerMatch`），不能表达"一个虚拟模型对应多个逻辑模型名"。
+当前 `MatchRule` 只支持单模型匹配（`NameMatch`、`TagMatch`、`CapabilityMatch`、`LayerMatch`），不能表达"一个模型入口对应多个逻辑模型名"。
 
-v0.2 要求虚拟模型的 match JSON 支持 `models` 字段：
+v0.2 要求模型入口的 match JSON 支持 `models` 字段：
 
 ```json
 {"models": ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-pro-max"]}
