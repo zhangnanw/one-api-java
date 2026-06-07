@@ -115,19 +115,29 @@ public class SessionTracker {
             store.put(finalHash, new SessionTrack(sessionId, finalHash, 0));
             return sessionId;
         }
-        // 复用已有会话：重扫描找当前 hash（incrementalHash 到此处之间可能被改过）
-        for (var entry : store.asMap().entrySet()) {
-            if (entry.getValue().sessionId().equals(matched.sessionId)) {
-                SessionTrack existing = entry.getValue();
-                store.invalidate(entry.getKey());
-                store.put(finalHash, new SessionTrack(matched.sessionId, finalHash,
-                    existing.updateCount() + 1,
-                    existing.lastInstanceId(), existing.lastUsedAt()));
-                return matched.sessionId;
-            }
+        // 复用已有会话：重扫描找当前 hash（incrementalHash 不在锁内，可能被 captureSummary 改过）
+        var entry = findBySessionId(matched.sessionId);
+        if (entry != null) {
+            SessionTrack existing = entry.getValue();
+            store.invalidate(entry.getKey());
+            store.put(finalHash, new SessionTrack(matched.sessionId, finalHash,
+                existing.updateCount() + 1,
+                existing.lastInstanceId(), existing.lastUsedAt()));
+            return matched.sessionId;
         }
-        // 会话在 incrementalHash 到此处之间被驱逐了，仍然返回原 sessionId
+        // 会话在 incrementalHash → lookupOrCreate 之间被驱逐了，仍返回原 sessionId
         return matched.sessionId;
+    }
+
+    /**
+     * Scan store by sessionId. O(n), n≤500 — acceptable vs LLM inference (~2000ms).
+     * Returns null if not found.
+     */
+    private Map.Entry<String, SessionTrack> findBySessionId(String sessionId) {
+        for (var entry : store.asMap().entrySet()) {
+            if (entry.getValue().sessionId().equals(sessionId)) return entry;
+        }
+        return null;
     }
 
     /** 内部记录：哈希过程中的（命中状态 + digest 指针）。 */
@@ -141,15 +151,13 @@ public class SessionTracker {
 
         String newHash = hex(sha256().digest(summary.getBytes(StandardCharsets.UTF_8)));
 
-        for (var entry : store.asMap().entrySet()) {
-            if (entry.getValue().sessionId().equals(sessionId)) {
-                SessionTrack existing = entry.getValue();
-                store.invalidate(entry.getKey());
-                store.put(newHash, new SessionTrack(sessionId, newHash,
-                    existing.updateCount() + 1,
-                    existing.lastInstanceId(), existing.lastUsedAt()));
-                return;
-            }
+        var entry = findBySessionId(sessionId);
+        if (entry != null) {
+            SessionTrack existing = entry.getValue();
+            store.invalidate(entry.getKey());
+            store.put(newHash, new SessionTrack(sessionId, newHash,
+                existing.updateCount() + 1,
+                existing.lastInstanceId(), existing.lastUsedAt()));
         }
     }
 
@@ -157,10 +165,8 @@ public class SessionTracker {
      * Lookup session by ID.
      */
     public SessionTrack lookup(String sessionId) {
-        for (var entry : store.asMap().entrySet()) {
-            if (entry.getValue().sessionId().equals(sessionId)) return entry.getValue();
-        }
-        return null;
+        var entry = findBySessionId(sessionId);
+        return entry != null ? entry.getValue() : null;
     }
 
     /**
@@ -168,14 +174,12 @@ public class SessionTracker {
      * 如果 session 不在缓存中，静默忽略。
      */
     public synchronized void recordInstance(String sessionId, long instanceId) {
-        for (var entry : store.asMap().entrySet()) {
-            if (entry.getValue().sessionId().equals(sessionId)) {
-                SessionTrack old = entry.getValue();
-                store.put(entry.getKey(), new SessionTrack(
-                    old.sessionId(), old.hash(), old.updateCount(),
-                    instanceId, System.currentTimeMillis()));
-                return;
-            }
+        var entry = findBySessionId(sessionId);
+        if (entry != null) {
+            SessionTrack old = entry.getValue();
+            store.put(entry.getKey(), new SessionTrack(
+                old.sessionId(), old.hash(), old.updateCount(),
+                instanceId, System.currentTimeMillis()));
         }
     }
 
@@ -187,14 +191,13 @@ public class SessionTracker {
      * - 已过期（超过 STICKY_TTL_MS）
      */
     public OptionalLong getPreferredInstance(String sessionId) {
-        for (var entry : store.asMap().entrySet()) {
+        var entry = findBySessionId(sessionId);
+        if (entry != null) {
             SessionTrack track = entry.getValue();
-            if (track.sessionId().equals(sessionId)) {
-                if (track.lastInstanceId() == null) return OptionalLong.empty();
-                if ((System.currentTimeMillis() - track.lastUsedAt()) > STICKY_TTL_MS)
-                    return OptionalLong.empty();
-                return OptionalLong.of(track.lastInstanceId());
-            }
+            if (track.lastInstanceId() == null) return OptionalLong.empty();
+            if ((System.currentTimeMillis() - track.lastUsedAt()) > STICKY_TTL_MS)
+                return OptionalLong.empty();
+            return OptionalLong.of(track.lastInstanceId());
         }
         return OptionalLong.empty();
     }
