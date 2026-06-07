@@ -1,5 +1,7 @@
 package com.oneapi.model;
 
+import java.util.List;
+
 /**
  * 用于虚拟模型匹配规则的类型密封层级。
  * 替代不透明的 JSON 匹配字符串。
@@ -7,7 +9,7 @@ package com.oneapi.model;
 public sealed interface MatchRule 
     permits MatchRule.AllMatch, MatchRule.NameMatch, 
             MatchRule.TagMatch, MatchRule.CapabilityMatch, 
-            MatchRule.LayerMatch {
+            MatchRule.LayerMatch, MatchRule.ModelsMatch {
     
     /** 匹配所有实例（无过滤条件） */
     record AllMatch() implements MatchRule {}
@@ -23,4 +25,7 @@ public sealed interface MatchRule
     
     /** 按层级匹配（例如 "payg"） */
     record LayerMatch(String layer) implements MatchRule {}
+    
+    /** 按逻辑模型名列表匹配（v0.2）。列表顺序 = 弱→强。 */
+    record ModelsMatch(List<String> modelNames) implements MatchRule {}
 }

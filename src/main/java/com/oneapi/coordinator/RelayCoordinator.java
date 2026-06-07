@@ -91,16 +91,31 @@ public class RelayCoordinator {
             }
         }
 
-        // 解析目标模型名称（来自第二阶段解析结果）
-        String targetModel = relayCtx.upstreamModel();
-        if (targetModel == null || targetModel.isEmpty()) {
-            targetModel = req.requestedModel();
-        }
+        // 第三阶段：加载候选
+        List<String> modelNames = relayCtx.modelNames();
+        List<RoutedVendor> candidates;
 
-        // 第三阶段：加载候选 + 过滤
-        var candidates = router.loadCandidates(targetModel);
+        if (modelNames != null && !modelNames.isEmpty()) {
+            // ModelsMatch：按列表顺序逐模型加载，instanceId 去重
+            var seen = new HashSet<Integer>();
+            candidates = new ArrayList<>();
+            for (String name : modelNames) {
+                for (var c : router.loadCandidates(name)) {
+                    if (seen.add(c.instanceId())) {
+                        candidates.add(c);
+                    }
+                }
+            }
+        } else {
+            // 原路径：单 upstreamModel
+            String targetModel = relayCtx.upstreamModel();
+            if (targetModel == null || targetModel.isEmpty()) {
+                targetModel = req.requestedModel();
+            }
+            candidates = router.loadCandidates(targetModel);
+        }
         if (candidates.isEmpty()) {
-            error(ctx, 503, "no available instances for " + targetModel);
+            error(ctx, 503, "no available instances for " + req.requestedModel());
             return;
         }
         relayCtx.setCandidates(candidates);
@@ -111,7 +126,7 @@ public class RelayCoordinator {
 
         var filtered = relayCtx.<RoutedVendor>candidates();
         if (filtered == null || filtered.isEmpty()) {
-            error(ctx, 503, "all instances filtered for " + targetModel);
+            error(ctx, 503, "all instances filtered for " + req.requestedModel());
             return;
         }
 

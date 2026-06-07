@@ -23,6 +23,9 @@ public class RelayContext {
 
     // 阶段3：候选列表
     private List<RoutedVendor> candidates;
+    
+    /** ModelsMatch 的逻辑模型名列表。非空时 RelayCoordinator 以此为准，忽略 upstreamModel。 */
+    private List<String> modelNames;
 
     // 错误状态
     private RelayError relayError;
@@ -76,4 +79,7 @@ public class RelayContext {
 
     public List<RoutedVendor> candidates() { return candidates; }
     public void setCandidates(List<RoutedVendor> v) { candidates = v; }
+    
+    public List<String> modelNames() { return modelNames; }
+    public void setModelNames(List<String> v) { this.modelNames = v; }
 }

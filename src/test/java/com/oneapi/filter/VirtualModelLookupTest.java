@@ -84,4 +84,25 @@ class VirtualModelLookupTest {
         assertFalse(result.hasError());
         assertTrue(result.reasoning(), "should set reasoning=true when suffix stripped");
     }
+
+    @Test
+    void modelsMatch_setsModelNames() {
+        VirtualModel registered = new VirtualModel();
+        registered.setId(1);
+        registered.setName("deepseek");
+        registered.setMatch("{\"models\":[\"deepseek-v4-flash\",\"deepseek-v4-pro\"]}");
+        when(vmRepo.findByName("deepseek")).thenReturn(registered);
+
+        RelayContext ctx = new RelayContext("deepseek");
+        RelayContext result = lookup.apply(ctx);
+
+        assertFalse(result.hasError());
+        // modelNames should be set
+        assertNotNull(result.modelNames());
+        assertEquals(2, result.modelNames().size());
+        assertEquals("deepseek-v4-flash", result.modelNames().get(0));
+        assertEquals("deepseek-v4-pro", result.modelNames().get(1));
+        // upstreamModel should NOT be set for ModelsMatch
+        assertNull(result.upstreamModel());
+    }
 }

@@ -26,6 +26,9 @@ public class MatchRuleParser {
         try {
             Map<String, Object> m = mapper.readValue(matchJson, Map.class);
             
+            if (m.containsKey("models")) {
+                return parseModelsMatch(m);
+            }
             if (m.containsKey("model_name")) {
                 return new MatchRule.NameMatch(m.get("model_name").toString());
             }
@@ -43,6 +46,8 @@ public class MatchRuleParser {
             }
             
             return new MatchRule.AllMatch();
+        } catch (IllegalArgumentException e) {
+            throw e; // 校验异常穿透，不吞
         } catch (Exception e) {
             log.warn("Failed to parse match JSON, falling back to AllMatch: {}", e.getMessage());
             return new MatchRule.AllMatch();
@@ -58,5 +63,28 @@ public class MatchRuleParser {
             return Collections.unmodifiableSet(tags);
         }
         return Set.of();
+    }
+    
+    @SuppressWarnings("unchecked")
+    private static MatchRule.ModelsMatch parseModelsMatch(Map<String, Object> m) {
+        // 互斥检测：models 不与旧字段共存
+        if (m.containsKey("model_name") || m.containsKey("capability")
+            || m.containsKey("layer") || m.containsKey("all") || m.containsKey("any")) {
+            throw new IllegalArgumentException(
+                "models 字段不能与 model_name/capability/layer/all/any 共存");
+        }
+        Object modelsObj = m.get("models");
+        if (!(modelsObj instanceof List<?> list) || list.isEmpty()) {
+            throw new IllegalArgumentException("models 必须是非空列表");
+        }
+        List<String> names = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof String s) || s.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "models 列表中每个元素必须是非空字符串，收到: " + item);
+            }
+            names.add(s);
+        }
+        return new MatchRule.ModelsMatch(List.copyOf(names));
     }
 }
