@@ -9,6 +9,7 @@ import com.oneapi.config.AppConfig;
 import com.oneapi.config.ConfigLoader;
 import com.oneapi.config.DatabaseConfig;
 import com.oneapi.config.RouterConfig;
+import com.oneapi.repo.ModelCatalogRepo;
 import com.oneapi.service.RelayLogger;
 
 public class Main {
@@ -21,6 +22,9 @@ public class Main {
 
         // 初始化数据库
         DatabaseConfig.init(sqlitePath);
+
+        // 初始化 model_catalog 表
+        new ModelCatalogRepo().init();
 
         // 初始化 relay-log.db（独立，静默失败）
         RelayLogger.init();

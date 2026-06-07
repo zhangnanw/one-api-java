@@ -1,0 +1,61 @@
+# 模型目录配置
+# 维护说明：模型能力是事实，发布就定型。如有更新，编辑此文件并重启服务。
+
+kimi-2.6:
+  context_window: 128000
+  cost:
+    input_rmb_per_m: 4
+    output_rmb_per_m: 12
+  capabilities:
+    - capability:tools
+
+minimax-m3:
+  context_window: 1000000
+  cost:
+    input_rmb_per_m: 2
+    output_rmb_per_m: 8
+  capabilities:
+    - capability:vision
+    - capability:tools
+
+deepseek-v4-pro:
+  context_window: 384000
+  cost:
+    input_rmb_per_m: 2
+    output_rmb_per_m: 6
+  capabilities:
+    - capability:reasoning
+    - capability:tools
+
+deepseek-v4-pro-max:
+  context_window: 384000
+  cost:
+    input_rmb_per_m: 3
+    output_rmb_per_m: 9
+  capabilities:
+    - capability:reasoning
+    - capability:tools
+
+glm-5:
+  context_window: 128000
+  cost:
+    input_rmb_per_m: 1
+    output_rmb_per_m: 4
+  capabilities:
+    - capability:tools
+
+deepseek-v4-flash:
+  context_window: 128000
+  cost:
+    input_rmb_per_m: 0.5
+    output_rmb_per_m: 1
+  capabilities:
+    - capability:tools
+
+mimo-v2.5-pro:
+  context_window: 128000
+  cost:
+    input_rmb_per_m: 1
+    output_rmb_per_m: 3
+  capabilities:
+    - capability:tools
