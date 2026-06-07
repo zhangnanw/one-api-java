@@ -130,8 +130,8 @@ public class SessionTracker {
     }
 
     /**
-     * Scan store by sessionId. O(n), n≤500 — acceptable vs LLM inference (~2000ms).
-     * Returns null if not found.
+     * Scan store by sessionId. O(n), n≤500 (bounded by Caffeine maximumSize) —
+     * per-scan cost negligible vs LLM inference (~2000ms). Returns null if not found.
      */
     private Map.Entry<String, SessionTrack> findBySessionId(String sessionId) {
         for (var entry : store.asMap().entrySet()) {
@@ -176,9 +176,9 @@ public class SessionTracker {
     public synchronized void recordInstance(String sessionId, long instanceId) {
         var entry = findBySessionId(sessionId);
         if (entry != null) {
-            SessionTrack old = entry.getValue();
+            SessionTrack existing = entry.getValue();
             store.put(entry.getKey(), new SessionTrack(
-                old.sessionId(), old.hash(), old.updateCount(),
+                existing.sessionId(), existing.hash(), existing.updateCount(),
                 instanceId, System.currentTimeMillis()));
         }
     }
