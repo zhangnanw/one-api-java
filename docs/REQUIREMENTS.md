@@ -49,6 +49,8 @@
 | 模型入口 | ✅ | Vert.x Router |
 | CRUD 管理 API | ✅ | Vert.x Router + HikariCP SQLite |
 | Relay 转发 | ✅ | WebClient (buffered) + HttpClient (pipe) |
+| **VisionFilter (动态 图像检测)** | ❌ | Go→Java 迁移丢失，见 §F |
+| **BodyLimitFilter (>100KB)** | ❌ | Go→Java 迁移丢失，见 §F |
 | CORS + tokenHash | ✅ | Vert.x Route handler |
 | 会话追踪 (SHA256) | ✅ | ConcurrentHashMap (Go: sync.Map) |
 | KimiCode UA 伪装 | ✅ | 内联 RelayController |
@@ -321,6 +323,75 @@ one-api-java/
         └── NoopInstanceScorer.java
 ```
 
+## §F Filter 链
+
+> Go 版有完整的动态 Filter 链（VisionFilter、BodyLimitFilter），Java 迁移过程中静默丢失。
+> 本节恢复 Go 版需求，作为实施基准。
+
+### §F.1 架构
+
+```
+请求 → 阶段2（模型解析）→ 阶段3（实例过滤）→ 排序 → 转发
+              │                    │
+     NameMatcher              CooldownFilter
+     VirtualModelLookup       TagFilter
+     CapabilityMarker ←──  NEW (req body检测)
+                              LayerFilter
+                              ActiveStatusFilter
+                              CapabilityInstanceFilter
+```
+
+**Filter 采用 `@FunctionalInterface`，链式组合（`andThen`），AND 语义。**
+
+### §F.2 两大来源
+
+| 来源 | 激活方式 | 例子 |
+|------|---------|------|
+| **静态** | 始终激活 | CooldownFilter、LayerFilter、ActiveStatusFilter |
+| **动态** | 检查请求体内容后激活 | VisionFilter（含 image_url）、BodyLimitFilter（>100KB） |
+
+### §F.3 动态 Filter
+
+#### §F.3.1 VisionFilter
+
+**触发条件：** 请求体 `messages` 中包含 `image_url` 类型内容。
+
+**行为：** 阶段2 设置 `capabilityRequired = "vision"`，阶段3 `CapabilityInstanceFilter` 过滤候选实例——只保留 `model_catalog.capabilities` 包含 `"vision"` 的模型对应的实例。无候选时返回 503。
+
+**示例：**
+
+```
+请求: model="kimi", messages=[{"type":"image_url", ...}]
+kimi 入口 models: [kimi-k2.6, kimi-k2.5]
+  kimi-k2.6 → catalog: ["code","chat","vision"]  ✅ 保留
+  kimi-k2.5 → catalog: ["code","chat"]            ❌ 筛掉
+→ 只剩 kimi-k2.6 的实例参与路由
+```
+
+#### §F.3.2 BodyLimitFilter
+
+**触发条件：** 请求体 > 100KB。
+
+**行为：** 拒绝转发，返回 413 `body_too_large`。不做静默截断。
+
+### §F.4 Go→Java 迁移差异
+
+| Go | Java 现状 | 差 |
+|----|----------|-----|
+| VisionFilter 动态激活，检测 image_url | ❌ 不存在 | 缺失 |
+| CapabilityMatch 规则设 capability | ✅ CapabilityRequirementMarker | 同名但逻辑不同 |
+| CapabilityInstanceFilter 查实例 meta 标签 | ✅ 查实例 meta 标签 | 应改为查 model_catalog.capabilities |
+| BodyLimitFilter (>100KB) | ❌ 不存在 | 缺失 |
+
+### §F.5 实施计划
+
+1. **BodyFilter**：阶段2 检测请求体，含 image_url → `capabilityRequired = "vision"`，>100KB → 拒绝
+2. **CapabilityInstanceFilter 改造**：从查实例 meta 标签 → 查 model_catalog.capabilities
+3. **CapabilityRequirementMarker 扩展**：ModelsMatch 也走动态检测，不依赖 CapabilityMatch 规则
+4. 移除 CapabilityMatch 规则的 capability detection（已被 BodyFilter 覆盖）
+
+---
+
 ## §M 模型选择（v0.2）
 
 > 状态：草案 v0.2，整体设计中
@@ -349,7 +420,7 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 | 能力 | 状态 | 引用 |
 |------|------|------|
 | 虚拟模型 match 规则 | ✅ 已有 | §功能对照 |
-| 能力过滤 | ✅ 已有 | filter 包 |
+| 能力过滤 | ❌ 部分（CapabilityMatch 规则可用，图像请求动态检测缺失） | §F Filter 链 |
 | 实例 layer 排序 | ✅ 已有 | ByPref comparator |
 | 会话追踪 | ✅ 已有 | SessionTracker |
 | Cooldown 过滤 | ✅ 已有 | CooldownFilter |
