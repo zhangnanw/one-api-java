@@ -37,6 +37,8 @@
 
 **关系：** 入口说"谁行"（画像名列表）→ 画像说"什么属性"→ 实例说"走哪条路"（vendor/端点）。**入口不直接挑实例。**
 
+> **入口名和画像名是两个命名空间。** 入口名是用户起的（`deepseek`、`coding`），画像名是系统注册的（`deepseek-v4-flash`）。用户可以把入口名起得和画像名一样（如入口 `deepseek-v4-pro` 的 models 列表里包含 `deepseek-v4-pro`），也可以不一样（如入口 `deepseek` 的列表里包含 `deepseek-v4-flash`）。一样是用户的选择，不是系统约束。
+
 ---
 
 ## 迁移状态
@@ -364,7 +366,7 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 
 | 类型 | 例子 | match.models |
 |------|------|--------------|
-| 多模型候选 | `coding` | `[mimo-v2.5, minimax-2.7, minimax-m3, deepseek-v4-flash, deepseek-v4-pro, ...]` |
+| 多模型候选 | `coding` | `[mimo-v2.5, minimax-m2.7, minimax-m3, deepseek-v4-flash, deepseek-v4-pro, ...]` |
 | 单模型 | `deepseek-v4-pro` | `[deepseek-v4-pro]` |
 
 **决策：**
