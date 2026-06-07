@@ -1,6 +1,6 @@
 # ModelsMatch 设计 — v0.2 虚拟模型列表支持
 
-> 状态：已审核（r1 打回，7 修复待确认）
+> 状态：已审核（r1 打回 7 修复，r2 打回 3 修复）
 > 依赖：REQUIREMENTS.md 术语章节、REQ-MODEL-SELECTION-v0.2.md §4.1
 
 ## 用户故事
@@ -99,11 +99,14 @@ if (m.containsKey("models")) {
 
 ### 3.3 RelayContext — 加 modelNames 列表
 
-```java
-// 新增字段
-private List<String> modelNames;   // ModelsMatch 用，为 null 时走原 upstreamModel 路径
+新增字段 `List<String> modelNames`（初始值 `null`）。与 `upstreamModel` 互斥生效：
+- `modelNames != null` → 走多模型路径（忽略 `upstreamModel`）
+- `modelNames == null` → 走原 `upstreamModel` 路径
 
-// 新增 getter/setter
+```java
+/** ModelsMatch 的模型名列表。非空时 RelayCoordinator 以此为准，忽略 upstreamModel。 */
+private List<String> modelNames;
+
 public List<String> modelNames() { return modelNames; }
 public void setModelNames(List<String> v) { this.modelNames = v; }
 ```
@@ -155,6 +158,8 @@ if (modelNames != null && !modelNames.isEmpty()) {
 ```
 
 **关键行为：**
+- `RelayCoordinator` 逐模型名调用 `RouterService.loadCandidates(String)`，汇总到一个列表
+- 每个 `RoutedVendor` 自带 `upstreamModel()`（来自 `Instance` 记录）— 候选被选中后直接用，无需额外绑定
 - 列表顺序保留（第一个模型的实例排前面，TimSort 稳定排序不改变同 layer/pref 的顺序）
 - instanceId 去重防御（同一实例被多个模型名匹配时只保留首次出现的）
 - 某模型无实例 → 静默跳过，继续下一个
@@ -176,7 +181,7 @@ if (modelNames != null && !modelNames.isEmpty()) {
 
 | 模块 | 理由 |
 |------|------|
-| `RouterService.loadCandidates(String)` | 保持单模型加载接口，多模型循环在 RelayCoordinator 做 |
+| `RouterService.loadCandidates(String)` | 保持单模型加载接口。多模型循环由 `RelayCoordinator` 调用此方法，不改变签名 |
 | `stage3Filters` | 过滤/排序逻辑不变——候选列表格式相同（`List<RoutedVendor>`） |
 | `MatchRuleParser.parse()` 的现有分支 | NameMatch/TagMatch/CapabilityMatch/LayerMatch 行为不受影响 |
 | `RouterConfig` | 过滤器链装配不变 |
@@ -220,4 +225,4 @@ INSERT INTO virtual_models (name, match) VALUES ('mimo',     '{"models":["mimo-v
 
 ---
 
-_创建：2026-06-07 | 修订：r1（审核打回修复）_
+_创建：2026-06-07 | 修订：r1（审核打回 7 修复）、r2（调用边界 + 字段类型 + 候选绑定）_
