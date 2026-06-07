@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -33,11 +32,10 @@ public class SessionTracker {
 
     // key = hex(SHA256), value = SessionTrack
     private final Cache<String, SessionTrack> store = Caffeine.newBuilder()
-        .expireAfterAccess(30, TimeUnit.MINUTES)
-        .maximumSize(10_000)
+        .maximumSize(500)
         .build();
 
-    public record SessionTrack(String sessionId, String hash) {}
+    public record SessionTrack(String sessionId, String hash, int updateCount) {}
 
     /**
      * Match conversation to a session.
@@ -107,10 +105,10 @@ public class SessionTracker {
         String sessionId;
         if (matched == null) {
             sessionId = UUID.randomUUID().toString();
-            matched = new SessionTrack(sessionId, finalHash);
+            matched = new SessionTrack(sessionId, finalHash, 0);
         } else {
             store.invalidate(matched.hash);
-            matched = new SessionTrack(matched.sessionId, finalHash);
+            matched = new SessionTrack(matched.sessionId, finalHash, matched.updateCount() + 1);
             sessionId = matched.sessionId;
         }
         store.put(finalHash, matched);
@@ -132,7 +130,7 @@ public class SessionTracker {
         for (var entry : store.asMap().entrySet()) {
             if (entry.getValue().sessionId.equals(sessionId)) {
                 store.invalidate(entry.getKey());
-                store.put(newHash, new SessionTrack(sessionId, newHash));
+                store.put(newHash, new SessionTrack(sessionId, newHash, entry.getValue().updateCount() + 1));
                 return;
             }
         }
