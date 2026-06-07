@@ -206,7 +206,8 @@ public class RelayCoordinator {
                 int status = extractHttpStatus(err);
                 String errMsg = extractErrorMessage(err);
 
-                // 任何上游错误 → 试下一个，队空才报错
+                // 重试策略：任何上游错误都试下一个候选，队空才暴露上游错误给客户端。
+                // 设计意图：有备用实例时静默切换，仅最后一个候选失败才返回错误。
                 log.warn("{} from vendor={}, try next ({} left)",
                     status, vendorName, queue.size());
                 if (status == 429 && routedVendor.vendor() != null) {
@@ -225,6 +226,10 @@ public class RelayCoordinator {
         return 503;
     }
 
+    /**
+     * 提取上游错误消息。仅在所有候选耗尽后暴露给客户端。
+     * 有备用实例时，此消息仅写入日志，不返回给客户端。
+     */
     private static String extractErrorMessage(Throwable err) {
         if (err instanceof RelayException re
                 && re.getError() instanceof RelayError.UpstreamFailure upstreamFailure) {
@@ -293,6 +298,8 @@ public class RelayCoordinator {
 
         ctx.response().setChunked(true);
 
+        // 流式路径不重试：一旦 chunk 开始返回客户端，无法切换候选。
+        // 无后续实例时，上游错误通过 HTTP 状态码和响应体暴露给客户端。
         upstreamClient.relayStream(relayReq, (statusCode, tokens) -> {
             long latency = System.currentTimeMillis() - startMs;
             if (statusCode < 500) {
