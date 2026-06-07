@@ -25,6 +25,37 @@
 
 ---
 
+## 术语
+
+| 概念 | 是什么 | 例子 |
+|------|--------|------|
+| **虚拟模型** | 用户看到的 API 入口名。`/v1/chat/completions` 的 `model` 参数。在 `virtual_models` 表中有一条记录 | `deepseek-v4-pro`、`coding`、`auto` |
+| **match 规则** | 虚拟模型关联实例的筛选条件，存在 `virtual_models.match` 字段（JSON）。**不是名字绑定，是过滤器：可按 model_name / tag / capability / layer 筛选** | `{"model_name":"deepseek-v4-pro"}` — 名字匹配；`{"all":["capability:reasoning"]}` — 标签匹配 |
+| **模型实例** | 实际运行 LLM 的服务端点。有 `modelName`、`tags`、`vendor`、`meta`、`status` 等属性。存在 `instances` 表中 | vendor=deepseek 的 deepseek-v4-pro 实例，vendor=volcengine 的 doubao 实例 |
+| **上游模型名** | 中继时发给上游 API 的 `model` 参数。存于 `instances.upstream_model`，**可以跟虚拟模型名不同** | 虚拟模型叫 `doubao-seed-2.0-pro`，上游模型名叫 `doubao-seed-2.0-pro-260215` |
+| **逻辑模型** | 跨越 vendor 的抽象模型概念。多个 vendor 可以提供同一个逻辑模型的不同实例。存于 `model_catalog` 表 | `deepseek-v4-pro` 是一个逻辑模型，deepseek 和 volcengine 都可以部署它的实例 |
+| **用例虚拟模型** | 按使用场景命名的虚拟模型。match 规则筛选出多个逻辑模型的实例，排序后依次尝试 | `coding` → 包含 mimo-v2.5、minimax-m2.7、deepseek-v4-flash 等多个逻辑模型的实例 |
+
+**关联关系：**
+
+```
+虚拟模型 ──(match 规则)──→ 模型实例 ──(upstreamModel)──→ 上游 API
+                │
+                │  模型实例属于某个逻辑模型
+                ↓
+          逻辑模型 (model_catalog)
+                │
+                │  提供 cost / context_window / capabilities 等事实数据
+                ↓
+            排序 / 过滤
+```
+
+- 虚拟模型和实例之间 **不是通过名字关联**，而是通过 match 规则（过滤器）
+- 一个虚拟模型可以匹配多个实例（通过 tag/capability/layer 等维度）
+- 同一个逻辑模型可以有多个 vendor 的多个实例
+
+---
+
 ## 架构决策（Java 版）
 
 ### §J1 框架选型：Vert.x 裸写
