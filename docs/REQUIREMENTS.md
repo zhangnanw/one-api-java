@@ -284,7 +284,7 @@ one-api-java/
     │   ├── ByReliability.java   （待加）前置：relay-log.db
     │   ├── ByLatency.java       （待加）前置：relay-log.db
     │   └── ByModelWeakness.java （待加）
-    ├── filter/                   ← stage3 过滤
+    ├── filter/                   ← 过滤链（阶段2 + 阶段3）
     │   ├── Filter.java
     │   ├── ActiveStatusFilter.java
     │   ├── CapabilityInstanceFilter.java

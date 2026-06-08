@@ -201,11 +201,11 @@ DELETE FROM virtual_models WHERE name IN (
 );
 
 -- 步骤2：插入新合并入口
-INSERT INTO virtual_models (name, match) VALUES ('deepseek', '{"models":["deepseek-v4-flash","deepseek-v4-pro","deepseek-v4-pro-max"]}');
-INSERT INTO virtual_models (name, match) VALUES ('kimi',     '{"models":["kimi-k2.6","kimi-for-coding"]}');
-INSERT INTO virtual_models (name, match) VALUES ('doubao',   '{"models":["doubao-seed-2.0-pro","doubao-seed-2.0-code"]}');
-INSERT INTO virtual_models (name, match) VALUES ('minimax',  '{"models":["minimax-m2.5","minimax-m2.7","minimax-m3"]}');
-INSERT INTO virtual_models (name, match) VALUES ('mimo',     '{"models":["mimo-v2.5","mimo-v2.5-pro"]}');
+INSERT INTO virtual_models (name, match) VALUES ('deepseek', '{"models":["deepseek-v4-flash","deepseek-v4-pro"]}');
+INSERT INTO virtual_models (name, match) VALUES ('kimi',     '{"models":["kimi-k2.6","kimi-k2.5"]}');
+INSERT INTO virtual_models (name, match) VALUES ('doubao',   '{"models":["doubao-seed-2.0-pro-260215","doubao-seed-2.0-code-260215"]}');
+INSERT INTO virtual_models (name, match) VALUES ('minimax',  '{"models":["minimax-m2.7","minimax-m3","minimax-m2.5"]}');
+INSERT INTO virtual_models (name, match) VALUES ('mimo',     '{"models":["mimo-v2-flash","mimo-v2-pro","mimo-v2.5","mimo-v2.5-pro"]}');
 ```
 
 > **注意：不在本次设计范围。** 迁移脚本会单独验证（幂等性：DELETE 不存在也不报错；INSERT 重复会唯一约束冲突，届时处理）。
