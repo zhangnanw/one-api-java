@@ -9,9 +9,9 @@ c.execute("DELETE FROM model_catalog")
 
 catalogs = [
     ("deepseek-v4-flash",                        ["code","chat"],        131072),
-    ("deepseek-v4-pro",                          ["code","chat"],        131072),
-    ("kimi-k2.6",                                ["code","chat","vision"], 131072),
-    ("kimi-k2.5",                                ["code","chat"],        131072),
+    ("deepseek-v4-pro",                          ["code","chat"],        1048576),
+    ("kimi-k2.6",                                ["code","chat","vision"], 1048576),
+    ("kimi-k2.5",                                ["code","chat"],        1048576),
     ("minimax-m3",                               ["chat","code","vision"], 131072),
     ("minimax-m2.7",                             ["chat","code"],        131072),
     ("minimax-m2.5",                             ["chat"],               131072),
@@ -29,7 +29,7 @@ catalogs = [
     ("deepseek-r1",                              ["writing","reasoning","chat","code"], 131072),
     ("deepseek-v3-0324",                         ["writing","chat"],      131072),
     ("deepseek-v3.2",                            ["writing","chat"],      131072),
-    ("moonshot-k2",                              ["writing","chat","vision"], 131072),
+    ("moonshot-k2",                              ["writing","chat","vision"], 1048576),
     ("step-2-literary",                          ["writing","chat"],      131072),
     ("kimi-k1.5",                                ["writing","chat"],      65536),
     ("tencent-hunyuan",                          ["writing","chat"],      131072),

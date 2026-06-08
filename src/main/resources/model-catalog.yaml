@@ -10,21 +10,21 @@ deepseek-v4-flash:
     - capability:chat
 
 deepseek-v4-pro:
-  context_window: 131072
+  context_window: 1048576
   capabilities:
     - capability:code
     - capability:chat
 
 # === kimi ===
 kimi-k2.6:
-  context_window: 131072
+  context_window: 1048576
   capabilities:
     - capability:code
     - capability:chat
     - capability:vision
 
 kimi-k2.5:
-  context_window: 131072
+  context_window: 1048576
   capabilities:
     - capability:code
     - capability:chat
