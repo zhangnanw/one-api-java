@@ -12,12 +12,16 @@ import java.util.List;
 /**
  * Stage 3 filter — removes candidates whose context window is smaller than the request body.
  * <p>
- * Heuristic: body bytes &gt; context_window tokens → candidate too small to handle this request.
+ * Heuristic: 1 token ≈ 4 bytes (conservative, matches GPT tokenizer ratio for English).
+ * body_bytes &gt; context_window_tokens × 4 → candidate too small.
  * Models with no catalog entry (unknown window) are kept.
  * If all candidates are filtered out, marks the context with a 413 {@link RelayError.BodyTooLarge}.
  */
 public class BodyLimitFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(BodyLimitFilter.class);
+
+    /** Conservative bytes-per-token estimate (GPT tokenizer ~4 chars/token for English). */
+    static final int BYTES_PER_TOKEN = 4;
 
     private final ModelCatalogRepo catalogRepo;
 
@@ -45,12 +49,20 @@ public class BodyLimitFilter implements Filter {
         int removed = before - filtered.size();
 
         if (filtered.isEmpty()) {
-            String model = candidates.getFirst().modelName();
-            String msg = String.format("request body (%d bytes) exceeds context window of all %d models",
-                bodyLen, before);
-            log.warn("BodyLimitFilter: {} — marking 413 BodyTooLarge", msg);
+            // Find the smallest known context window among candidates for the error message
+            int minWindow = candidates.stream()
+                .mapToInt(rv -> catalogRepo.getContextWindow(rv.modelName()))
+                .filter(w -> w > 0)
+                .min()
+                .orElse(0);
+            int byteLimit = minWindow > 0 ? minWindow * BYTES_PER_TOKEN : 0;
+            String msg = String.format(
+                "request body (%d bytes) exceeds context window (%d tokens ≈ %d bytes)",
+                bodyLen, minWindow, byteLimit);
+            log.warn("BodyLimitFilter: {} of {} models — marking 413", msg, before);
             ctx.setCandidates(filtered);
-            ctx.markError(new RelayError.BodyTooLarge(model, bodyLen, 0), msg);
+            ctx.markError(new RelayError.BodyTooLarge(
+                candidates.getFirst().modelName(), bodyLen, minWindow), msg);
             return ctx;
         }
 
@@ -68,6 +80,6 @@ public class BodyLimitFilter implements Filter {
             // unknown model, keep
             return true;
         }
-        return bodyLen <= window;
+        return bodyLen <= window * BYTES_PER_TOKEN;
     }
 }
