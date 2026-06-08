@@ -155,6 +155,17 @@ public class RelayCoordinator {
 
         // 第四阶段：排序
         LinkedList<RoutedVendor> queue = new LinkedList<>(filtered);
+        // temp: log pre-sort candidates
+        log.info("CANDIDATES after stage3 ({}):", queue.size());
+        for (var rv : queue) {
+            log.info("  instance={} vendor={} model={} layer={} pref={} status={}",
+                rv.instanceId(),
+                rv.vendor() != null ? rv.vendor().getName() : "?",
+                rv.modelName(),
+                MetaView.fromInstanceMeta(rv.instanceMeta()).instanceLayer(),
+                MetaView.fromInstanceMeta(rv.instanceMeta()).instancePref(),
+                rv.instanceStatus());
+        }
         queue.sort(sorter);
 
         // 第五阶段：中继
@@ -219,6 +230,8 @@ public class RelayCoordinator {
         if (routedVendor.vendor() != null && routedVendor.vendor().getBaseUrl() != null
                 && routedVendor.vendor().getBaseUrl().contains("kimi.com")) {
             candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
+            log.debug("KC: added User-Agent KimiCLI/1.6, upstream={}, body len={}",
+                routedVendor.upstreamModel(), req.rawBody() != null ? req.rawBody().length : 0);
         }
 
         log.info("V2 trying: instance={} vendor={} model={} upstream={}",

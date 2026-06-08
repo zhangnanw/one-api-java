@@ -115,6 +115,7 @@ deepseek-r1:
     - capability:writing
     - capability:reasoning
     - capability:chat
+    - capability:code
 
 deepseek-v3-0324:
   context_window: 131072
