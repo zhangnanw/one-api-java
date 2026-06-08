@@ -144,17 +144,19 @@ public class RouterConfig {
 
     /** Exposed for testing — assembles filter chain without Vert.x dependency. */
     FilterSets buildFilters(CooldownService cooldown) {
+        // DataSource fallback: test-route uses injected ds, prod uses DatabaseConfig
+        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
+
         // 第二阶段过滤器（模型解析）
         List<Filter> stage2 = List.of(
-            new NameMatcher(new InstanceRepo(dataSource)),
-            new VirtualModelLookup(new VirtualModelRepo(dataSource),
+            new NameMatcher(new InstanceRepo(ds)),
+            new VirtualModelLookup(new VirtualModelRepo(ds),
                 config.getPolicies().getReasoning().getTriggerSuffix()),
             new CapabilityRequirementMarker(),
             new VisionFilter()
         );
 
         // 第三阶段过滤器（候选实例筛选）
-        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
         var catalogRepo = new ModelCatalogRepo(ds);
         List<Filter> stage3 = List.of(
             new CooldownFilter(cooldown),
