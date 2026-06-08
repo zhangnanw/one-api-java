@@ -25,6 +25,17 @@ catalogs = [
     ("doubao-seed-2-0-lite-260215",              ["chat"],               131072),
     ("doubao-seed-2-0-mini-260215",              ["chat"],               131072),
     ("doubao-seed-2-0-mini-260428",              ["chat"],               131072),
+    # === 写作模型（选型报告 2026-06-08）===
+    ("deepseek-r1",                              ["writing","reasoning","chat"], 131072),
+    ("deepseek-v3-0324",                         ["writing","chat"],      131072),
+    ("deepseek-v3.2",                            ["writing","chat"],      131072),
+    ("moonshot-k2",                              ["writing","chat","vision"], 131072),
+    ("step-2-literary",                          ["writing","chat"],      131072),
+    ("kimi-k1.5",                                ["writing","chat"],      65536),
+    ("tencent-hunyuan",                          ["writing","chat"],      131072),
+    ("doubao-pro",                               ["writing","chat"],      32768),
+    ("yuewen-miaobi",                            ["writing","chat"],      131072),
+    ("qwen-max",                                 ["writing","chat"],      32768),
 ]
 
 for name, caps, ctx in catalogs:

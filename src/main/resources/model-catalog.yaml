@@ -107,3 +107,66 @@ doubao-seed-2-0-mini-260428:
   context_window: 131072
   capabilities:
     - capability:chat
+
+# === writing models (写作模型选型报告 2026-06-08) ===
+deepseek-r1:
+  context_window: 131072
+  capabilities:
+    - capability:writing
+    - capability:reasoning
+    - capability:chat
+
+deepseek-v3-0324:
+  context_window: 131072
+  capabilities:
+    - capability:writing
+    - capability:chat
+
+deepseek-v3.2:
+  context_window: 131072
+  capabilities:
+    - capability:writing
+    - capability:chat
+
+moonshot-k2:
+  context_window: 131072
+  capabilities:
+    - capability:writing
+    - capability:chat
+    - capability:vision
+
+step-2-literary:
+  context_window: 131072
+  capabilities:
+    - capability:writing
+    - capability:chat
+
+kimi-k1.5:
+  context_window: 65536
+  capabilities:
+    - capability:writing
+    - capability:chat
+
+tencent-hunyuan:
+  context_window: 131072
+  capabilities:
+    - capability:writing
+    - capability:chat
+
+doubao-pro:
+  context_window: 32768
+  capabilities:
+    - capability:writing
+    - capability:chat
+
+yuewen-miaobi:
+  context_window: 131072
+  capabilities:
+    - capability:writing
+    - capability:chat
+
+qwen-max:
+  context_window: 32768
+  capabilities:
+    - capability:writing
+    - capability:chat
