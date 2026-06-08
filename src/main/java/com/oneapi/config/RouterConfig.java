@@ -132,7 +132,9 @@ public class RouterConfig {
 
         // 第五阶段：上游客户端
         var upstreamClient = new UpstreamClient(
-            WebClient.create(vertx), vertx);
+            WebClient.create(vertx, new io.vertx.ext.web.client.WebClientOptions()
+                .setConnectTimeout(30000)
+                .setIdleTimeout(120)), vertx);
         var baseRelay = new DefaultRelay(upstreamClient);
 
         // 协调器

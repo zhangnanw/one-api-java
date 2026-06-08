@@ -34,8 +34,8 @@ public class UpstreamClient {
     public UpstreamClient(WebClient client, Vertx vertx) {
         this.client = client;
         this.rawClient = vertx.createHttpClient(new HttpClientOptions()
-            .setConnectTimeout(10000)
-            .setIdleTimeout(30)
+            .setConnectTimeout(30000)
+            .setIdleTimeout(120)
             .setKeepAlive(false));
     }
 
