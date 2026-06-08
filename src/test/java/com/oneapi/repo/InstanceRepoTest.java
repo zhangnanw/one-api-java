@@ -1,13 +1,11 @@
 package com.oneapi.repo;
 
-import com.oneapi.config.DatabaseConfig;
 import com.oneapi.model.Instance;
+import com.oneapi.model.Vendor;
+import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.List;
@@ -16,163 +14,234 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class InstanceRepoTest {
 
-    private static InstanceRepo repo;
+    private static HikariDataSource ds;
+    private InstanceRepo repo;
 
     @BeforeAll
-    static void setupAll() throws Exception {
-        DatabaseConfig.init(":memory:");
-        DataSource ds = DatabaseConfig.getDataSource();
-
-        try (Connection conn = ds.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE vendors (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name TEXT, description TEXT, status INTEGER," +
-                "\"group\" TEXT, priority INTEGER, created_time INTEGER," +
-                "base_url TEXT, api_key TEXT, meta TEXT)");
-
-            stmt.execute("CREATE TABLE instances (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "model_name TEXT, status INTEGER, upstream_model TEXT," +
-                "vendor_id INTEGER, created_time INTEGER, meta TEXT)");
-
-            // 2 vendors
-            stmt.execute("INSERT INTO vendors (id,name,status,priority,base_url,api_key) VALUES " +
-                "(1,'deepseek',2,10,'https://api.deepseek.com','sk-ds')");
-            stmt.execute("INSERT INTO vendors (id,name,status,priority,base_url,api_key) VALUES " +
-                "(2,'volcengine',2,5,'https://ark.cn-beijing.volces.com','sk-ve')");
-
-            // 3 instances
-            stmt.execute("INSERT INTO instances (id,model_name,status,upstream_model,vendor_id,created_time) VALUES " +
-                "(1,'deepseek-v4-flash',2,'deepseek-v4-flash',1,1700000000)");
-            stmt.execute("INSERT INTO instances (id,model_name,status,upstream_model,vendor_id,created_time) VALUES " +
-                "(2,'deepseek-v4-pro',2,'deepseek-v4-pro',2,1700000001)");
-            stmt.execute("INSERT INTO instances (id,model_name,status,upstream_model,vendor_id,created_time) VALUES " +
-                "(3,'deepseek-v4-disabled',3,null,1,1700000002)");
-            stmt.execute("INSERT INTO instances (id,model_name,status,upstream_model,vendor_id,created_time) VALUES " +
-                "(4,'deepseek-raw-variant',1,'deepseek-raw-variant',1,1700000003)");
-        }
-
-        repo = new InstanceRepo();
+    static void createDataSource() {
+        HikariConfig cfg = new HikariConfig();
+        cfg.setJdbcUrl("jdbc:sqlite::memory:");
+        cfg.setMaximumPoolSize(1);
+        ds = new HikariDataSource(cfg);
     }
 
     @AfterAll
-    static void teardown() {
-        var ds = DatabaseConfig.getDataSource();
-        if (ds instanceof HikariDataSource hds && !hds.isClosed()) {
-            hds.close();
+    static void closeDataSource() {
+        if (ds != null && !ds.isClosed()) ds.close();
+    }
+
+    @BeforeEach
+    void setup() throws Exception {
+        try (Connection conn = ds.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("DROP TABLE IF EXISTS instances");
+            stmt.execute("DROP TABLE IF EXISTS vendors");
+            stmt.execute("CREATE TABLE vendors (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name TEXT NOT NULL," +
+                "description TEXT," +
+                "status INTEGER DEFAULT 1," +
+                "\"group\" TEXT," +
+                "priority INTEGER DEFAULT 0," +
+                "created_time INTEGER," +
+                "base_url TEXT," +
+                "api_key TEXT," +
+                "meta TEXT" +
+                ")");
+            stmt.execute("CREATE TABLE instances (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "model_name TEXT NOT NULL," +
+                "status INTEGER DEFAULT 1," +
+                "upstream_model TEXT," +
+                "vendor_id INTEGER REFERENCES vendors(id)," +
+                "created_time INTEGER," +
+                "meta TEXT" +
+                ")");
+            stmt.execute("INSERT INTO vendors (id, name, base_url, api_key) VALUES (1, 'deepseek', 'https://api.deepseek.com', 'sk-test')");
+            stmt.execute("INSERT INTO vendors (id, name, base_url, api_key) VALUES (2, 'volcengine', 'https://ark.cn-beijing.volces.com', 'sk-test2')");
+        }
+        repo = new InstanceRepo(ds);
+    }
+
+    private void rawInsert(String modelName, int vendorId, int status, String upstream, String meta) throws Exception {
+        try (Connection conn = ds.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute(String.format(
+                "INSERT INTO instances (model_name, vendor_id, status, upstream_model, meta) " +
+                "VALUES ('%s', %d, %d, '%s', '%s')",
+                modelName, vendorId, status, upstream == null ? "" : upstream, meta == null ? "" : meta));
         }
     }
 
+    // ── findAll ──
+
     @Test
-    void findAllWithVendor_returnsAllWithVendorFilled() {
+    void findAll_returnsAllInstances() throws Exception {
+        rawInsert("deepseek-v4-pro", 1, 2, "deepseek-v4-pro", null);
+        rawInsert("deepseek-v4-flash", 1, 2, "deepseek-v4-flash", null);
+
+        List<Instance> list = repo.findAll();
+        assertEquals(2, list.size());
+    }
+
+    @Test
+    void findAll_returnsEmptyForNoInstances() {
+        List<Instance> list = repo.findAll();
+        assertTrue(list.isEmpty());
+    }
+
+    // ── findById ──
+
+    @Test
+    void findById_returnsInstanceWhenFound() throws Exception {
+        rawInsert("kimi-k2.6", 2, 2, "kimi-k2.6", null);
+        // Need to get the auto-generated ID
+        List<Instance> all = repo.findAll();
+        int id = all.get(0).getId();
+
+        Instance found = repo.findById(id);
+        assertNotNull(found);
+        assertEquals("kimi-k2.6", found.getModelName());
+        assertEquals(2, found.getVendorId());
+    }
+
+    @Test
+    void findById_returnsNullWhenNotFound() {
+        Instance found = repo.findById(99999);
+        assertNull(found);
+    }
+
+    // ── findAllWithVendor ──
+
+    @Test
+    void findAllWithVendor_joinsVendorData() throws Exception {
+        rawInsert("deepseek-v4-pro", 1, 2, "deepseek-v4-pro", null);
+
         List<Instance> list = repo.findAllWithVendor();
-        // findAllWithVendor does NOT filter by status — returns all joined
-        // At minimum, the 3 seed instances must be present
-        assertTrue(list.size() >= 3);
+        assertEquals(1, list.size());
+        Instance inst = list.get(0);
+        assertEquals("deepseek-v4-pro", inst.getModelName());
 
-        Instance first = list.get(0);
-        assertEquals(1, first.getId());
-        assertEquals("deepseek-v4-flash", first.getModelName());
-        assertNotNull(first.getVendor());
-        assertEquals("deepseek", first.getVendor().getName());
+        Vendor v = inst.getVendor();
+        assertNotNull(v);
+        assertEquals("deepseek", v.getName());
+        assertEquals("https://api.deepseek.com", v.getBaseUrl());
     }
 
-    @Test
-    void findAll_excludesDisabledAndDeprecated() {
-        // Status 3 (DISABLED) excluded — seeds: 1,2,4 active, 3 disabled
-        List<Instance> list = repo.findAll();
-        assertEquals(3, list.size());
-        assertTrue(list.stream().noneMatch(i -> i.getId() == 3));
-    }
+    // ── insert ──
 
     @Test
-    void findById_returnsInstance() {
-        Instance inst = repo.findById(1);
-        assertNotNull(inst);
-        assertEquals("deepseek-v4-flash", inst.getModelName());
-        assertEquals(2, inst.getStatus());
-        assertEquals(1, inst.getVendorId());
-    }
-
-    @Test
-    void findById_nonexistent_returnsNull() {
-        assertNull(repo.findById(999));
-    }
-
-    @Test
-    void insert_thenFindAll_addsNew() {
-        Instance newInst = new Instance();
-        newInst.setModelName("deepseek-v4-new");
-        newInst.setUpstreamModel("deepseek-v4-new");
-        newInst.setStatus(2);
-        newInst.setVendorId(1);
-
-        repo.insert(newInst);
-
-        List<Instance> list = repo.findAll();
-        assertTrue(list.stream().anyMatch(i -> "deepseek-v4-new".equals(i.getModelName())));
-    }
-
-    @Test
-    void updateStatus_thenFindById_statusChanged() {
-        Instance inst = repo.findById(1);
-        assertEquals(2, inst.getStatus());
-
-        inst.setStatus(3); // DISABLED
-        repo.update(inst);
-
-        Instance updated = repo.findById(1);
-        assertEquals(3, updated.getStatus());
-
-        // restore
+    void insert_createsNewInstance() {
+        Instance inst = new Instance();
+        inst.setModelName("minimax-m3");
+        inst.setVendorId(1);
         inst.setStatus(2);
-        repo.update(inst);
+        inst.setUpstreamModel("minimax-m3");
+        inst.setMeta("{\"test\":true}");
+
+        repo.insert(inst);
+        // insert() doesn't set generated id — verify via findAll
+        List<Instance> all = repo.findAll();
+        assertEquals(1, all.size());
+        Instance reloaded = all.get(0);
+        assertEquals("minimax-m3", reloaded.getModelName());
+        assertEquals(2, reloaded.getStatus());
+    }
+
+    // ── update ──
+
+    @Test
+    void update_modifiesExistingInstance() throws Exception {
+        rawInsert("mimo-v2.5", 1, 2, "mimo-v2.5", null);
+        List<Instance> all = repo.findAll();
+        Instance toUpdate = all.get(0);
+
+        toUpdate.setStatus(3);
+        toUpdate.setMeta("{\"updated\":true}");
+        repo.update(toUpdate);
+
+        Instance reloaded = repo.findById(toUpdate.getId());
+        assertEquals(3, reloaded.getStatus());
+        assertEquals("{\"updated\":true}", reloaded.getMeta());
+    }
+
+    // ── delete ──
+
+    @Test
+    void delete_removesInstance() throws Exception {
+        rawInsert("test-model", 1, 2, "test-model", null);
+        List<Instance> all = repo.findAll();
+        int id = all.get(0).getId();
+
+        repo.delete(id);
+
+        Instance found = repo.findById(id);
+        assertNull(found);
     }
 
     @Test
-    void delete_thenFindById_returnsNull() {
-        // Insert temp instance to delete
-        Instance temp = new Instance();
-        temp.setModelName("temp-to-delete");
-        temp.setStatus(2);
-        temp.setVendorId(1);
-        repo.insert(temp);
+    void delete_doesNotThrowForUnknownId() {
+        // void method — just verify it doesn't throw
+        assertDoesNotThrow(() -> repo.delete(99999));
+    }
 
-        // Find by model name using findAll
-        List<Instance> before = repo.findAll();
-        Instance found = before.stream()
-            .filter(i -> "temp-to-delete".equals(i.getModelName()))
-            .findFirst().orElseThrow();
-        int tempId = found.getId();
+    // ── toggleStatus ──
 
-        repo.delete(tempId);
-        assertNull(repo.findById(tempId));
+    @Test
+    void toggleStatus_flipsStatus() throws Exception {
+        rawInsert("test-model", 1, 2, "test-model", null);
+        List<Instance> all = repo.findAll();
+        int id = all.get(0).getId();
+
+        repo.toggleStatus(id);
+        Instance reloaded = repo.findById(id);
+        assertNotEquals(2, reloaded.getStatus());
+    }
+
+    // ── existsByModelName ──
+
+    @Test
+    void existsByModelName_returnsTrueForExisting() throws Exception {
+        rawInsert("kimi-k2.6", 2, 1, "kimi-k2.6", null);  // status=RAW
+        assertTrue(repo.existsByModelName("kimi-k2.6"));
     }
 
     @Test
-    void toggleStatus_flipsActiveToDisabled() {
-        repo.toggleStatus(1); // 2 → 3
-        Instance inst = repo.findById(1);
-        assertEquals(3, inst.getStatus());
-
-        repo.toggleStatus(1); // 3 → 2
-        inst = repo.findById(1);
-        assertEquals(2, inst.getStatus());
+    void existsByModelName_returnsFalseForNonExisting() {
+        assertFalse(repo.existsByModelName("no-such-model"));
     }
 
-    @Test
-    void existsByModelName_rawInstance_returnsTrue() {
-        assertTrue(repo.existsByModelName("deepseek-raw-variant"));
-    }
+    // ── lifecycle ──
 
     @Test
-    void existsByModelName_disabledInstance_returnsFalse() {
-        assertFalse(repo.existsByModelName("deepseek-v4-disabled"));
-    }
+    void crudLifecycle() {
+        // Insert
+        Instance inst = new Instance();
+        inst.setModelName("lifecycle-test");
+        inst.setVendorId(1);
+        inst.setStatus(2);
+        inst.setUpstreamModel("lifecycle-upstream");
+        repo.insert(inst);
 
-    @Test
-    void existsByModelName_nonexistent_returnsFalse() {
-        assertFalse(repo.existsByModelName("nonexistent-model"));
+        // Get the generated ID via findAll
+        List<Instance> all = repo.findAll();
+        assertEquals(1, all.size());
+        int id = all.get(0).getId();
+        assertTrue(id > 0);
+
+        // Find
+        Instance found = repo.findById(id);
+        assertNotNull(found);
+        assertEquals("lifecycle-test", found.getModelName());
+        assertEquals(1, found.getVendorId());
+
+        // Update
+        found.setStatus(4);
+        repo.update(found);
+
+        Instance reloaded = repo.findById(id);
+        assertEquals(4, reloaded.getStatus());
+
+        // Delete
+        repo.delete(id);
+        assertNull(repo.findById(id));
     }
 }

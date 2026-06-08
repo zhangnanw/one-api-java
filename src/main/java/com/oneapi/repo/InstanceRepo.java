@@ -25,6 +25,15 @@ import java.util.List;
 public class InstanceRepo extends BaseRepo {
     private static final Logger log = LoggerFactory.getLogger(InstanceRepo.class);
 
+    public InstanceRepo() {
+        super();
+    }
+
+    /** For testing — inject custom DataSource. */
+    InstanceRepo(javax.sql.DataSource ds) {
+        super(ds);
+    }
+
     public static final int STATUS_RAW = 1;
     public static final int STATUS_TAGGED = 2;
     public static final int STATUS_DISABLED = 3;

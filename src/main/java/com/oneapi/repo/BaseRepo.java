@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import com.oneapi.config.DatabaseConfig;
 
+import javax.sql.DataSource;
+
 /**
  * 仓库层基类。
  * <p>
@@ -15,7 +17,18 @@ import com.oneapi.config.DatabaseConfig;
  * 而非用 500 表达"数据库炸了"（数据库错误会通过 /api/status 暴露）。
  */
 public abstract class BaseRepo {
+    private final DataSource dataSource;
+
+    protected BaseRepo() {
+        this.dataSource = DatabaseConfig.getDataSource();
+    }
+
+    /** For testing — inject custom DataSource. */
+    protected BaseRepo(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
     protected Connection getConnection() throws SQLException {
-        return DatabaseConfig.getDataSource().getConnection();
+        return dataSource.getConnection();
     }
 }
