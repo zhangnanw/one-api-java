@@ -36,6 +36,12 @@ public class BodyLimitFilter implements Filter {
             return ctx;
         }
 
+        // Skip for vision requests — image bytes ≠ text tokens.
+        // Vision models handle image sizing natively via their own encoders.
+        if ("vision".equals(ctx.capabilityRequired())) {
+            return ctx;
+        }
+
         byte[] rawBody = ctx.rawBody();
         int bodyLen = rawBody == null ? 0 : rawBody.length;
         if (bodyLen == 0) {
