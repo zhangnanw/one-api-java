@@ -18,7 +18,7 @@ catalogs = [
     ("mimo-v2-flash",                            ["chat","code"],        131072),
     ("mimo-v2-pro",                              ["chat","code"],        131072),
     ("mimo-v2.5",                                ["chat","code","vision"], 131072),
-    ("mimo-v2.5-pro",                            ["chat","code","reasoning"], 131072),
+    ("mimo-v2.5-pro",                            ["chat","code","reasoning"], 262144),
     ("doubao-seed-2.0-pro-260215",               ["chat","reasoning"],   131072),
     ("doubao-seed-2.0-code-260215",              ["code","vision"],      131072),
     ("doubao-seed-2.0-lite-260428",              ["chat"],               131072),
