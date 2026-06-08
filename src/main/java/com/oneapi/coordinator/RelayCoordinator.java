@@ -133,7 +133,7 @@ public class RelayCoordinator {
 
         var filtered = relayCtx.<RoutedVendor>candidates();
         if (filtered == null || filtered.isEmpty()) {
-            error(ctx, 503, "all instances filtered for " + req.requestedModel());
+            error(ctx, 400, "all instances filtered for " + req.requestedModel());
             return;
         }
 
