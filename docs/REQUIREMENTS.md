@@ -379,7 +379,7 @@ minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
 
 **理由：** 画像标注的是模型本身的属性（能否看图），实例 meta 标注的是部署属性（哪个供应商、什么 plan）。能力是模型层面的概念，应放在画像里。
 
-**前提：** `RoutedVendor` 需暴露 `modelName` 字段（目前仅有 vendor、instanceMeta 等），CapabilityInstanceFilter 需要它能按 modelName 查 catalog。
+**前提：** `RoutedVendor` 已暴露 `modelName` 字段（`RouterService.java` 中定义），CapabilityInstanceFilter 可通过它按画像名查 catalog。
 
 #### §F.3.3 BodyLimitFilter → 待办
 
@@ -398,14 +398,13 @@ minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
 
 ### §F.5 实施计划
 
-1. **`RoutedVendor` 加 `modelName`**：暴露实例的 model_name，供 CapabilityInstanceFilter 按画像名查 catalog
-2. **VisionFilter（阶段2）**：检测请求体含 `image_url` → 设 `capabilityRequired = "vision"`
-3. **CapabilityInstanceFilter 改造（阶段3）**：从查实例 meta 标签 → 查 `model_catalog.capabilities`（通过 `RoutedVendor.modelName()` → `ModelCatalogRepo`）
-4. CapabilityRequirementMarker 保留（CapabilityMatch 规则场景）
-5. 并发能力需求（CapabilityMatch + VisionFilter 同时激活）→ 当前取 last-write-wins，后续支持多值
-6. `CapabilityInstanceFilterTest` 重写（4 个旧测试基于实例 meta，需改写为 catalog 查表）
-7. 错误码：无候选 → 400（OpenAI 兼容），与 §M.6 统一
-8. BodyLimitFilter → 待办（§F.3.3）
+1. **VisionFilter（阶段2）**：检测请求体含 `image_url` → 设 `capabilityRequired = "vision"`
+2. **CapabilityInstanceFilter 改造（阶段3）**：从查实例 meta 标签 → 查 `model_catalog.capabilities`（通过 `RoutedVendor.modelName()` → `ModelCatalogRepo`）
+3. CapabilityRequirementMarker 保留（CapabilityMatch 规则场景）
+4. 并发能力需求（CapabilityMatch + VisionFilter 同时激活）→ 当前取 last-write-wins，后续支持多值
+5. `CapabilityInstanceFilterTest` 重写（4 个旧测试基于实例 meta，需改写为 catalog 查表）
+6. 错误码：无候选 → 400（OpenAI 兼容），与 §M.6 统一
+7. BodyLimitFilter → 待办（§F.3.3）
 
 ---
 
