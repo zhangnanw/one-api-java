@@ -26,6 +26,7 @@ import com.oneapi.filter.TagFilter;
 import com.oneapi.filter.LayerFilter;
 import com.oneapi.filter.ActiveStatusFilter;
 import com.oneapi.filter.VisionFilter;
+import com.oneapi.filter.BodyLimitFilter;
 import com.oneapi.handler.UpstreamClient;
 import com.oneapi.relay.DefaultRelay;
 import com.oneapi.service.CooldownService;
@@ -133,6 +134,7 @@ public class RouterConfig {
         List<Filter> stage3 = List.of(
             new CooldownFilter(cooldown),
             new CapabilityInstanceFilter(catalogRepo),
+            new BodyLimitFilter(catalogRepo),
             new TagFilter(),
             new LayerFilter(),
             new ActiveStatusFilter()

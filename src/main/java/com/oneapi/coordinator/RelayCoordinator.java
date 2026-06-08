@@ -125,6 +125,12 @@ public class RelayCoordinator {
             relayCtx = f.apply(relayCtx);
         }
 
+        // Check filter-set errors first (e.g. BodyLimitFilter 413)
+        if (relayCtx.hasError()) {
+            error(ctx, relayCtx.error().httpStatus(), relayCtx.errorMessage());
+            return;
+        }
+
         var filtered = relayCtx.<RoutedVendor>candidates();
         if (filtered == null || filtered.isEmpty()) {
             error(ctx, 503, "all instances filtered for " + req.requestedModel());

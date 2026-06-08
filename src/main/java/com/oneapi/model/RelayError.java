@@ -5,12 +5,14 @@ package com.oneapi.model;
  */
 public sealed interface RelayError
     permits RelayError.ModelNotFound, RelayError.NoInstance,
-            RelayError.AllVendorsBusy, RelayError.UpstreamFailure {
+            RelayError.AllVendorsBusy, RelayError.UpstreamFailure,
+            RelayError.BodyTooLarge {
 
     record ModelNotFound(String requestedModel) implements RelayError {}
     record NoInstance(String model, String reason) implements RelayError {}
     record AllVendorsBusy(int retried) implements RelayError {}
     record UpstreamFailure(int httpCode, String responseBody) implements RelayError {}
+    record BodyTooLarge(String model, int bodyBytes, int windowTokens) implements RelayError {}
 
     /** 映射到 HTTP 状态码 */
     default int httpStatus() {
@@ -19,6 +21,7 @@ public sealed interface RelayError
             case NoInstance __ -> 503;
             case AllVendorsBusy __ -> 503;
             case UpstreamFailure f -> f.httpCode();
+            case BodyTooLarge __ -> 413;
         };
     }
     
