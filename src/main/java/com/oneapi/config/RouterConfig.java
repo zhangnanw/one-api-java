@@ -134,7 +134,8 @@ public class RouterConfig {
         var upstreamClient = new UpstreamClient(
             WebClient.create(vertx, new io.vertx.ext.web.client.WebClientOptions()
                 .setConnectTimeout(30000)
-                .setIdleTimeout(120)), vertx);
+                .setIdleTimeout(120)
+                .setUserAgentEnabled(false)), vertx);
         var baseRelay = new DefaultRelay(upstreamClient);
 
         // 协调器

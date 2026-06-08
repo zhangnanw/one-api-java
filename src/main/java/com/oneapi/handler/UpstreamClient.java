@@ -44,13 +44,9 @@ public class UpstreamClient {
         String url = buildUrl(req.baseUrl, req.requestPath);
 
         var headers = MultiMap.caseInsensitiveMultiMap();
-        headers.set("Content-Type", "application/json");
-        headers.set("Authorization", "Bearer " + req.apiKey);
-        if (req.extraHeaders != null) {
-            for (var entry : req.extraHeaders) {
-                headers.set(entry.getKey(), entry.getValue());
-            }
-        }
+        headers.add("Content-Type", "application/json");
+        headers.add("Authorization", "Bearer " + req.apiKey);
+        if (req.extraHeaders != null) headers.addAll(req.extraHeaders);
 
         HttpMethod httpMethod;
         try {
