@@ -252,7 +252,8 @@ public class RelayCoordinator {
                 // 设计意图：有备用实例时静默切换，仅最后一个候选失败才返回错误。
                 log.warn("{} from vendor={}, try next ({} left)",
                     status, vendorName, queue.size());
-                if (status == 429 && routedVendor.vendor() != null) {
+                // 冷却：429 + 空响应都触发（空响应表示上游不可用）
+                if (routedVendor.vendor() != null && (status == 429 || status == 200)) {
                     cooldown.setVendorCooldown(routedVendor.vendor().getId());
                 }
                 recorder.fail(logId, status, errMsg, latency);
