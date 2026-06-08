@@ -7,11 +7,21 @@ import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
 import com.oneapi.repo.InstanceRepo;
 
+import javax.sql.DataSource;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class RouterService {
-    private final InstanceRepo instanceRepo = new InstanceRepo();
+    private final InstanceRepo instanceRepo;
+
+    public RouterService() {
+        this.instanceRepo = new InstanceRepo();
+    }
+
+    /** For testing — inject custom DataSource. */
+    public RouterService(DataSource ds) {
+        this.instanceRepo = new InstanceRepo(ds);
+    }
 
     // 10 秒 TTL 缓存（与 Go 版的 cacheTTL 一致）
     private final Cache<String, List<Instance>> instanceCache = Caffeine.newBuilder()

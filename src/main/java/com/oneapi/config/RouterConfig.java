@@ -33,16 +33,24 @@ import com.oneapi.service.CooldownService;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.SessionTracker;
 
+import javax.sql.DataSource;
 import java.util.List;
 
 public class RouterConfig {
     private final Vertx vertx;
     private final Router router;
     private final AppConfig config;
+    private final DataSource dataSource;
 
     public RouterConfig(Vertx vertx, AppConfig config) {
+        this(vertx, config, null);
+    }
+
+    /** For testing — inject an in-memory DataSource. */
+    public RouterConfig(Vertx vertx, AppConfig config, DataSource dataSource) {
         this.vertx = vertx;
         this.config = config;
+        this.dataSource = dataSource;
         this.router = Router.router(vertx);
     }
 
@@ -117,7 +125,7 @@ public class RouterConfig {
         // ── 装配：组装所有 V2 依赖 ──
 
         // 服务层（cooldown 由 RouterConfig.build() 单例传入）
-        var routerSvc = new RouterService();
+        var routerSvc = dataSource != null ? new RouterService(dataSource) : new RouterService();
         var sessions = new SessionTracker();
 
         FilterSets filters = buildFilters(cooldown);
@@ -138,15 +146,16 @@ public class RouterConfig {
     FilterSets buildFilters(CooldownService cooldown) {
         // 第二阶段过滤器（模型解析）
         List<Filter> stage2 = List.of(
-            new NameMatcher(new InstanceRepo()),
-            new VirtualModelLookup(new VirtualModelRepo(),
+            new NameMatcher(new InstanceRepo(dataSource)),
+            new VirtualModelLookup(new VirtualModelRepo(dataSource),
                 config.getPolicies().getReasoning().getTriggerSuffix()),
             new CapabilityRequirementMarker(),
             new VisionFilter()
         );
 
         // 第三阶段过滤器（候选实例筛选）
-        var catalogRepo = new ModelCatalogRepo(DatabaseConfig.getDataSource());
+        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
+        var catalogRepo = new ModelCatalogRepo(ds);
         List<Filter> stage3 = List.of(
             new CooldownFilter(cooldown),
             new CapabilityInstanceFilter(catalogRepo),

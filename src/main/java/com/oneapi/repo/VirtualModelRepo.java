@@ -25,6 +25,15 @@ import java.util.List;
 public class VirtualModelRepo extends BaseRepo {
     private static final Logger log = LoggerFactory.getLogger(VirtualModelRepo.class);
 
+    public VirtualModelRepo() {
+        super();
+    }
+
+    /** For testing — inject custom DataSource. */
+    public VirtualModelRepo(javax.sql.DataSource ds) {
+        super(ds);
+    }
+
     public List<VirtualModel> findAll() {
         List<VirtualModel> list = new ArrayList<>();
         String sql = "SELECT id, name, match FROM virtual_models ORDER BY id";

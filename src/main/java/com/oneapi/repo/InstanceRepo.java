@@ -30,7 +30,7 @@ public class InstanceRepo extends BaseRepo {
     }
 
     /** For testing — inject custom DataSource. */
-    InstanceRepo(javax.sql.DataSource ds) {
+    public InstanceRepo(javax.sql.DataSource ds) {
         super(ds);
     }
 
