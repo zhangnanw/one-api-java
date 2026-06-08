@@ -2,7 +2,7 @@ package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
-import com.oneapi.repo.ModelCatalogRepo;
+import com.oneapi.repo.WindowCatalog;
 import com.oneapi.service.RouterService.RoutedVendor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +23,9 @@ public class BodyLimitFilter implements Filter {
     /** Conservative bytes-per-token estimate (GPT tokenizer ~4 chars/token for English). */
     static final int BYTES_PER_TOKEN = 4;
 
-    private final ModelCatalogRepo catalogRepo;
+    private final WindowCatalog catalogRepo;
 
-    public BodyLimitFilter(ModelCatalogRepo catalogRepo) {
+    public BodyLimitFilter(WindowCatalog catalogRepo) {
         this.catalogRepo = catalogRepo;
     }
 

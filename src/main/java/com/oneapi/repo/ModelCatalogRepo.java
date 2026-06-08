@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * Loads all (name, capabilities, context_window) rows on construction from the database.
  * Used by {@code CapabilityInstanceFilter} and {@code BodyLimitFilter}.
  */
-public class ModelCatalogRepo {
+public class ModelCatalogRepo implements CapabilityCatalog, WindowCatalog {
     private static final Logger log = LoggerFactory.getLogger(ModelCatalogRepo.class);
 
     private final ConcurrentHashMap<String, List<String>> catalog = new ConcurrentHashMap<>();

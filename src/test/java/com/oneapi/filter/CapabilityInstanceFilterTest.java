@@ -1,7 +1,7 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
-import com.oneapi.repo.ModelCatalogRepo;
+import com.oneapi.repo.CapabilityCatalog;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.RouterService.RoutedVendor;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,12 +15,12 @@ import static org.mockito.Mockito.*;
 
 class CapabilityInstanceFilterTest {
 
-    private ModelCatalogRepo catalogRepo;
+    private CapabilityCatalog catalogRepo;
     private CapabilityInstanceFilter filter;
 
     @BeforeEach
     void setUp() {
-        catalogRepo = mock(ModelCatalogRepo.class);
+        catalogRepo = mock(CapabilityCatalog.class);
         when(catalogRepo.hasCapability(eq("model-a"), eq("vision"))).thenReturn(true);
         when(catalogRepo.hasCapability(eq("model-b"), eq("vision"))).thenReturn(false);
         filter = new CapabilityInstanceFilter(catalogRepo);

@@ -2,7 +2,7 @@ package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
-import com.oneapi.repo.ModelCatalogRepo;
+import com.oneapi.repo.WindowCatalog;
 import com.oneapi.service.RouterService.RoutedVendor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,12 +13,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BodyLimitFilterTest {
     private BodyLimitFilter filter;
-    private ModelCatalogRepo repo;
+    private WindowCatalog repo;
 
     @BeforeEach
     void setUp() {
-        // Build a repo with known context windows via anonymous override
-        repo = new ModelCatalogRepo() {
+        // Anonymous interface implementation with known context windows
+        repo = new WindowCatalog() {
             @Override
             public int getContextWindow(String modelName) {
                 return switch (modelName) {
