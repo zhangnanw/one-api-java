@@ -26,6 +26,9 @@ public class RelayContext {
     
     /** ModelsMatch 的逻辑模型名列表。非空时 RelayCoordinator 以此为准，忽略 routingModelName。 */
     private List<String> modelNames;
+    
+    /** Raw request body bytes, set by RelayCoordinator before stage2 filters run. */
+    private byte[] rawBody;
 
     // 错误状态
     private RelayError relayError;
@@ -82,4 +85,7 @@ public class RelayContext {
     
     public List<String> modelNames() { return modelNames; }
     public void setModelNames(List<String> v) { this.modelNames = v; }
+    
+    public byte[] rawBody() { return rawBody; }
+    public void setRawBody(byte[] v) { this.rawBody = v; }
 }

@@ -83,6 +83,7 @@ public class RelayCoordinator {
 
         // 第二阶段：模型解析
         RelayContext relayCtx = new RelayContext(req.requestedModel());
+        relayCtx.setRawBody(rawBody);
         for (var f : stage2Filters) {
             relayCtx = f.apply(relayCtx);
             if (relayCtx.hasError()) {

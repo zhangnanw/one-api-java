@@ -23,8 +23,8 @@ public class Main {
         // 初始化数据库
         DatabaseConfig.init(sqlitePath);
 
-        // 初始化 model_catalog 表
-        new ModelCatalogRepo().init();
+        // 初始化 model_catalog 缓存（从 DB 加载）
+        new ModelCatalogRepo(DatabaseConfig.getDataSource());
 
         // 初始化 relay-log.db（独立，静默失败）
         RelayLogger.init();

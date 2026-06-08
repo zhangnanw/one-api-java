@@ -7,6 +7,7 @@ import io.vertx.ext.web.client.WebClient;
 
 import com.oneapi.repo.VirtualModelRepo;
 import com.oneapi.repo.InstanceRepo;
+import com.oneapi.repo.ModelCatalogRepo;
 import com.oneapi.controller.MiscController;
 import com.oneapi.controller.VendorController;
 import com.oneapi.controller.InstanceController;
@@ -128,9 +129,10 @@ public class RouterConfig {
         );
 
         // 第三阶段过滤器（候选实例筛选）
+        var catalogRepo = new ModelCatalogRepo(DatabaseConfig.getDataSource());
         List<Filter> stage3 = List.of(
             new CooldownFilter(cooldown),
-            new CapabilityInstanceFilter(),
+            new CapabilityInstanceFilter(catalogRepo),
             new TagFilter(),
             new LayerFilter(),
             new ActiveStatusFilter()
