@@ -170,3 +170,70 @@ qwen-max:
   capabilities:
     - capability:writing
     - capability:chat
+
+# === survey models (国产大模型能力评估报告) ===
+qwen2.5-coder:
+  context_window: 131072
+  capabilities:
+    - capability:code
+    - capability:chat
+    - capability:tool_calling
+
+qwen3.5-flash:
+  context_window: 1048576
+  capabilities:
+    - capability:chat
+    - capability:long_context
+
+qwen3.5-plus:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:code
+
+glm-4-flash:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+
+glm-4-plus:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:tool_calling
+
+glm-z1-air:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:reasoning
+
+doubao-1.5-pro:
+  context_window: 262144
+  capabilities:
+    - capability:chat
+    - capability:vision
+    - capability:low_hallucination
+
+# === 国产大模型调查报告 2025H1 补录 ===
+qwen2.5-coder:
+  context_window: 131072
+  capabilities:
+    - capability:code
+    - capability:chat
+
+glm-4-flash:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+
+glm-4-plus:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+
+doubao-1.5-pro:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:vision

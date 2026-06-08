@@ -36,6 +36,14 @@ catalogs = [
     ("doubao-pro",                               ["writing","chat"],      32768),
     ("yuewen-miaobi",                            ["writing","chat"],      131072),
     ("qwen-max",                                 ["writing","chat"],      32768),
+    # === 国产大模型调查报告 2025H1 补录 ===
+    ("qwen2.5-coder",                            ["code","chat","tool_calling"], 131072),
+    ("qwen3.5-flash",                            ["chat","long_context"],        1048576),
+    ("qwen3.5-plus",                             ["chat","code"],                131072),
+    ("glm-4-flash",                              ["chat"],                       131072),
+    ("glm-4-plus",                               ["chat","tool_calling"],        131072),
+    ("glm-z1-air",                               ["chat","reasoning"],           131072),
+    ("doubao-1.5-pro",                           ["chat","vision","low_hallucination"], 262144),
 ]
 
 for name, caps, ctx in catalogs:
