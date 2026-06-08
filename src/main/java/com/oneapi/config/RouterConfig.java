@@ -24,6 +24,7 @@ import com.oneapi.filter.CooldownFilter;
 import com.oneapi.filter.TagFilter;
 import com.oneapi.filter.LayerFilter;
 import com.oneapi.filter.ActiveStatusFilter;
+import com.oneapi.filter.VisionFilter;
 import com.oneapi.handler.UpstreamClient;
 import com.oneapi.relay.DefaultRelay;
 import com.oneapi.service.CooldownService;
@@ -122,7 +123,8 @@ public class RouterConfig {
             new NameMatcher(new InstanceRepo()),
             new VirtualModelLookup(new VirtualModelRepo(),
                 config.getPolicies().getReasoning().getTriggerSuffix()),
-            new CapabilityRequirementMarker()
+            new CapabilityRequirementMarker(),
+            new VisionFilter()
         );
 
         // 第三阶段过滤器（候选实例筛选）
