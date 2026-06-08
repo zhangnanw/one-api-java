@@ -20,8 +20,8 @@ import java.util.List;
 public class BodyLimitFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(BodyLimitFilter.class);
 
-    /** Conservative bytes-per-token estimate (GPT tokenizer ~4 chars/token for English). */
-    static final int BYTES_PER_TOKEN = 4;
+    /** Bytes-per-token estimate (conservative: ~2 for Chinese, ~4 for English). */
+    static final int BYTES_PER_TOKEN = 2;
 
     private final WindowCatalog catalogRepo;
 
