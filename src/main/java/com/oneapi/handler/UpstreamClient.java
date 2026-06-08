@@ -46,7 +46,11 @@ public class UpstreamClient {
         var headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Content-Type", "application/json");
         headers.add("Authorization", "Bearer " + req.apiKey);
-        if (req.extraHeaders != null) headers.addAll(req.extraHeaders);
+        if (req.extraHeaders != null) {
+            for (var entry : req.extraHeaders) {
+                headers.set(entry.getKey(), entry.getValue());
+            }
+        }
 
         HttpMethod httpMethod;
         try {
@@ -57,6 +61,7 @@ public class UpstreamClient {
         }
         return client.requestAbs(httpMethod, url)
             .putHeaders(headers)
+            .putHeader("User-Agent", headers.get("User-Agent"))
             .sendBuffer(Buffer.buffer(req.body))
             .onSuccess(resp -> log.debug("relay OK: {} -> status={}", url, resp.statusCode()))
             .onFailure(err -> log.error("relay failed: {}", err.getMessage()));
@@ -74,7 +79,11 @@ public class UpstreamClient {
         var headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Content-Type", "application/json");
         headers.add("Authorization", "Bearer " + req.apiKey);
-        if (req.extraHeaders != null) headers.addAll(req.extraHeaders);
+        if (req.extraHeaders != null) {
+            for (var entry : req.extraHeaders) {
+                headers.set(entry.getKey(), entry.getValue());
+            }
+        }
 
         HttpMethod httpMethod;
         try {
