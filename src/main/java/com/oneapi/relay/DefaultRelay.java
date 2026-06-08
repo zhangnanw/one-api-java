@@ -46,6 +46,13 @@ public class DefaultRelay implements RelayExecutor {
                 String body = resp.bodyAsString();
                 int status = resp.statusCode();
                 if (status >= 200 && status < 300) {
+                    // 空响应检测：上游返回 200 但 choices 无效 → 视为失败，重试下一个实例
+                    if (body == null || !hasChoices(body)) {
+                        log.warn("upstream returned {} with null/empty choices: {}",
+                            status, body != null ? body.substring(0, Math.min(200, body.length())) : "null");
+                        return Future.failedFuture(
+                            new RelayException(new RelayError.UpstreamFailure(status, body)));
+                    }
                     return Future.succeededFuture(new RelayResult(
                         status,
                         body,
@@ -67,6 +74,19 @@ public class DefaultRelay implements RelayExecutor {
                 return Future.failedFuture(
                     new RelayException(new RelayError.UpstreamFailure(502, err.getMessage())));
             });
+    }
+
+    /** Quick check: does the body contain a non-null, non-empty "choices" array? */
+    private static boolean hasChoices(String body) {
+        if (body == null || body.isEmpty()) return false;
+        // Check for "choices":null or "choices":[]
+        int idx = body.indexOf("\"choices\"");
+        if (idx < 0) return false;
+        // Get the value after "choices":
+        int colon = body.indexOf(':', idx);
+        if (colon < 0) return false;
+        String afterColon = body.substring(colon + 1).trim();
+        return !afterColon.startsWith("null") && !afterColon.startsWith("[]");
     }
 
     private static int parsePromptTokens(String body) {
