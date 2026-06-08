@@ -381,11 +381,20 @@ minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
 
 **前提：** `RoutedVendor` 已暴露 `modelName` 字段（`RouterService.java` 中定义），CapabilityInstanceFilter 可通过它按画像名查 catalog。
 
-#### §F.3.3 BodyLimitFilter → 待办
+#### §F.3.3 BodyLimitFilter
 
-**状态：** 待讨论。
+**状态：** 方案讨论中。
 
-> 模型画像引入后，请求体大小限制是否应该进入画像（不同模型窗口不同）、还是全局一刀切、还是由供应商限制——需要重新讨论。暂不入实现计划。
+**方向：** 按画像的 `context_window` 动态限流，而非 Go 版的全局 100KB 一刀切。例如：
+- `minimax-m3`（context_window=131072）→ 限制较紧
+- `kimi-k2.6`（context_window=262144）→ 限制更宽
+
+**待解决：**
+1. 限制在哪个阶段？阶段2 还没确定最终模型，阶段3 已筛选完候选——取候选中最小的窗口？还是最大的？
+2. 限制单位？Go 用字节，但模型窗口是 token。需不需要 tokenize 估算？
+3. 预检 vs 事后：上游自己也会报错——要不要前置拦截？
+
+> Go 版的全局 100KB 一刀切不适应 Java 版的画像架构。需重新设计。
 
 ### §F.4 Go→Java 迁移差异
 
@@ -404,7 +413,7 @@ minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
 4. 并发能力需求（CapabilityMatch + VisionFilter 同时激活）→ 当前取 last-write-wins，后续支持多值
 5. `CapabilityInstanceFilterTest` 重写（4 个旧测试基于实例 meta，需改写为 catalog 查表）
 6. 错误码：无候选 → 400（OpenAI 兼容），与 §M.6 统一
-7. BodyLimitFilter → 待办（§F.3.3）
+7. BodyLimitFilter → 方案讨论中（§F.3.3），按画像 context_window 动态限流
 
 ---
 
