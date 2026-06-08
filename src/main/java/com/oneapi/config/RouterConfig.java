@@ -120,6 +120,22 @@ public class RouterConfig {
         var routerSvc = new RouterService();
         var sessions = new SessionTracker();
 
+        FilterSets filters = buildFilters(cooldown);
+
+        // 第五阶段：上游客户端
+        var upstreamClient = new UpstreamClient(
+            WebClient.create(vertx), vertx);
+        var baseRelay = new DefaultRelay(upstreamClient);
+
+        // 协调器
+        var coordinator = new RelayCoordinator(
+            routerSvc, cooldown, sessions, upstreamClient,
+            filters.stage2, filters.stage3, baseRelay, config);
+        return new RelayControllerV2(coordinator);
+    }
+
+    /** Exposed for testing — assembles filter chain without Vert.x dependency. */
+    FilterSets buildFilters(CooldownService cooldown) {
         // 第二阶段过滤器（模型解析）
         List<Filter> stage2 = List.of(
             new NameMatcher(new InstanceRepo()),
@@ -140,16 +156,16 @@ public class RouterConfig {
             new ActiveStatusFilter()
         );
 
-        // 第五阶段：上游客户端
-        var upstreamClient = new UpstreamClient(
-            WebClient.create(vertx), vertx);
-        var baseRelay = new DefaultRelay(upstreamClient);
+        return new FilterSets(stage2, stage3);
+    }
 
-        // 协调器
-        var coordinator = new RelayCoordinator(
-            routerSvc, cooldown, sessions, upstreamClient,
-            stage2, stage3, baseRelay, config);
-        return new RelayControllerV2(coordinator);
+    static class FilterSets {
+        final List<Filter> stage2;
+        final List<Filter> stage3;
+        FilterSets(List<Filter> stage2, List<Filter> stage3) {
+            this.stage2 = stage2;
+            this.stage3 = stage3;
+        }
     }
 
     private void registerFallback() {

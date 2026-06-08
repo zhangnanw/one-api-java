@@ -1,0 +1,14 @@
+server:
+  port: 13000
+
+relay:
+  maxRetries: 2
+  cacheTtlSeconds: 10
+  layerOrder:
+    - subscription
+    - free
+    - payg
+
+policies:
+  reasoning:
+    triggerSuffix: "-max"
