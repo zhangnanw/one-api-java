@@ -1,61 +1,109 @@
 # 模型目录配置
 # 维护说明：模型能力是事实，发布就定型。如有更新，编辑此文件并重启服务。
+# 与 model_catalog 表保持一致。
 
-kimi-2.6:
-  context_window: 128000
-  cost:
-    input_rmb_per_m: 4
-    output_rmb_per_m: 12
+# === deepseek ===
+deepseek-v4-flash:
+  context_window: 131072
   capabilities:
-    - capability:tools
-
-minimax-m3:
-  context_window: 1000000
-  cost:
-    input_rmb_per_m: 2
-    output_rmb_per_m: 8
-  capabilities:
-    - capability:vision
-    - capability:tools
+    - capability:code
+    - capability:chat
 
 deepseek-v4-pro:
-  context_window: 384000
-  cost:
-    input_rmb_per_m: 2
-    output_rmb_per_m: 6
+  context_window: 131072
   capabilities:
-    - capability:reasoning
-    - capability:tools
+    - capability:code
+    - capability:chat
 
-deepseek-v4-pro-max:
-  context_window: 384000
-  cost:
-    input_rmb_per_m: 3
-    output_rmb_per_m: 9
+# === kimi ===
+kimi-k2.6:
+  context_window: 131072
   capabilities:
-    - capability:reasoning
-    - capability:tools
+    - capability:code
+    - capability:chat
+    - capability:vision
 
-glm-5:
-  context_window: 128000
-  cost:
-    input_rmb_per_m: 1
-    output_rmb_per_m: 4
+kimi-k2.5:
+  context_window: 131072
   capabilities:
-    - capability:tools
+    - capability:code
+    - capability:chat
 
-deepseek-v4-flash:
-  context_window: 128000
-  cost:
-    input_rmb_per_m: 0.5
-    output_rmb_per_m: 1
+# === minimax ===
+minimax-m3:
+  context_window: 131072
   capabilities:
-    - capability:tools
+    - capability:chat
+    - capability:code
+    - capability:vision
+
+minimax-m2.7:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:code
+
+minimax-m2.5:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+
+# === mimo ===
+mimo-v2-flash:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:code
+
+mimo-v2-pro:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:code
+
+mimo-v2.5:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:code
+    - capability:vision
 
 mimo-v2.5-pro:
-  context_window: 128000
-  cost:
-    input_rmb_per_m: 1
-    output_rmb_per_m: 3
+  context_window: 131072
   capabilities:
-    - capability:tools
+    - capability:chat
+    - capability:code
+    - capability:reasoning
+
+# === doubao (seed 2.0) ===
+doubao-seed-2.0-pro-260215:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+    - capability:reasoning
+
+doubao-seed-2.0-code-260215:
+  context_window: 131072
+  capabilities:
+    - capability:code
+    - capability:vision
+
+doubao-seed-2.0-lite-260428:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+
+doubao-seed-2-0-lite-260215:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+
+doubao-seed-2-0-mini-260215:
+  context_window: 131072
+  capabilities:
+    - capability:chat
+
+doubao-seed-2-0-mini-260428:
+  context_window: 131072
+  capabilities:
+    - capability:chat
