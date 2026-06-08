@@ -8,25 +8,20 @@ import java.util.Comparator;
 /**
  * 按优先级升序排列（值越小优先级越高）。
  *
- * 排序 = layer 基数 + pref 小数：
- *   free         → 0.x
- *   subscription → 1.x
- *   payg         → 2.x
+ * priority = layer + pref
+ *   layer: free=0.0, subscription=1.0, payg=2.0
+ *   pref:  0~1 浮点数，同层内区分
  *
- * pref 值除以 100000 转为小数部分，同层内区分。
- * 后续软标签（writing/reasoning 等）可叠加到小数位。
+ * 软标签/用量等后续叠加到 pref 中。
  */
 public class ByPref implements Comparator<RoutedVendor> {
 
-    /** pref 缩放因子：原 pref 值除以 100000 得到小数部分。 */
-    private static final float PREF_SCALE = 100_000f;
-
     private static float layerBase(String layer) {
-        if (layer == null) return 2.0f; // 未知按按量处理
+        if (layer == null) return 2.0f;
         return switch (layer) {
             case "free"         -> 0.0f;
             case "subscription" -> 1.0f;
-            default             -> 2.0f; // payg
+            default             -> 2.0f;
         };
     }
 
@@ -34,8 +29,8 @@ public class ByPref implements Comparator<RoutedVendor> {
     public int compare(RoutedVendor a, RoutedVendor b) {
         MetaView ma = MetaView.fromInstanceMeta(a.instanceMeta());
         MetaView mb = MetaView.fromInstanceMeta(b.instanceMeta());
-        float pa = layerBase(ma.instanceLayer()) + ma.instancePref() / PREF_SCALE;
-        float pb = layerBase(mb.instanceLayer()) + mb.instancePref() / PREF_SCALE;
+        float pa = layerBase(ma.instanceLayer()) + ma.instancePref();
+        float pb = layerBase(mb.instanceLayer()) + mb.instancePref();
         return Float.compare(pa, pb);
     }
 }

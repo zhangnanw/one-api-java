@@ -48,7 +48,7 @@ public class MetaView {
     // --- 实例访问器 ---
     public String instanceLayer() { return instanceCaps != null ? instanceCaps.layer() : ""; }
     public Set<String> instanceTags() { return instanceCaps != null ? instanceCaps.tags() : Set.of(); }
-    public int instancePref() { return instanceCaps != null ? instanceCaps.pref() : 0; }
+    public float instancePref() { return instanceCaps != null ? instanceCaps.pref() : 0f; }
     public int instanceMaxTokens() { return instanceCaps != null ? instanceCaps.maxTokens() : 0; }
     public InstanceCaps instanceCaps() { return instanceCaps != null ? instanceCaps : InstanceCaps.empty(); }
     public boolean instanceHasTag(String tag) { return instanceCaps != null && instanceCaps.hasTag(tag); }
@@ -76,7 +76,7 @@ public class MetaView {
             Map<String, Object> m = mapper.readValue(meta, Map.class);
             Set<String> tags = parseTagsArray(m.get(MetaKeys.TAGS));
             String layer = m.getOrDefault(MetaKeys.LAYER, "").toString();
-            int pref = m.get(MetaKeys.PREF) instanceof Number n ? n.intValue() : 0;
+            float pref = m.get(MetaKeys.PREF) instanceof Number n ? n.floatValue() : 0f;
             int maxTokens = m.get(MetaKeys.MAX_TOKENS) instanceof Number n ? n.intValue() : 0;
             return new InstanceCaps(tags, layer, pref, maxTokens);
         } catch (Exception e) {

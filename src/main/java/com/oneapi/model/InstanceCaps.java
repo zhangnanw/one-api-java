@@ -8,7 +8,7 @@ import java.util.Set;
 public record InstanceCaps(
     Set<String> tags,    // 例如 ["capability:reasoning"]
     String layer,        // "free" | "subscription" | "payg" | ""
-    int pref,            // 优先级上限，0 = 无限制
+    float pref,          // 0~1，同层内优先级
     int maxTokens        // 上游 max_tokens 上限，0 = 未配置
 ) {
     public static InstanceCaps empty() {
