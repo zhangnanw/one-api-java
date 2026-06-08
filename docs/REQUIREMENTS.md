@@ -50,7 +50,7 @@
 | CRUD 管理 API | ✅ | Vert.x Router + HikariCP SQLite |
 | Relay 转发 | ✅ | WebClient (buffered) + HttpClient (pipe) |
 | **VisionFilter (动态 图像检测)** | ❌ | Go→Java 迁移丢失，见 §F |
-| **BodyLimitFilter (>100KB)** | ❌ | Go→Java 迁移丢失，见 §F |
+| **BodyLimitFilter (>100KB)** | ✅ | 按画像 context_window 动态限流，413 BodyTooLarge |
 | CORS + tokenHash | ✅ | Vert.x Route handler |
 | 会话追踪 (SHA256) | ✅ | ConcurrentHashMap (Go: sync.Map) |
 | KimiCode UA 伪装 | ✅ | 内联 RelayController |
@@ -336,8 +336,8 @@ one-api-java/
      NameMatcher              CooldownFilter
      VirtualModelLookup       TagFilter
      CapabilityRequirementMarker（已存在）
-     VisionFilter（待实现）     LayerFilter
-     (TODO) BodyLimitFilter   ActiveStatusFilter
+     VisionFilter（已实现）       LayerFilter
+     BodyLimitFilter（已实现）     ActiveStatusFilter
                               CapabilityInstanceFilter
 ```
 
@@ -383,18 +383,13 @@ minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
 
 #### §F.3.3 BodyLimitFilter
 
-**状态：** 方案讨论中。
+**触发条件：** 阶段3，对每个候选实例，检查请求体字节数是否超过 `model_catalog.context_window`（token）。
 
-**方向：** 按画像的 `context_window` 动态限流，而非 Go 版的全局 100KB 一刀切。例如：
-- `minimax-m3`（context_window=131072）→ 限制较紧
-- `kimi-k2.6`（context_window=262144）→ 限制更宽
+**行为：** body_bytes > context_window_tokens → 筛掉该候选。所有候选被筛 → 413 `BodyTooLarge`。画像中无记录的模型保持（未知窗口 = 不限）。
 
-**待解决：**
-1. 限制在哪个阶段？阶段2 还没确定最终模型，阶段3 已筛选完候选——取候选中最小的窗口？还是最大的？
-2. 限制单位？Go 用字节，但模型窗口是 token。需不需要 tokenize 估算？
-3. 预检 vs 事后：上游自己也会报错——要不要前置拦截？
+**启发式：** 1 token ≈ 1 byte（保守估计）。实际 token 数通常小于字节数，因此这个判断偏保守——会提前拒绝，不会误放。
 
-> Go 版的全局 100KB 一刀切不适应 Java 版的画像架构。需重新设计。
+**状态：** ✅ 已实现（commit `63bc498`）。
 
 ### §F.4 Go→Java 迁移差异
 
@@ -403,7 +398,7 @@ minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
 | VisionFilter 动态激活，检测 image_url | ❌ 不存在 | 待实现——改为筛画像 |
 | CapabilityMatch 规则设 capability | ✅ CapabilityRequirementMarker | 保留 |
 | CapabilityInstanceFilter 查实例 meta 标签 | ✅ 查实例 meta 标签 | 待改——改为查 model_catalog.capabilities |
-| BodyLimitFilter (>100KB) | ❌ 不存在 | 待办，需重新讨论 |
+| BodyLimitFilter (>100KB) | ✅ 已实现 | 阶段3，按画像 context_window |
 
 ### §F.5 实施计划
 
@@ -413,7 +408,7 @@ minimax 入口 models: [minimax-m2.7, minimax-m3, minimax-m2.5]
 4. 并发能力需求（CapabilityMatch + VisionFilter 同时激活）→ 当前取 last-write-wins，后续支持多值
 5. `CapabilityInstanceFilterTest` 重写（4 个旧测试基于实例 meta，需改写为 catalog 查表）
 6. 错误码：无候选 → 400（OpenAI 兼容），与 §M.6 统一
-7. BodyLimitFilter → 方案讨论中（§F.3.3），按画像 context_window 动态限流
+7. BodyLimitFilter → ✅ 已实现（阶段3，按 context_window 逐模型筛，413 BodyTooLarge）
 
 ---
 
