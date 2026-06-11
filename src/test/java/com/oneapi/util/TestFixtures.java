@@ -46,7 +46,7 @@ public final class TestFixtures {
                                              Vendor vendor) {
         return new RoutedVendor(
             vendor, "model", "model", instanceId, instanceTags, instanceMeta, 1
-        );
+        , 0f, "payg");
     }
 
     /**

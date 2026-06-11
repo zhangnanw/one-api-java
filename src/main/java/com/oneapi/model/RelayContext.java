@@ -2,15 +2,23 @@ package com.oneapi.model;
 
 import com.oneapi.service.RouterService.RoutedVendor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 在过滤器链中传递的阶段上下文。
+ * 中继上下文 — 在过滤器链和协调器中传递的请求状态。
  * <p>
- * Stage context carried through the filter chain.
+ * 生命周期：
+ * - 阶段 1（请求解析）：由 RelayCoordinator 创建，填入 requestedModel、rawBody
+ * - 阶段 2（模型解析）：由 VirtualModelLookup 等 filter 填入 matchRule、routingModelName、modelNames
+ * - 阶段 3（候选过滤）：由 RouterService 填入 candidates，各 filter 逐步移除不符合条件的候选
+ * - 阶段 4（排序）：由 sorter 对 candidates 排序
+ * - 阶段 5（执行）：由 RelayCoordinator 选第一个候选执行中继
  * <p>
- * Accessor style is record-like ({@code xxx()}), not JavaBean ({@code getXxx()}),
- * to match {@link RelayRequest} and other value objects in the model package.
+ * 如果 markError() 被调用，协调器会跳过阶段 3-5，直接返回错误响应。
+ * <p>
+ * Accessor 风格为 record 式（{@code xxx()}），而非 JavaBean 式（{@code getXxx()}），
+ * 与 {@link RelayRequest} 等其他值对象保持一致。
  */
 public class RelayContext {
     // 阶段2：模型解析
@@ -34,15 +42,29 @@ public class RelayContext {
     private RelayError relayError;
     /**
      * 错误的人类可读消息。与 {@link #relayError} 同时设置。
-     * 典型用法：{@code relayError.toString()} 含类型信息（"upstream 429" / "model not found"），
-     * 而 errorMessage 用于附加上下文（上游返回的 message 字段）。
-     * 调用方可用其中任一字段，按可读性需要选用。
+     * <p>
+     * 典型用法：{@code relayError.toString()} 含类型信息（如 "upstream 429"、"model not found"），
+     * 而 errorMessage 可附带上游返回的 detail 信息，便于排查。
+     * 调用方按需要选用任一字段。
      */
     private String errorMessage;
+
+    /** filter 链操作日志：每个 filter 的移除记录 */
+    private final List<FilterAction> filterLog = new ArrayList<>();
 
     public RelayContext(String requestedModel) {
         this.requestedModel = requestedModel;
     }
+
+    public record FilterAction(String filterName, int beforeCount, int afterCount,
+                                List<Integer> removedInstanceIds, String reason) {}
+
+    public void addFilterAction(String filterName, int before, int after,
+                                 List<Integer> removedIds, String reason) {
+        filterLog.add(new FilterAction(filterName, before, after, removedIds, reason));
+    }
+
+    public List<FilterAction> filterLog() { return filterLog; }
 
     // --- 错误方法 ---
 

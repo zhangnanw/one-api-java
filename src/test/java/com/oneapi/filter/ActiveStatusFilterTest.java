@@ -64,7 +64,7 @@ class ActiveStatusFilterTest {
     }
 
     private static RoutedVendor rv(int id, int status) {
-        return new RoutedVendor(null, "model", "upstream", id, "", "{}", status);
+        return new RoutedVendor(null, "model", "upstream", id, "", "{}", status, 0f, "payg");
     }
 
     private static RelayContext ctx(RoutedVendor... candidates) {

@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * 闃舵 3 鈥?浠呬繚鐣欐椿璺冨疄渚嬶紙STATUS_RAW 鎴?STATUS_TAGGED锛夛紝鎺掗櫎 DISABLED 鍜?DEPRECATED銆?
+ * 阶段 3 — 仅保留活跃实例（STATUS_RAW 或 STATUS_TAGGED），移除 DISABLED 和 DEPRECATED。
  */
 public class ActiveStatusFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(ActiveStatusFilter.class);

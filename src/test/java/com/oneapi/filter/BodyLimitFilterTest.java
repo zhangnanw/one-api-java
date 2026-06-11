@@ -33,7 +33,7 @@ class BodyLimitFilterTest {
     }
 
     private RoutedVendor rv(String modelName) {
-        return new RoutedVendor(null, modelName, null, 0, null, null, 0);
+        return new RoutedVendor(null, modelName, null, 0, null, null, 0, 0f, "payg");
     }
 
     private RelayContext ctx(List<RoutedVendor> candidates, byte[] body) {

@@ -47,6 +47,7 @@ public class InstanceRepo extends BaseRepo {
         String sql = """
             SELECT i.id, i.model_name, i.status, i.upstream_model,
                    i.vendor_id, i.created_time, i.meta,
+                   i.pref, i.layer,
                    v.id as v_id, v.name as v_name, v.description as v_desc,
                    v.status as v_status, v."group" as v_group, v.priority as v_priority,
                    v.created_time as v_created_time, v.base_url as v_base_url,
@@ -84,7 +85,7 @@ public class InstanceRepo extends BaseRepo {
     public List<Instance> findAll() {
         List<Instance> list = new ArrayList<>();
         String sql = "SELECT id, model_name, status, upstream_model, " +
-                     "vendor_id, created_time, meta " +
+                     "vendor_id, created_time, meta, pref, layer " +
                      "FROM instances WHERE status NOT IN (?, ?) ORDER BY id";
 
         try (Connection conn = getConnection();
@@ -104,7 +105,7 @@ public class InstanceRepo extends BaseRepo {
 
     public Instance findById(int id) {
         String sql = "SELECT id, model_name, status, upstream_model, " +
-                     "vendor_id, created_time, meta FROM instances WHERE id = ?";
+                     "vendor_id, created_time, meta, pref, layer FROM instances WHERE id = ?";
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -119,12 +120,14 @@ public class InstanceRepo extends BaseRepo {
     }
 
     public void update(Instance inst) {
-        String sql = "UPDATE instances SET status=?, meta=? WHERE id=?";
+        String sql = "UPDATE instances SET status=?, meta=?, pref=?, layer=? WHERE id=?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, inst.getStatus());
             ps.setString(2, inst.getMeta());
-            ps.setInt(3, inst.getId());
+            ps.setFloat(3, inst.getPref());
+            ps.setString(4, inst.getLayer());
+            ps.setInt(5, inst.getId());
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("update instance {}: {}", inst.getId(), e.getMessage());
@@ -158,8 +161,8 @@ public class InstanceRepo extends BaseRepo {
     }
 
     public void insert(Instance inst) {
-        String sql = "INSERT INTO instances (vendor_id, model_name, upstream_model, status, created_time, meta) " +
-                     "VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO instances (vendor_id, model_name, upstream_model, status, created_time, meta, pref, layer) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, inst.getVendorId());
@@ -168,6 +171,8 @@ public class InstanceRepo extends BaseRepo {
             ps.setInt(4, inst.getStatus());
             ps.setLong(5, System.currentTimeMillis() / 1000);
             ps.setString(6, inst.getMeta() != null ? inst.getMeta() : "{}");
+            ps.setFloat(7, inst.getPref());
+            ps.setString(8, inst.getLayer() != null ? inst.getLayer() : "payg");
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("insert instance: {}", e.getMessage());
@@ -183,6 +188,8 @@ public class InstanceRepo extends BaseRepo {
         inst.setVendorId(rs.getInt("vendor_id"));
         inst.setCreatedTime(rs.getLong("created_time"));
         inst.setMeta(rs.getString("meta"));
+        inst.setPref(rs.getFloat("pref"));
+        inst.setLayer(rs.getString("layer"));
         return inst;
     }
 
@@ -191,11 +198,12 @@ public class InstanceRepo extends BaseRepo {
      * Used by NameMatcher in Stage 2.
      */
     public boolean existsByModelName(String modelName) {
-        String sql = "SELECT 1 FROM instances WHERE model_name = ? AND status = ?";
+        String sql = "SELECT 1 FROM instances WHERE model_name = ? AND (status = ? OR status = ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, modelName);
             ps.setInt(2, STATUS_RAW);
+            ps.setInt(3, STATUS_TAGGED);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }

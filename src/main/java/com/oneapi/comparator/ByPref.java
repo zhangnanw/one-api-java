@@ -1,6 +1,5 @@
 package com.oneapi.comparator;
 
-import com.oneapi.model.MetaView;
 import com.oneapi.service.RouterService.RoutedVendor;
 
 import java.util.Comparator;
@@ -17,7 +16,7 @@ import java.util.Comparator;
 public class ByPref implements Comparator<RoutedVendor> {
 
     private static float layerBase(String layer) {
-        if (layer == null) return 2.0f;
+        if (layer == null || layer.isEmpty()) return 2.0f;
         return switch (layer) {
             case "free"         -> 0.0f;
             case "subscription" -> 1.0f;
@@ -27,10 +26,8 @@ public class ByPref implements Comparator<RoutedVendor> {
 
     @Override
     public int compare(RoutedVendor a, RoutedVendor b) {
-        MetaView ma = MetaView.fromInstanceMeta(a.instanceMeta());
-        MetaView mb = MetaView.fromInstanceMeta(b.instanceMeta());
-        float pa = layerBase(ma.instanceLayer()) + ma.instancePref();
-        float pb = layerBase(mb.instanceLayer()) + mb.instancePref();
+        float pa = layerBase(a.instanceLayer()) + a.instancePref();
+        float pb = layerBase(b.instanceLayer()) + b.instancePref();
         return Float.compare(pa, pb);
     }
 }

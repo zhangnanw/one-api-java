@@ -1,6 +1,8 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
+
+import java.util.ArrayList;
 import com.oneapi.model.RelayError;
 import com.oneapi.repo.WindowCatalog;
 import com.oneapi.service.RouterService.RoutedVendor;
@@ -20,8 +22,8 @@ import java.util.List;
 public class BodyLimitFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(BodyLimitFilter.class);
 
-    /** Bytes-per-token estimate (conservative: ~2 for Chinese, ~4 for English). */
-    static final int BYTES_PER_TOKEN = 2;
+    /** Bytes-per-token estimate (GPT tokenizer ~4 bytes/token, covers Chinese JSON overhead). */
+    static final int BYTES_PER_TOKEN = 4;
 
     private final WindowCatalog catalogRepo;
 
@@ -49,10 +51,27 @@ public class BodyLimitFilter implements Filter {
         }
 
         int before = candidates.size();
+        List<Integer> removedIds = new ArrayList<>();
         List<RoutedVendor> filtered = candidates.stream()
-            .filter(rv -> acceptable(rv, bodyLen))
+            .filter(rv -> {
+                if (!acceptable(rv, bodyLen)) {
+                    removedIds.add(rv.instanceId());
+                    return false;
+                }
+                return true;
+            })
             .toList();
         int removed = before - filtered.size();
+
+        if (!removedIds.isEmpty()) {
+            int minWindow = candidates.stream()
+                .mapToInt(rv -> catalogRepo.getContextWindow(rv.modelName()))
+                .filter(w -> w > 0).min().orElse(0);
+            int byteLimit = minWindow > 0 ? minWindow * BYTES_PER_TOKEN : 0;
+            String reason = String.format("body=%d bytes > window=%d tokens x %d = %d bytes",
+                bodyLen, minWindow, BYTES_PER_TOKEN, byteLimit);
+            ctx.addFilterAction("BodyLimitFilter", before, filtered.size(), removedIds, reason);
+        }
 
         if (filtered.isEmpty()) {
             // Find the smallest known context window among candidates for the error message

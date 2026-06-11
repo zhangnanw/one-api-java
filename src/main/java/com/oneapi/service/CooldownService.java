@@ -49,8 +49,9 @@ public class CooldownService {
     }
 
     /**
-     * Atomically check and set instance cooldown.
-     * Returns true if already cooling (caller should skip), false if newly set.
+     * 原子检查并设置实例冷却。
+     * 返回 true 表示已经在冷却中（调用方应跳过该实例），false 表示新设置了冷却（调用方应视为本次失败已处理）。
+     * 使用 compute() 保证并发安全：多个线程同时失败时，只有第一个会设置冷却，后续的会看到 old.until > now 而返回 true。
      */
     public boolean checkAndSetInstanceCooldown(int instanceId, String tags) {
         if (hasNoCoolTag(tags)) return false;
@@ -75,8 +76,8 @@ public class CooldownService {
     }
 
     /**
-     * Atomically check and set vendor cooldown.
-     * Returns true if already cooling (caller should skip), false if newly set.
+     * 原子检查并设置供应商冷却。
+     * 与 {@link #checkAndSetInstanceCooldown} 逻辑相同，但作用于供应商级别。
      */
     public boolean checkAndSetVendorCooldown(int vendorId) {
         long now = System.currentTimeMillis() / 1000;

@@ -36,7 +36,9 @@ public class RouterService {
         int instanceId,
         String instanceTags,
         String instanceMeta,
-        int instanceStatus
+        int instanceStatus,
+        float instancePref,
+        String instanceLayer
     ) {
         /**
          * 从路由后中间表示转换为中继候选。
@@ -57,8 +59,8 @@ public class RouterService {
 
     /**
      * 为给定模型加载原始候选实例 — 不过滤、不排序。
-     * 由 V2 协调器使用，后者运行自己的过滤器链。
-     * 返回所有 model_name 匹配所请求模型名称的实例。
+     * 由 V2 协调器使用，后者运行自己的过滤器链和排序器。
+     * 返回所有 model_name 匹配所请求模型名称的实例（已排除 DISABLED 和 DEPRECATED）。
      */
     public List<RoutedVendor> loadCandidates(String modelName) {
         List<Instance> all = getCachedInstances();
@@ -76,7 +78,9 @@ public class RouterService {
                 i.getId(),
                 String.join(",", FilterUtils.parseTags(i.getMeta())),
                 i.getMeta(),
-                i.getStatus()
+                i.getStatus(),
+                i.getPref(),
+                i.getLayer()
             ))
             .toList();
     }

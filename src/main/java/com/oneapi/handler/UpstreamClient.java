@@ -20,10 +20,14 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * Terminal handler: forwards request to upstream vendor.
- * Two backends:
- * - WebClient for buffered relay (retry-friendly)
- * - HttpClient for streaming relay (real pipe)
+ * 上游客户端 — 负责将请求转发到供应商 API。
+ * <p>
+ * 两个实现：
+ * - relay()：缓冲模式，等完整响应后再返回。支持重试，用于非流式请求。
+ * - relayStream()：流式模式，边收边发。用于 SSE 流式响应。
+ * <p>
+ * WebClient 用于缓冲模式（自动处理重定向、重试友好）。
+ * HttpClient 用于流式模式（真正的 chunk 级管道，不走缓冲）。
  */
 public class UpstreamClient {
     private static final Logger log = LoggerFactory.getLogger(UpstreamClient.class);
@@ -39,7 +43,7 @@ public class UpstreamClient {
             .setKeepAlive(false));
     }
 
-    /** Buffered relay — returns full response body. Used for retry. */
+    /** 缓冲式中继 — 等待完整响应后返回。用于非流式请求，支持重试。 */
     public Future<HttpResponse<Buffer>> relay(OutboundRequest req) {
         String url = buildUrl(req.baseUrl, req.requestPath);
 
@@ -63,10 +67,16 @@ public class UpstreamClient {
     }
 
     /**
-     * Streaming relay — pipes upstream chunks directly to client.
-     * @param chunkConverter optional converter applied to each chunk before writing to sink.
+     * 流式中继 — 将上游的 SSE chunk 实时 pipe 到客户端。
+     *
+     * @param req            出站请求（含上游 URL、API Key、body）
+     * @param onStatus       状态回调：返回 true 表示状态码可接受（继续 pipe），false 表示需要 fallback
+     * @param onComplete     完成回调：(statusCode, totalTokens)
+     * @param chunkConverter 可选的 chunk 转换器（如用于模型名称替换），返回转换后的 SSE 文本
      */
-    public void relayStream(OutboundRequest req, BiConsumer<Integer, Integer> onComplete,
+    public void relayStream(OutboundRequest req,
+                            Function<Integer, Boolean> onStatus,
+                            BiConsumer<Integer, Integer> onComplete,
                             Function<Buffer, String> chunkConverter) {
         String url = buildUrl(req.baseUrl, req.requestPath);
         HttpServerResponse sink = req.sink;
@@ -106,6 +116,17 @@ public class UpstreamClient {
                     request.send(Buffer.buffer(req.body))
                         .onSuccess(upstream -> {
                             int statusCode = upstream.statusCode();
+                            
+                            // 非 200 → 不 pipe 到客户端，让调用方 fallback
+                            if (onStatus != null && !onStatus.apply(statusCode)) {
+                                upstream.body().onSuccess(body -> {
+                                    onComplete.accept(statusCode, parseTokensFromBody(body.toString()));
+                                }).onFailure(err -> {
+                                    onComplete.accept(statusCode, 0);
+                                });
+                                return;
+                            }
+                            
                             sink.setStatusCode(statusCode);
                             upstream.headers().forEach(h -> sink.putHeader(h.getKey(), h.getValue()));
                             if (sink.headers().get("Content-Type") == null) {
@@ -158,13 +179,13 @@ public class UpstreamClient {
         }
     }
 
-    /** Parse tokens from a single chunk, updating holder with latest non-zero value. */
+    /** 从单个 SSE chunk 中解析 total_tokens（避免完整 split）。 */
     private static void parseTokensFromChunk(Buffer chunk, int[] holder) {
         int t = parseTokensFromBody(chunk.toString());
         if (t > 0) holder[0] = t;
     }
 
-    /** Scan body line-by-line for total_tokens (avoids full split into array). */
+    /** 逐行扫描 body 中的 total_tokens（避免一次性 split 成数组）。 */
     private static int parseTokensFromBody(String body) {
         int totalTokens = 0;
         int start = 0;

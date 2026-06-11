@@ -125,7 +125,7 @@ class CooldownFilterTest {
             tags,
             "{}",
             1
-        );
+        , 0f, "payg");
     }
 
     private static RelayContext ctx(RoutedVendor... candidates) {

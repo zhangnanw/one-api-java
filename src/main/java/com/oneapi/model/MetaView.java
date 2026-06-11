@@ -28,7 +28,14 @@ public class MetaView {
     }
 
     public static MetaView of(Instance instance) {
-        return new MetaView(null, parseInstanceMeta(instance.getMeta()));
+        InstanceCaps caps = parseInstanceMeta(instance.getMeta());
+        // entity 层独立列覆盖 JSON（处理默认值和空值）
+        float pref = instance.getPref();
+        String layer = instance.getLayer() != null ? instance.getLayer() : "";
+        if (pref != 0f || (layer != null && !layer.isEmpty())) {
+            caps = new InstanceCaps(caps.tags(), layer, pref, caps.maxTokens());
+        }
+        return new MetaView(null, caps);
     }
 
     /**

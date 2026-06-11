@@ -15,7 +15,7 @@ class RelayCoordinatorTest {
 
     private static RoutedVendor rv(int id, float pref, String layer, int status) {
         String meta = "{\"pref\":" + pref + (layer != null ? ",\"layer\":\"" + layer + "\"" : "") + "}";
-        return new RoutedVendor(null, "model", "upstream", id, "", meta, status);
+        return new RoutedVendor(null, "model", "upstream", id, "", meta, status, 0f, "payg");
     }
 
     private final Comparator<RoutedVendor> sorter =

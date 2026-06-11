@@ -9,18 +9,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 閾忔碍瀚欏Ο鈥崇€锋禒鎾崇氨閵?
+ * 虚拟模型仓库 — 负责 virtual_models 表的 CRUD。
  * <p>
- * 閾忔碍瀚欏Ο鈥崇€烽弰顖滄暏閹寸兘娼伴崥鎴犳畱 API 閸氬秶袨閿涘牆顩?"kimi-k2.6"閿涘绱濋崠褰掑帳鐟欏嫬鍨?JSON閿涘澖@code match} 閸掓绱氱憴锝嗙€介崥?
- * 閻?{@link com.oneapi.model.MatchRuleParser} 鏉烆兛璐熺猾璇茬€烽崠?MatchRule閵?
+ * 虚拟模型是 OpenAI 模型名称到实际供应商模型的映射配置。
+ * match 字段存储 JSON 格式的匹配规则，由 {@link com.oneapi.model.MatchRuleParser} 解析为类型化的 MatchRule。
  * <p>
- * 閺屻儲澹樼拠顓濈疅閿?
- * - {@link #findByName}閿涙碍瀵?name 缁墽鈥橀崠褰掑帳閿涘牏鏁ら幋?API 鐠囬攱鐪?閳?閾忔碍瀚欏Ο鈥崇€烽敍?
- * - {@link #findAll}閿涙艾鍙忕悰銊﹀瘻 id 閸楀洤绨敍娑楃返 /v1/models 缁旑垳鍋ｆ担璺ㄦ暏
- * - NOT_FOUND 閸濄劌鍙洪敍姘弓濞夈劌鍞介弮鎯扮箲閸?{@link VirtualModel#NOT_FOUND}閿涘潟d=0 閻ㄥ嫬宕版担宥忕礆閿?
- *   鐠嬪啰鏁ら弬鐟扮安濡偓閺?{@code virtualModel == VirtualModel.NOT_FOUND}閵?
+ * 主要方法：
+ * - {@link #findByName} — 按名称查找虚拟模型，用于 /v1/chat/completions 路由
+ * - {@link #findAll} — 查找所有虚拟模型，用于 /v1/models 端点
+ * - NOT_FOUND 哨兵：{@link VirtualModel#NOT_FOUND} 的 id=0，表示未找到。调用方应检查 {@code virtualModel == VirtualModel.NOT_FOUND}
  * <p>
- * 闁挎瑨顕ゆ径鍕倞閿涙瓔QLException 娑撯偓瀵?log 閸氬氦绻戦崶鐐碘敄闂嗗棗鎮庨幋?NOT_FOUND閵?
+ * SQL 异常会被捕获并记录日志，返回 NOT_FOUND 或空列表（不会向上抛出异常）。
  */
 public class VirtualModelRepo extends BaseRepo {
     private static final Logger log = LoggerFactory.getLogger(VirtualModelRepo.class);

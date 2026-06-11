@@ -1,6 +1,8 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
+
+import java.util.ArrayList;
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.MetaView;
 import com.oneapi.service.RouterService.RoutedVendor;
@@ -11,8 +13,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 闃舵 3 鈥?鏍规嵁 MatchRule.TagMatch 鐨勬爣绛炬潯浠惰繃婊ゅ€欓€夈€?
- * 鏀寔 ALL锛堝繀椤诲寘鍚墍鏈夋爣绛撅級鍜?ANY锛堝繀椤诲寘鍚嚦灏戜竴涓級銆?
+ * 阶段 3 — 根据 MatchRule.TagMatch 的标签条件过滤候选。
+ * 支持 ALL（必须包含所有标签）和 ANY（必须包含至少一个）。
  */
 public class TagFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(TagFilter.class);
@@ -21,7 +23,7 @@ public class TagFilter implements Filter {
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
         if (!(rule instanceof MatchRule.TagMatch(Set<String> allTags, Set<String> anyTags))) {
-            return ctx; // 鏃犳爣绛炬潯浠?鈥?鐩存帴閫氳繃
+            return ctx; // 无标签条件 — 直接通过
         }
 
         List<RoutedVendor> candidates = ctx.candidates();
@@ -29,6 +31,7 @@ public class TagFilter implements Filter {
             return ctx;
         }
 
+        List<Integer> removedIds = new ArrayList<>();
         List<RoutedVendor> filtered = candidates.stream()
             .filter(routedVendor -> {
                 MetaView mv = MetaView.fromInstanceMeta(routedVendor.instanceMeta());
@@ -36,6 +39,7 @@ public class TagFilter implements Filter {
                 if (allTags != null && !allTags.isEmpty()) {
                     for (String tag : allTags) {
                         if (!mv.instanceHasTag(tag)) {
+                            removedIds.add(routedVendor.instanceId());
                             return false;
                         }
                     }
@@ -50,12 +54,18 @@ public class TagFilter implements Filter {
                         }
                     }
                     if (!hasAny) {
+                        removedIds.add(routedVendor.instanceId());
                         return false;
                     }
                 }
                 return true;
             })
             .toList();
+
+        if (!removedIds.isEmpty()) {
+            String reason = "tag mismatch";
+            ctx.addFilterAction("TagFilter", candidates.size(), filtered.size(), removedIds, reason);
+        }
 
         log.debug("TagFilter: {} 鈫?{} candidates", candidates.size(), filtered.size());
         ctx.setCandidates(filtered);

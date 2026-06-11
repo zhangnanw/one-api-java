@@ -1,6 +1,8 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
+
+import java.util.ArrayList;
 import com.oneapi.repo.CapabilityCatalog;
 import com.oneapi.service.RouterService.RoutedVendor;
 import org.slf4j.Logger;
@@ -50,9 +52,21 @@ public class CapabilityInstanceFilter implements Filter {
             return ctx;
         }
 
+        List<Integer> removedIds = new ArrayList<>();
         List<RoutedVendor> filtered = candidates.stream()
-            .filter(rv -> catalogRepo.hasCapability(rv.modelName(), required))
+            .filter(rv -> {
+                if (!catalogRepo.hasCapability(rv.modelName(), required)) {
+                    removedIds.add(rv.instanceId());
+                    return false;
+                }
+                return true;
+            })
             .toList();
+
+        if (!removedIds.isEmpty()) {
+            ctx.addFilterAction("CapabilityInstanceFilter", candidates.size(), filtered.size(),
+                removedIds, "no capability: " + required);
+        }
 
         log.debug("CapabilityInstanceFilter {}: {} → {} candidates",
             required, candidates.size(), filtered.size());

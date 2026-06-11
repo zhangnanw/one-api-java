@@ -20,6 +20,8 @@ public class Instance {
     @JsonProperty("created_time")
     private long createdTime;
     private String meta;
+    private float pref = 0.5f;
+    private String layer;
 
     // 瞬时字段（非持久化）
     private Vendor vendor;

@@ -10,6 +10,7 @@ import com.oneapi.config.ConfigLoader;
 import com.oneapi.config.DatabaseConfig;
 import com.oneapi.config.RouterConfig;
 import com.oneapi.repo.ModelCatalogRepo;
+import com.oneapi.service.HolographicLogger;
 import com.oneapi.service.RelayLogger;
 
 public class Main {
@@ -28,6 +29,9 @@ public class Main {
 
         // 初始化 relay-log.db（独立，静默失败）
         RelayLogger.init();
+
+        // 初始化 holographic-debug.db（独立，静默失败）
+        HolographicLogger.init();
 
         // 创建 Vert.x
         Vertx vertx = Vertx.vertx();

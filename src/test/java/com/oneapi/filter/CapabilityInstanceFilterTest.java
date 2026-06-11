@@ -71,7 +71,9 @@ class CapabilityInstanceFilterTest {
             id,          // instanceId
             "",          // instanceTags
             null,        // instanceMeta
-            1            // instanceStatus
+            1,            // instanceStatus
+            0f,           // instancePref
+            "payg"        // instanceLayer
         );
     }
 
