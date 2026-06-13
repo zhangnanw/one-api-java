@@ -108,7 +108,8 @@ public class UpstreamClient {
                 .setHost(uri.getHost())
                 .setPort(uri.getPort() > 0 ? uri.getPort() : (uri.getScheme().equals("https") ? 443 : 80))
                 .setURI(uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : ""))
-                .setSsl("https".equals(uri.getScheme()));
+                .setSsl("https".equals(uri.getScheme()))
+                .setTimeout(300000); // 5分钟超时，避免上游挂起
 
             rawClient.request(opts)
                 .onSuccess(request -> {

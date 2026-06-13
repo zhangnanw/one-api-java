@@ -238,6 +238,7 @@ public class RelayCoordinator {
         String vendorName = routedVendor.vendor() != null ? routedVendor.vendor().getName() : "?";
 
         // Reasoning 模式：如果 relayCtx 标记了 reasoning=true，向上游发送 X-Reasoning-Effort 头部
+        if (relayCtx.reasoning()) {
             candidate.extraHeaders().add("X-Reasoning-Effort", "max");
         }
 
@@ -449,8 +450,9 @@ public class RelayCoordinator {
                             "stream upstream error", true));
                     }
                     
-                    if (!queue.isEmpty()) {
-                        // 递归：试下一个候选（注意：已往 response 写过的 header 不能改，实际不会到这里因为 200 才会 pipe）
+                    // 流式请求不递归重试：一旦开始 pipe 部分数据，客户端收到的流会损坏
+                    if (!queue.isEmpty() && !relayCtx.isStream()) {
+                        // 非流式：递归试下一个候选
                         ctx.response().setChunked(false);
                         ctx.response().headers().clear();
                         relayStream(ctx, req, queue, relayCtx);
