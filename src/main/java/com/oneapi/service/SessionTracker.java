@@ -189,17 +189,29 @@ public class SessionTracker {
      * - 无记录
      * - lastInstanceId 为 null
      * - 已过期（超过 STICKY_TTL_MS）
+     *
+     * 注意：每次查询都会刷新 lastUsedAt，延长粘性窗口。
      */
-    public OptionalLong getPreferredInstance(String sessionId) {
+    public synchronized OptionalLong getPreferredInstance(String sessionId) {
         var entry = findBySessionId(sessionId);
         if (entry != null) {
             SessionTrack track = entry.getValue();
             if (track.lastInstanceId() == null) return OptionalLong.empty();
             if ((System.currentTimeMillis() - track.lastUsedAt()) > STICKY_TTL_MS)
                 return OptionalLong.empty();
+            // 刷新 TTL：命中时更新 lastUsedAt，防止粘性提前失效
+            touch(entry);
             return OptionalLong.of(track.lastInstanceId());
         }
         return OptionalLong.empty();
+    }
+
+    /** 刷新会话的 lastUsedAt（内部方法，调用方须持有锁）。 */
+    private void touch(Map.Entry<String, SessionTrack> entry) {
+        SessionTrack existing = entry.getValue();
+        store.put(entry.getKey(), new SessionTrack(
+            existing.sessionId(), existing.hash(), existing.updateCount(),
+            existing.lastInstanceId(), System.currentTimeMillis()));
     }
 
     // --- Message model ---

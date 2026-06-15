@@ -16,7 +16,8 @@ public class RequestParser {
         String model = ctx.request().getParam("model");
         boolean streaming = false;
 
-        // 解析一次 JSON，同时取 model 和 stream
+        // model == null 时：从 body 解析 JSON，提取 model 和 stream
+        // model != null 时：按需提取 stream，避免完整解析大 body
         if (model == null) {
             try {
                 JsonObject json = new JsonObject(bodyStr);
@@ -24,8 +25,11 @@ public class RequestParser {
                 streaming = json.getBoolean("stream", false);
             } catch (Exception e) { /* 忽略 */ }
         } else {
+            // 用 contains 快速判断 stream 字段是否存在，避免无必要的大 body 解析
             try {
-                streaming = new JsonObject(bodyStr).getBoolean("stream", false);
+                if (bodyStr.contains("\"stream\"")) {
+                    streaming = new JsonObject(bodyStr).getBoolean("stream", false);
+                }
             } catch (Exception e) { /* 忽略 */ }
         }
 

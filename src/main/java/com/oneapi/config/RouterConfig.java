@@ -126,6 +126,7 @@ public class RouterConfig {
 
         // 服务层（cooldown 由 RouterConfig.build() 单例传入）
         var routerSvc = dataSource != null ? new RouterService(dataSource) : new RouterService();
+        routerSvc.setCooldownService(cooldown); // 冷却预过滤（排序前生效）
         var sessions = new SessionTracker();
 
         FilterSets filters = buildFilters(cooldown);
