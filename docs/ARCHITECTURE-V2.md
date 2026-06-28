@@ -201,6 +201,14 @@ relay:
   layerOrder: [free, subscription, payg]
   cacheTtlSeconds: 10
 
+database:
+  type: postgresql
+  host: 10.0.0.147
+  port: 5432
+  database: oneapi
+  user: oneapi
+  password: OneApi_PG_2026
+
 policies:
   reasoning:
     triggers:

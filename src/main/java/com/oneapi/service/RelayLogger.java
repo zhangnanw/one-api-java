@@ -1,87 +1,74 @@
 package com.oneapi.service;
 
 import com.oneapi.model.RelayLog;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import com.oneapi.config.DatabaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
-import java.nio.file.Paths;
 import java.sql.*;
 
 /**
- * RelayLogger — 独立 relay-log.db（与主 DB 分开，不抢锁）。
- * 完全对齐 Go 版 relay/chain/logger/db.go。
+ * RelayLogger — 请求日志写入。
+ * 支持 SQLite 和 PostgreSQL。
  */
 public class RelayLogger {
     private static final Logger log = LoggerFactory.getLogger(RelayLogger.class);
     private static DataSource ds;
+    private static boolean isPg;
 
-    public static void init() {
-        String home = System.getProperty("user.home");
-        String dbPath = Paths.get(home, ".one-api", "relay-log.db").toString();
-
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:sqlite:" + dbPath);
-        config.setMaximumPoolSize(3);
-        config.setMinimumIdle(1);
-        config.setConnectionTimeout(5000);
-        config.setIdleTimeout(300000);
-        config.addDataSourceProperty("journal_mode", "WAL");
-        config.addDataSourceProperty("busy_timeout", "5000");
-        config.addDataSourceProperty("synchronous", "NORMAL");
-
-        ds = new HikariDataSource(config);
-
-        try (Connection conn = ds.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("PRAGMA journal_mode=WAL");
-            stmt.execute("CREATE TABLE IF NOT EXISTS relay_logs (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "ts INTEGER, channel_id INTEGER, base_url TEXT, " +
-                "token_name TEXT, user_id INTEGER, " +
-                "model_orig TEXT, model_real TEXT, " +
-                "stream INTEGER, body_size INTEGER, " +
-                "code INTEGER, resp_size INTEGER, " +
-                "tokens INTEGER, latency_ms INTEGER, " +
-                "err TEXT)");
-            log.info("relay-log.db ready at {}", dbPath);
-        } catch (SQLException e) {
-            log.error("relay-log.db init failed: {}", e.getMessage());
-        }
+    public static void init(DataSource dataSource) {
+        ds = dataSource;
+        isPg = DatabaseConfig.isPostgreSQL();
+        log.info("RelayLogger initialized (DB={})", isPg ? "postgresql" : "sqlite");
     }
 
     /** 插入记录，返回自增 ID。失败返回 -1（静默）。 */
     public static long insert(RelayLog rlog) {
         if (ds == null) return -1;
-        String sql = "INSERT INTO relay_logs (ts, channel_id, base_url, token_name, user_id, " +
-            "model_orig, model_real, stream, body_size, code, resp_size, tokens, latency_ms, err) " +
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        String sql = isPg
+            ? "INSERT INTO relay_logs (ts, channel_id, base_url, token_name, user_id, " +
+              "model_orig, model_real, stream, body_size, code, resp_size, tokens, latency_ms, err) " +
+              "VALUES (to_timestamp(?),?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id"
+            : "INSERT INTO relay_logs (ts, channel_id, base_url, token_name, user_id, " +
+              "model_orig, model_real, stream, body_size, code, resp_size, tokens, latency_ms, err) " +
+              "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setLong(1, rlog.getTimestamp());
-            ps.setInt(2, rlog.getInstanceId());
-            ps.setString(3, rlog.getBaseUrl());
-            ps.setString(4, rlog.getTokenName());
-            ps.setInt(5, rlog.getUserId());
-            ps.setString(6, rlog.getModelOrig());
-            ps.setString(7, rlog.getUpstreamModel());
-            ps.setInt(8, rlog.isStream() ? 1 : 0);
-            ps.setInt(9, rlog.getBodySize());
-            ps.setInt(10, rlog.getHttpStatus());
-            ps.setInt(11, rlog.getRespSize());
-            ps.setInt(12, rlog.getTokens());
-            ps.setLong(13, rlog.getLatencyMs());
-            ps.setString(14, rlog.getErrorMessage());
-            ps.executeUpdate();
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) return rs.getLong(1);
+            if (isPg) {
+                ps.setLong(1, rlog.getTimestamp());
+                setCommonParams(ps, rlog, 2);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return rs.getLong(1);
+                }
+            } else {
+                ps.setLong(1, rlog.getTimestamp());
+                setCommonParams(ps, rlog, 2);
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) return rs.getLong(1);
+                }
             }
         } catch (SQLException e) {
             log.debug("relay log insert failed: {}", e.getMessage());
         }
         return -1;
+    }
+
+    private static void setCommonParams(PreparedStatement ps, RelayLog rlog, int start) throws SQLException {
+        ps.setInt(start, rlog.getInstanceId());
+        ps.setString(start + 1, rlog.getBaseUrl());
+        ps.setString(start + 2, rlog.getTokenName());
+        ps.setInt(start + 3, rlog.getUserId());
+        ps.setString(start + 4, rlog.getModelOrig());
+        ps.setString(start + 5, rlog.getUpstreamModel());
+        ps.setInt(start + 6, rlog.isStream() ? 1 : 0);
+        ps.setInt(start + 7, rlog.getBodySize());
+        ps.setInt(start + 8, rlog.getHttpStatus());
+        ps.setInt(start + 9, rlog.getRespSize());
+        ps.setInt(start + 10, rlog.getTokens());
+        ps.setLong(start + 11, rlog.getLatencyMs());
+        ps.setString(start + 12, rlog.getErrorMessage());
     }
 
     /** 流式结束后回填 tokens。静默失败。 */

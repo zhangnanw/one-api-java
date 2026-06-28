@@ -62,6 +62,13 @@
             <version>2.16.1</version>
         </dependency>
 
+        <!-- PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.4</version>
+        </dependency>
+
         <!-- SQLite -->
         <dependency>
             <groupId>org.xerial</groupId>

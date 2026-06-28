@@ -1,67 +1,27 @@
 package com.oneapi.service;
 
 import com.oneapi.model.HolographicRecord;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import com.oneapi.config.DatabaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.vertx.core.Vertx;
 import javax.sql.DataSource;
-import java.nio.file.Paths;
 import java.sql.*;
 
 /**
- * 全息调试日志 — 独立 SQLite 数据库，环形缓冲区 50 条。
- * <p>
- * 与 relay-log.db 和主 DB 完全隔离，独立连接池。
+ * 全息调试日志 — 支持 SQLite 和 PostgreSQL。
  * 写入失败静默丢弃，不影响主链路。
  */
 public class HolographicLogger {
     private static final Logger log = LoggerFactory.getLogger(HolographicLogger.class);
     private static final int MAX_RECORDS = 50;
     private static DataSource ds;
+    private static boolean isPg;
 
-    public static void init() {
-        String home = System.getProperty("user.home");
-        String dbPath = Paths.get(home, ".one-api", "holographic-debug.db").toString();
-
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:sqlite:" + dbPath);
-        config.setMaximumPoolSize(2);
-        config.setMinimumIdle(1);
-        config.setConnectionTimeout(5000);
-        config.setIdleTimeout(300000);
-        config.addDataSourceProperty("journal_mode", "WAL");
-        config.addDataSourceProperty("busy_timeout", "5000");
-        config.addDataSourceProperty("synchronous", "NORMAL");
-
-        ds = new HikariDataSource(config);
-
-        try (Connection conn = ds.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("PRAGMA journal_mode=WAL");
-            stmt.execute("CREATE TABLE IF NOT EXISTS holographic_logs (" +
-                "id              INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "request_id      TEXT UNIQUE NOT NULL, " +
-                "timestamp_ms    INTEGER NOT NULL, " +
-                "requested_model TEXT, " +
-                "final_status    TEXT, " +
-                "final_http_code INTEGER, " +
-                "total_latency_ms INTEGER, " +
-                "total_tokens    INTEGER, " +
-                "data            TEXT NOT NULL" +
-                ")");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_hl_ts " +
-                "ON holographic_logs(timestamp_ms)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_hl_model " +
-                "ON holographic_logs(requested_model)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_hl_status " +
-                "ON holographic_logs(final_status)");
-            log.info("holographic-debug.db ready at {}", dbPath);
-        } catch (SQLException e) {
-            log.error("holographic-debug.db init failed: {}", e.getMessage());
-        }
+    public static void init(DataSource dataSource) {
+        ds = dataSource;
+        isPg = DatabaseConfig.isPostgreSQL();
+        log.info("HolographicLogger initialized (DB={})", isPg ? "postgresql" : "sqlite");
     }
 
     public static void write(HolographicRecord record) {
@@ -74,23 +34,23 @@ public class HolographicLogger {
         }
     }
 
-    /**
-     * 异步写入全息日志，避免阻塞事件循环。
-     * 在 worker 线程执行同步写入逻辑。
-     */
-    public static void writeAsync(Vertx vertx, HolographicRecord record) {
-        if (vertx == null || record == null) return;
-        vertx.executeBlocking(promise -> {
-            write(record);
-            promise.complete();
-        }, false, null);  // false = 不在事件循环线程执行
-    }
-
     private static void insert(HolographicRecord record) throws SQLException {
-        String sql = "INSERT OR REPLACE INTO holographic_logs " +
-            "(request_id, timestamp_ms, requested_model, final_status, " +
-            "final_http_code, total_latency_ms, total_tokens, data) " +
-            "VALUES (?,?,?,?,?,?,?,?)";
+        String sql = isPg
+            ? "INSERT INTO holographic_logs (request_id, timestamp_ms, requested_model, final_status, " +
+              "final_http_code, total_latency_ms, total_tokens, data) " +
+              "VALUES (?, to_timestamp(?/1000.0), ?, ?, ?, ?, ?, ?::jsonb) " +
+              "ON CONFLICT (request_id) DO UPDATE SET " +
+              "timestamp_ms = EXCLUDED.timestamp_ms, " +
+              "requested_model = EXCLUDED.requested_model, " +
+              "final_status = EXCLUDED.final_status, " +
+              "final_http_code = EXCLUDED.final_http_code, " +
+              "total_latency_ms = EXCLUDED.total_latency_ms, " +
+              "total_tokens = EXCLUDED.total_tokens, " +
+              "data = EXCLUDED.data"
+            : "INSERT OR REPLACE INTO holographic_logs " +
+              "(request_id, timestamp_ms, requested_model, final_status, " +
+              "final_http_code, total_latency_ms, total_tokens, data) " +
+              "VALUES (?,?,?,?,?,?,?,?)";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, record.requestId());

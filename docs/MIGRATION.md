@@ -1,16 +1,55 @@
 # One-API-Java V2 迁移计划
 
-> 只升级架构，不改功能。分 7 批实施。
+> 只升级架构，不改功能。分 7+1 批实施。
 
 ## 批次依赖关系
 
 ```
+批次 0（数据库迁移）────已完成
+  │
+  ▼
 批次 1（数据模型）─┬─→ 批次 3（过滤器）
 批次 2（配置化）───┘   └─→ 批次 4（装饰器）
                               └─→ 批次 5（协调器）
                                     └─→ 批次 7（清理）
-批次 6（数据库迁移）──独立，等稳定后执行
+批次 6（扁平化迁移）──独立，等稳定后执行
 ```
+
+## 批次 0 — 数据库迁移（SQLite → PostgreSQL）✅ 已完成
+
+**目标**：将 SQLite 三个文件迁移到 PostgreSQL，统一 Schema，利用 PG 原生能力。
+
+| 来源 | 原文件 | 目标 PG 表 |
+|------|--------|-----------|
+| 主数据 | `one-api.db` | `channels`, `tokens`, `users`, `vendors`, `virtual_models`, `model_catalog`, `instances`, `abilities`, `logs`, `options`, `redemptions` |
+| 请求日志 | `relay-log.db` | `relay_logs` |
+| 全息调试 | `holographic-debug.db` | `holographic_logs` |
+
+### 迁移后的 PG 优化
+
+| 字段 | SQLite 类型 | PostgreSQL 类型 | 优化说明 |
+|------|------------|-----------------|----------|
+| `relay_logs.ts` | TEXT（混合 Unix 秒 + ISO 字符串） | `TIMESTAMPTZ` | BRIN 索引 + B-tree 索引，时区感知 |
+| `holographic_logs.timestamp_ms` | BIGINT | `TIMESTAMPTZ` | 毫秒转秒，时区感知 |
+| `holographic_logs.data` | TEXT | `JSONB` | GIN 索引，支持 `data->>'errorType'` 查询 |
+| `instances.meta` | TEXT | `JSONB` | GIN 索引，结构化查询 |
+| `channels.meta/model_mapping/config` | TEXT | `JSONB` | 结构化存储 |
+| 所有 `created_time` | BIGINT | `TIMESTAMPTZ`（新列 `created_at`） | 时区化，支持日期函数 |
+
+### 连接配置
+
+```yaml
+# config.yaml
+database:
+  type: postgresql
+  host: 10.0.0.147
+  port: 5432
+  database: oneapi
+  user: oneapi
+  password: OneApi_PG_2026
+```
+
+**安全**：PG 监听 `10.0.0.147`，`pg_hba.conf` 限制 `10.0.0.0/24` 访问。
 
 ## 批次 1 — 数据模型类型化
 

@@ -90,7 +90,7 @@ class LayerFilterTest {
             "",
             meta,
             1
-        , 0f, "payg");
+        , 0f, layer);
     }
 
     private static RelayContext ctx(MatchRule rule, RoutedVendor... candidates) {

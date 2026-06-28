@@ -19,16 +19,16 @@ public class Main {
     public static void main(String[] args) {
         AppConfig config = ConfigLoader.load();
         int port = config.port();
-        String sqlitePath = config.sqlitePath();
 
-        // 初始化数据库
-        DatabaseConfig.init(sqlitePath);
+        // 初始化数据库（SQLite 或 PostgreSQL）
+        DatabaseConfig.init(config.getDatabase());
 
         // 初始化 model_catalog 缓存（从 DB 加载）
         new ModelCatalogRepo(DatabaseConfig.getDataSource());
 
-        // 初始化 relay-log.db（独立，静默失败）
-        RelayLogger.init();
+        // 初始化日志 DB（复用主 DataSource）
+        RelayLogger.init(DatabaseConfig.getDataSource());
+        HolographicLogger.init(DatabaseConfig.getDataSource());
 
         // 初始化 holographic-debug.db（独立，静默失败）
         HolographicLogger.init();

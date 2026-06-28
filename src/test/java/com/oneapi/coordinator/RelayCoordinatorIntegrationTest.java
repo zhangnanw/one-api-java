@@ -48,13 +48,14 @@ class RelayCoordinatorIntegrationTest {
             // instances
             stmt.execute("CREATE TABLE instances (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, model_name TEXT NOT NULL, status INTEGER DEFAULT 1, " +
-                "upstream_model TEXT, vendor_id INTEGER REFERENCES vendors(id), created_time INTEGER, meta TEXT)");
-            stmt.execute("INSERT INTO instances (id, model_name, status, upstream_model, vendor_id, meta) VALUES " +
-                "(1, 'deepseek-v4-flash', 1, 'deepseek-chat', 1, '{}')");
-            stmt.execute("INSERT INTO instances (id, model_name, status, upstream_model, vendor_id, meta) VALUES " +
-                "(2, 'minimax-m2.7', 1, 'minimax-m2.7', 2, '{}')");
-            stmt.execute("INSERT INTO instances (id, model_name, status, upstream_model, vendor_id, meta) VALUES " +
-                "(3, 'minimax-m3', 1, 'minimax-m3', 2, '{}')");
+                "upstream_model TEXT, vendor_id INTEGER REFERENCES vendors(id), created_time INTEGER, " +
+                "meta TEXT, pref REAL DEFAULT 0, layer TEXT DEFAULT 'payg')");
+            stmt.execute("INSERT INTO instances (id, model_name, status, upstream_model, vendor_id, meta, pref, layer) VALUES " +
+                "(1, 'deepseek-v4-flash', 1, 'deepseek-chat', 1, '{}', 0, 'payg')");
+            stmt.execute("INSERT INTO instances (id, model_name, status, upstream_model, vendor_id, meta, pref, layer) VALUES " +
+                "(2, 'minimax-m2.7', 1, 'minimax-m2.7', 2, '{}', 0, 'payg')");
+            stmt.execute("INSERT INTO instances (id, model_name, status, upstream_model, vendor_id, meta, pref, layer) VALUES " +
+                "(3, 'minimax-m3', 1, 'minimax-m3', 2, '{}', 0, 'payg')");
 
             // virtual_models
             stmt.execute("CREATE TABLE virtual_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, match TEXT)");

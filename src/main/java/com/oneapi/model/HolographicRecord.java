@@ -83,7 +83,7 @@ public class HolographicRecord {
         this.sortOrder = new ArrayList<>();
     }
 
-    // ── Builder 模式：逐阶段填充 ──
+    // ── Builder ──
 
     public static Builder builder(String requestId) {
         return new Builder(requestId);
@@ -102,7 +102,7 @@ public class HolographicRecord {
         public Builder bodySize(int v) { record.bodySize = v; return this; }
         public Builder clientIp(String v) { record.clientIp = v; return this; }
 
-        /** 从原始请求体提取预览和元数据（messages 数量、max_tokens、temperature） */
+        /** 从原始请求体提取预览和元数据 */
         public Builder rawBody(byte[] rawBody) {
             if (rawBody == null || rawBody.length == 0) return this;
             try {
@@ -120,16 +120,16 @@ public class HolographicRecord {
             return this;
         }
 
-        /** 构建初始记录（阶段1完成，请求已解析） */
+        /** 构建初始记录（阶段1完成） */
         public HolographicRecord buildInitial() {
             record.authType = "Bearer";
             return record;
         }
     }
 
-    // ── 阶段填充方法（由 RelayCoordinator 在各阶段节点调用）──
+    // ── 阶段填充方法 ──
 
-    /** 阶段2：填入路由信息（虚拟模型匹配规则、候选模型名列表） */
+    /** 阶段2：路由信息 */
     public void routingInfo(RelayContext relayCtx) {
         this.routingModelNames = relayCtx.modelNames() != null
             ? relayCtx.modelNames()
@@ -166,7 +166,7 @@ public class HolographicRecord {
         this.filterChain.add(Map.of("filter", "ActiveStatusFilter", "action", "pass"));
     }
 
-    /** 阶段3：填入候选列表信息（过滤前后对比、排序结果） */
+    /** 阶段3：候选信息 */
     public void candidatesInfo(List<RoutedVendor> originalCandidates,
                                 List<RelayContext.FilterAction> filterLog,
                                 Collection<RoutedVendor> sorted) {

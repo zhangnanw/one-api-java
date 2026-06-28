@@ -54,7 +54,9 @@ class InstanceRepoTest {
                 "upstream_model TEXT," +
                 "vendor_id INTEGER REFERENCES vendors(id)," +
                 "created_time INTEGER," +
-                "meta TEXT" +
+                "meta TEXT," +
+                "pref REAL DEFAULT 0," +
+                "layer TEXT DEFAULT 'payg'" +
                 ")");
             stmt.execute("INSERT INTO vendors (id, name, base_url, api_key) VALUES (1, 'deepseek', 'https://api.deepseek.com', 'sk-test')");
             stmt.execute("INSERT INTO vendors (id, name, base_url, api_key) VALUES (2, 'volcengine', 'https://ark.cn-beijing.volces.com', 'sk-test2')");

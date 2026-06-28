@@ -16,7 +16,6 @@ import com.oneapi.comparator.ByPref;
 import com.oneapi.comparator.ByStatusDesc;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
@@ -37,7 +36,6 @@ import org.slf4j.LoggerFactory;
 public class RelayCoordinator {
     private static final Logger log = LoggerFactory.getLogger(RelayCoordinator.class);
 
-    private final Vertx vertx;
     private final RouterService router;
     private final CooldownService cooldown;
     private final SessionTracker sessions;
@@ -49,15 +47,13 @@ public class RelayCoordinator {
     private final AppConfig config;
     private final RelayRecorder recorder;
 
-    public RelayCoordinator(Vertx vertx,
-                            RouterService router, CooldownService cooldown,
+    public RelayCoordinator(RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
                             UpstreamClient upstreamClient,
                             List<Filter> stage2Filters,
                             List<Filter> stage3Filters,
                             DefaultRelay baseRelay,
                             AppConfig config) {
-        this.vertx = vertx;
         this.router = router;
         this.cooldown = cooldown;
         this.sessions = sessions;
@@ -109,7 +105,7 @@ public class RelayCoordinator {
             }
         }
 
-        // ── 全息日志：阶段2 完成（模型解析结果）──
+        // ── 全息日志：阶段2 ──
         record.routingInfo(relayCtx);
 
         // 第三阶段：加载候选
@@ -117,7 +113,7 @@ public class RelayCoordinator {
         List<RoutedVendor> candidates;
 
         if (modelNames != null && !modelNames.isEmpty()) {
-        // ModelsMatch：按模型名列表顺序逐模型加载候选，instanceId 去重（同一实例只出现一次）
+            // ModelsMatch：按列表顺序逐模型加载，instanceId 去重
             var seen = new HashSet<Integer>();
             candidates = new ArrayList<>();
             for (String name : modelNames) {
@@ -128,7 +124,7 @@ public class RelayCoordinator {
                 }
             }
         } else {
-        // 原路径：按 routingModelName 加载单个模型的候选列表
+            // 原路径：单 routingModelName
             String targetModel = relayCtx.routingModelName();
             if (targetModel == null || targetModel.isEmpty()) {
                 targetModel = req.requestedModel();
@@ -145,7 +141,7 @@ public class RelayCoordinator {
             relayCtx = f.apply(relayCtx);
         }
 
-        // 先检查 filter 是否设置了错误（如 BodyLimitFilter 的 413）
+        // Check filter-set errors first (e.g. BodyLimitFilter 413)
         if (relayCtx.hasError()) {
             error(ctx, relayCtx.error().httpStatus(), relayCtx.errorMessage());
             return;
@@ -157,7 +153,7 @@ public class RelayCoordinator {
             return;
         }
 
-        // 会话粘性：同一 sessionId 的连续请求优先路由到上次使用的实例
+        // 软粘性 boost：同一会话优先用上次实例
         Object sidObj = ctx.get("sessionId");
         if (sidObj instanceof String sid && !sid.isEmpty()) {
             long preferredId = sessions.getPreferredInstance(sid).orElse(-1L);
@@ -177,7 +173,7 @@ public class RelayCoordinator {
         LinkedList<RoutedVendor> queue = new LinkedList<>(filtered);
         queue.sort(sorter);
 
-        // ── 全息日志：阶段3（候选列表）、阶段4（排序结果）──
+        // ── 全息日志：阶段3-4 ──
         record.candidatesInfo(candidates, relayCtx.filterLog(), queue);
 
         // 第五阶段：中继
@@ -186,8 +182,8 @@ public class RelayCoordinator {
     }
 
     /**
-     * 调度器 — 根据 streaming 标志分派到缓冲式或流式路径。
-     * 纯分发逻辑，不直接发起请求、不持有状态。
+     * 调度：按 streaming 标志分派到 buffered 或 stream 路径。
+     * Pure dispatcher — 不直接中继、不持状态。
      */
     private void executePipeline(RoutingContext ctx, RelayRequest req,
                                   LinkedList<RoutedVendor> queue, RelayContext relayCtx) {
@@ -198,12 +194,33 @@ public class RelayCoordinator {
         }
     }
 
-    /** 非流式中继：用 while 循环遍历候选队列，逐个尝试，失败则重试下一个。 */
+    /** 非流式中继：遍历候选队列，重试直到成功。 */
     private void tryBuffered(RoutingContext ctx, RelayRequest req,
                               LinkedList<RoutedVendor> queue) {
-        // 队列空 = 所有候选都失败了
+        relayBufferedInner(ctx, req, queue, null);
+    }
+
+    /** 流式中继：只试第一个候选，失败由外层 caller 处理（当前实现不重试流式）。 */
+    private void tryStream(RoutingContext ctx, RelayRequest req,
+                            LinkedList<RoutedVendor> queue, RelayContext relayCtx) {
+        relayStream(ctx, req, queue, relayCtx);
+    }
+
+    // --- 缓冲式中继：遍历候选队列，逐个尝试 ---
+
+    private void relayBuffered(RoutingContext ctx, RelayRequest req,
+                               LinkedList<RoutedVendor> queue) {
+        relayBufferedInner(ctx, req, queue, null);
+    }
+
+    private void relayBufferedInner(RoutingContext ctx, RelayRequest req,
+                                    LinkedList<RoutedVendor> queue,
+                                    String lastUpstreamError) {
         if (queue.isEmpty()) {
-            String msg = "no available instances for " + req.requestedModel();
+            String msg = lastUpstreamError != null
+                ? lastUpstreamError
+                : "no available instances for " + req.requestedModel();
+            // ── 全息日志：全部失败 ──
             var rec = ctx.<HolographicRecord>get("holographicRecord");
             if (rec != null) {
                 long totalMs = System.currentTimeMillis() - rec.startMs();
@@ -219,13 +236,13 @@ public class RelayCoordinator {
         Candidate candidate = routedVendor.toCandidate();
         String vendorName = routedVendor.vendor() != null ? routedVendor.vendor().getName() : "?";
 
-        // Reasoning 模式
-        var rc = ctx.get("relayContext");
-        if (rc instanceof RelayContext relayCtx && relayCtx.reasoning()) {
+        // Reasoning 头部
+        var relayCtxObj = ctx.get("relayContext");
+        if (relayCtxObj instanceof RelayContext rc && rc.reasoning()) {
             candidate.extraHeaders().add("X-Reasoning-Effort", "max");
         }
 
-        // Kimi API 要求 User-Agent 必须为 KimiCLI/1.6，否则返回 403
+        // Kimi API 需要 CLI UA
         if (routedVendor.vendor() != null && routedVendor.vendor().getBaseUrl() != null
                 && routedVendor.vendor().getBaseUrl().contains("kimi.com")) {
             candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
@@ -249,6 +266,7 @@ public class RelayCoordinator {
                 if (sidObj instanceof String sid && !sid.isEmpty()) {
                     sessions.recordInstance(sid, routedVendor.instanceId());
                 }
+                // ── 全息日志：成功 ──
                 var rec = ctx.<HolographicRecord>get("holographicRecord");
                 if (rec != null) {
                     long lat = System.currentTimeMillis() - startMs;
@@ -264,7 +282,7 @@ public class RelayCoordinator {
                     rec.finish("success", 200, totalMs, totalTokens,
                         result.responseBody(), null, null, rec.attemptCount(),
                         vendorName, routedVendor.instanceId());
-                    HolographicLogger.writeAsync(vertx, rec);
+                    HolographicLogger.write(rec);
                 }
                 ctx.response()
                     .putHeader("Content-Type", "application/json")
@@ -275,12 +293,16 @@ public class RelayCoordinator {
                 int status = extractHttpStatus(err);
                 String errMsg = extractErrorMessage(err);
 
+                // 重试策略：任何上游错误都试下一个候选，队空才暴露上游错误给客户端。
+                // 设计意图：有备用实例时静默切换，仅最后一个候选失败才返回错误。
                 log.warn("{} from vendor={}, try next ({} left)",
                     status, vendorName, queue.size());
+                // 冷却：429/403/200空响应都触发
                 if (routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200)) {
                     cooldown.setVendorCooldown(routedVendor.vendor().getId());
                 }
                 recorder.fail(logId, status, errMsg, latency);
+                // ── 全息日志：记录失败尝试 ──
                 var rec = ctx.<HolographicRecord>get("holographicRecord");
                 if (rec != null) {
                     String upstreamUrl = routedVendor.vendor() != null
@@ -292,15 +314,8 @@ public class RelayCoordinator {
                         routedVendor.upstreamModel(), upstreamUrl,
                         status, latency, errorTypeFromStatus(status), errMsg, cooled));
                 }
-                // while 循环重试下一个候选（尾部调用，等价于迭代）
-                tryBuffered(ctx, req, queue);
+                relayBufferedInner(ctx, req, queue, errMsg);
             });
-    }
-
-    /** 流式中继：只试队列中第一个候选，失败不重试（流式重试会导致客户端收到重复数据）。 */
-    private void tryStream(RoutingContext ctx, RelayRequest req,
-                            LinkedList<RoutedVendor> queue, RelayContext relayCtx) {
-        relayStream(ctx, req, queue, relayCtx);
     }
 
     private static int extractHttpStatus(Throwable err) {
@@ -394,7 +409,7 @@ public class RelayCoordinator {
 
         ctx.response().setChunked(true);
 
-        // 流式递归 fallback：只有 HTTP 200 才往客户端 pipe；非 200 触发冷却并试下一个候选
+        // 流式递归 fallback：非 200 → 不 pipe 到客户端 → 切下一个候选
         upstreamClient.relayStream(relayReq,
             statusCode -> statusCode == 200,  // 只有 200 才 pipe
             (statusCode, tokens) -> {
@@ -422,7 +437,7 @@ public class RelayCoordinator {
                         HolographicLogger.write(rec);
                     }
                 } else {
-                    // 任何非 200 → 冷却该供应商 → 递归试下一个候选
+                    // 任何非 200 → 冷却 → fallback 下一个
                     cooldown.setVendorCooldown(first.vendor().getId());
                     recorder.fail(logId, statusCode, "", latency);
                     
@@ -435,15 +450,21 @@ public class RelayCoordinator {
                             "stream upstream error", true));
                     }
                     
-                    // 流式请求不递归重试：一旦开始 pipe 部分数据，客户端收到的流会损坏
-                    if (rec != null) {
-                        long totalMs = System.currentTimeMillis() - rec.startMs();
-                        rec.finish("failure", statusCode, totalMs, 0,
-                            null, "relay", "all upstream instances failed",
-                            rec.attemptCount(), null, 0);
-                        HolographicLogger.writeAsync(vertx, rec);
+                    if (!queue.isEmpty()) {
+                        // 递归：试下一个候选（新 conn → 新 sink）
+                        ctx.response().setChunked(false);
+                        ctx.response().headers().clear();
+                        relayStream(ctx, req, queue, relayCtx);
+                    } else {
+                        if (rec != null) {
+                            long totalMs = System.currentTimeMillis() - rec.startMs();
+                            rec.finish("failure", statusCode, totalMs, 0,
+                                null, "relay", "all upstream instances failed",
+                                rec.attemptCount(), null, 0);
+                            HolographicLogger.write(rec);
+                        }
+                        error(ctx, 502, "all upstream instances failed");
                     }
-                    error(ctx, 503, "all upstream instances failed");
                 }
             },
             null  // chunkConverter: 不需要
@@ -464,7 +485,7 @@ public class RelayCoordinator {
         };
     }
 
-    /** 将请求体中的 model 字段替换为上游实际模型名（如果不同）。 */
+    /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
 
     private static byte[] substituteModel(byte[] rawBody, String upstreamModel, String srcModel) {
         if (upstreamModel == null || upstreamModel.equals(srcModel)) return rawBody;
@@ -477,15 +498,10 @@ public class RelayCoordinator {
         }
     }
 
-    /**
-     * 构建候选排序器。
-     * 优先级：pref（供应商优先级）> status（活跃实例优先于不活跃的）。
-     * layer 偏移由 RouterService 在加载候选时已经处理（free+0, subscription+10000, payg+20000）。
-     */
-    private static Comparator<RoutedVendor> buildSorter(AppConfig config) {
+    static Comparator<RoutedVendor> buildSorter(AppConfig config) {
+        // pref 排序 = 基础 pref + layer 偏移（free+0, subscription+10000, payg+20000）
         return new ByPref()
-            .thenComparing(new ByStatusDesc())
-            .thenComparing(new ById());
+            .thenComparing(new ByStatusDesc());
     }
 
     private static void error(RoutingContext ctx, int code, String msg) {

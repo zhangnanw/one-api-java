@@ -47,7 +47,14 @@ public class AppConfig {
     @Setter
     @Getter
     public static class DatabaseYamlConfig {
-        private String path;
+        private String type = "sqlite";  // "sqlite" | "postgresql"
+        private String path;              // SQLite 文件路径
+        // PostgreSQL 配置
+        private String host = "localhost";
+        private int port = 5432;
+        private String database = "oneapi";
+        private String user = "oneapi";
+        private String password;
 
     }
 
