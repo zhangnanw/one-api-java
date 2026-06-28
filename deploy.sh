@@ -11,6 +11,10 @@ if [ "$1" = "--skip-tests" ]; then
     SKIP_TESTS=true
 fi
 
+# 脚本所在目录 = 项目根目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -24,27 +28,26 @@ err()  { echo -e "${RED}[ERROR]${NC} $1"; }
 log "Step 1/5: 检测 Java 环境..."
 
 JAVA_EXE=""
-for candidate in \
-    "/c/Program Files/Eclipse Adoptium/jdk-17."*"/bin/java.exe" \
-    "/c/Program Files/Eclipse Adoptium/jdk-21."*"/bin/java.exe" \
-    "/c/Program Files/Java/jdk-17."*"/bin/java.exe" \
-    "/c/Program Files/Java/jdk-21."*"/bin/java.exe" \
-    "/c/Program Files/OpenJDK/jdk-17."*"/bin/java.exe" \
-    "/c/Program Files/Microsoft/jdk-17."*"/bin/java.exe" \
-    "/c/Program Files/Zulu/zulu-17."*"/bin/java.exe" \
-    "/c/Program Files/semeru/jdk-17."*"/bin/java.exe"; do
-    for f in $candidate; do
-        if [ -f "$f" ]; then
-            JAVA_EXE="$f"
-            break 2
-        fi
-    done
+# 优先查找系统已安装的 JDK 17
+JAVA17_DIRS=(
+    "/c/Program Files/Eclipse Adoptium"
+    "/c/Program Files/Java"
+    "/c/Program Files/OpenJDK"
+    "/c/Program Files/Microsoft"
+    "/c/Program Files/Zulu"
+    "/c/Program Files/semeru"
+)
+for dir in "${JAVA17_DIRS[@]}"; do
+    if [ -d "$dir" ]; then
+        JAVA_EXE=$(find "$dir" -maxdepth 4 -name "java.exe" -path "*/jdk-17*/bin/*" 2>/dev/null | head -1)
+        [ -n "$JAVA_EXE" ] && break
+    fi
 done
 
 if [ -z "$JAVA_EXE" ]; then
-    # 尝试系统路径中的 java
+    # fallback: 检查系统 java 版本是否 >= 17
     if command -v java &>/dev/null; then
-        JAVA_VER=$(java -version 2>&1 | head -1 | grep -oP '"(\d+)' | tr -d '"')
+        JAVA_VER=$(java -version 2>&1 | grep -oP '"(\d+)' | tr -d '"')
         if [ "$JAVA_VER" -ge 17 ] 2>/dev/null; then
             JAVA_EXE=$(which java)
         fi
@@ -75,6 +78,8 @@ log "Step 2/5: 检测 Maven..."
 
 MAVEN_HOME=""
 for candidate in \
+    "/c/BASIC_ENV/apache-maven-3.9.5" \
+    "/c/BASIC_ENV/apache-maven-3.9.2" \
     "/c/BASIC_ENV/apache-maven-"* \
     "/c/Program Files/apache-maven-"* \
     "/c/tools/apache-maven-"*; do
@@ -109,7 +114,7 @@ log "MAVEN_HOME: $MAVEN_HOME_WIN"
 # ---- Step 3: 编译 + 测试 ----
 log "Step 3/5: 编译项目..."
 
-PROJECT_DIR_WIN=$(cygpath -w "$PWD" 2>/dev/null || echo "$PWD")
+PROJECT_DIR_WIN=$(cygpath -w "$SCRIPT_DIR" 2>/dev/null || echo "$SCRIPT_DIR")
 
 TEST_OPTS="test"
 if $SKIP_TESTS; then
@@ -144,7 +149,7 @@ log "Step 4/5: 打包 shaded JAR..."
     -Dmaven.compiler.source=17 \
     -Dmaven.compiler.target=17 \
     -Dmaven.compiler.fork=false \
-    package shade:shade -q
+    package shade:shade $TEST_OPTS -q
 
 JAR_SIZE=$(ls -lh target/one-api-java-1.0.0-shaded.jar | awk '{print $5}')
 log "打包完成 ($JAR_SIZE)"
@@ -181,10 +186,14 @@ YAML
     warn "请编辑 $DEPLOY_DIR/config.yaml 填入正确的数据库密码"
 fi
 
-# 停止旧服务
-OLD_PID=$(tasklist 2>/dev/null | grep "one-api-java" | awk '{print $2}' | head -1 || true)
-if [ -n "$OLD_PID" ]; then
-    log "停止旧服务 (PID: $OLD_PID)..."
+# 停止旧服务（通过端口找进程）
+OLD_PID=$(netstat -ano 2>/dev/null | grep ":13000 " | grep LISTENING | awk '{print $NF}' | head -1)
+if [ -z "$OLD_PID" ]; then
+    # fallback: 用 ss
+    OLD_PID=$(ss -tlnp 2>/dev/null | grep ":13000" | grep -oP 'pid=\K\d+' | head -1)
+fi
+if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "0" ]; then
+    log "停止旧服务 (端口 13000, PID: $OLD_PID)..."
     taskkill /PID "$OLD_PID" /F 2>/dev/null || true
     sleep 2
 fi
@@ -204,7 +213,8 @@ if kill -0 "$NEW_PID" 2>/dev/null; then
     # 快速健康检查
     if command -v curl &>/dev/null; then
         sleep 2
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:13000/v1/models 2>/dev/null || echo "000")
+        HTTP_CODE=$(curl -s --max-time 5 -w "%{http_code}" -o /dev/null http://localhost:13000/v1/models 2>/dev/null || true)
+        HTTP_CODE=$(echo "$HTTP_CODE" | tr -d '\r\n ' | grep -oE '[0-9]{3}' | head -1)
         if [ "$HTTP_CODE" = "200" ]; then
             log "健康检查通过 (HTTP $HTTP_CODE)"
         else
