@@ -30,9 +30,6 @@ public class Main {
         RelayLogger.init(DatabaseConfig.getDataSource());
         HolographicLogger.init(DatabaseConfig.getDataSource());
 
-        // 初始化 holographic-debug.db（独立，静默失败）
-        HolographicLogger.init();
-
         // 创建 Vert.x
         Vertx vertx = Vertx.vertx();
 

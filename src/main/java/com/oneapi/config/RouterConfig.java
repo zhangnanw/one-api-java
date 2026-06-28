@@ -141,7 +141,7 @@ public class RouterConfig {
 
         // 协调器
         var coordinator = new RelayCoordinator(
-            vertx, routerSvc, cooldown, sessions, upstreamClient,
+            routerSvc, cooldown, sessions, upstreamClient,
             filters.stage2, filters.stage3, baseRelay, config);
         return new RelayControllerV2(coordinator);
     }

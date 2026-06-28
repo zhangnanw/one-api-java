@@ -2,7 +2,7 @@ target/
 *.log
 .idea/
 dependency-reduced-pom.xml
-"server.*.log.gz"  
-server*.log*  
-start.bat  
+"server.*.log.gz"
+server*.log*
+start.bat
 .pid
