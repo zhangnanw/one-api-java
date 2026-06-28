@@ -21,9 +21,10 @@ public class LayerFilter implements Filter {
     @Override
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
-        if (!(rule instanceof MatchRule.LayerMatch(String requiredLayer))) {
+        if (!(rule instanceof MatchRule.LayerMatch lm)) {
             return ctx; // 无层级条件 — 直接通过
         }
+        String requiredLayer = lm.layer();
 
         if (requiredLayer == null || requiredLayer.isEmpty()) {
             return ctx;

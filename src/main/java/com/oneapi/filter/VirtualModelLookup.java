@@ -64,8 +64,8 @@ public class VirtualModelLookup implements Filter {
         // ModelsMatch：设 modelNames，不设路由模型名（RelayCoordinator 以此为准）
         if (rule instanceof MatchRule.ModelsMatch mm) {
             ctx.setModelNames(mm.modelNames());
-        } else if (rule instanceof MatchRule.NameMatch(String modelName)) {
-            ctx.setRoutingModelName(modelName);
+        } else if (rule instanceof MatchRule.NameMatch nm) {
+            ctx.setRoutingModelName(nm.modelName());
         } else {
             ctx.setRoutingModelName(lookupName);
         }

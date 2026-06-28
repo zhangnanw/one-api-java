@@ -16,13 +16,19 @@ public sealed interface RelayError
 
     /** 映射到 HTTP 状态码 */
     default int httpStatus() {
-        return switch (this) {
-            case ModelNotFound __ -> 404;
-            case NoInstance __ -> 503;
-            case AllVendorsBusy __ -> 503;
-            case UpstreamFailure f -> f.httpCode();
-            case BodyTooLarge __ -> 413;
-        };
+        if (this instanceof ModelNotFound) {
+            return 404;
+        } else if (this instanceof NoInstance) {
+            return 503;
+        } else if (this instanceof AllVendorsBusy) {
+            return 503;
+        } else if (this instanceof UpstreamFailure f) {
+            return f.httpCode();
+        } else if (this instanceof BodyTooLarge) {
+            return 413;
+        } else {
+            return 500;  // 兜底
+        }
     }
     
     /** JSON 响应的错误类型字符串 */

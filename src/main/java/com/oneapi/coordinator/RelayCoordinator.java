@@ -16,6 +16,7 @@ import com.oneapi.comparator.ByPref;
 import com.oneapi.comparator.ByStatusDesc;
 
 import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 public class RelayCoordinator {
     private static final Logger log = LoggerFactory.getLogger(RelayCoordinator.class);
 
+    private final Vertx vertx;
     private final RouterService router;
     private final CooldownService cooldown;
     private final SessionTracker sessions;
@@ -47,13 +49,15 @@ public class RelayCoordinator {
     private final AppConfig config;
     private final RelayRecorder recorder;
 
-    public RelayCoordinator(RouterService router, CooldownService cooldown,
+    public RelayCoordinator(Vertx vertx,
+                            RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
                             UpstreamClient upstreamClient,
                             List<Filter> stage2Filters,
                             List<Filter> stage3Filters,
                             DefaultRelay baseRelay,
                             AppConfig config) {
+        this.vertx = vertx;
         this.router = router;
         this.cooldown = cooldown;
         this.sessions = sessions;
@@ -260,7 +264,7 @@ public class RelayCoordinator {
                     rec.finish("success", 200, totalMs, totalTokens,
                         result.responseBody(), null, null, rec.attemptCount(),
                         vendorName, routedVendor.instanceId());
-                    HolographicLogger.write(rec);
+                    HolographicLogger.writeAsync(vertx, rec);
                 }
                 ctx.response()
                     .putHeader("Content-Type", "application/json")
@@ -437,9 +441,9 @@ public class RelayCoordinator {
                         rec.finish("failure", statusCode, totalMs, 0,
                             null, "relay", "all upstream instances failed",
                             rec.attemptCount(), null, 0);
-                        HolographicLogger.write(rec);
+                        HolographicLogger.writeAsync(vertx, rec);
                     }
-                    error(ctx, 502, "all upstream instances failed");
+                    error(ctx, 503, "all upstream instances failed");
                 }
             },
             null  // chunkConverter: 不需要

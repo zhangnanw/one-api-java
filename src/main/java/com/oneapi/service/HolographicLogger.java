@@ -6,6 +6,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.vertx.core.Vertx;
 import javax.sql.DataSource;
 import java.nio.file.Paths;
 import java.sql.*;
@@ -71,6 +72,18 @@ public class HolographicLogger {
         } catch (Exception e) {
             log.warn("HolographicLogger write failed: {}", e.getMessage());
         }
+    }
+
+    /**
+     * 异步写入全息日志，避免阻塞事件循环。
+     * 在 worker 线程执行同步写入逻辑。
+     */
+    public static void writeAsync(Vertx vertx, HolographicRecord record) {
+        if (vertx == null || record == null) return;
+        vertx.executeBlocking(promise -> {
+            write(record);
+            promise.complete();
+        }, false, null);  // false = 不在事件循环线程执行
     }
 
     private static void insert(HolographicRecord record) throws SQLException {

@@ -15,7 +15,8 @@ public class CapabilityRequirementMarker implements Filter {
     @Override
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
-        if (rule instanceof MatchRule.CapabilityMatch(String capability)) {
+        if (rule instanceof MatchRule.CapabilityMatch cm) {
+            String capability = cm.capability();
             ctx.setCapabilityRequired(capability);
             log.debug("CapabilityRequirementMarker: requiring capability={}", capability);
         }

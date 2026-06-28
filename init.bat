@@ -8,7 +8,7 @@ echo ========================================
 
 set "JDK_DIR=%~dp0jdk"
 set "JDK_TGZ=jdk-21_windows-x64_bin.zip"
-set "JDK_URL=https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip"
+set "JDK_URL=https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6+7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip"
 
 :: --- Step 1: Download JDK ---
 if exist "%JDK_DIR%\bin\java.exe" (

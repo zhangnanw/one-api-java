@@ -87,7 +87,7 @@ public class BodyLimitFilter implements Filter {
             log.warn("BodyLimitFilter: {} of {} models — marking 413", msg, before);
             ctx.setCandidates(filtered);
             ctx.markError(new RelayError.BodyTooLarge(
-                candidates.getFirst().modelName(), bodyLen, minWindow), msg);
+                candidates.get(0).modelName(), bodyLen, minWindow), msg);
             return ctx;
         }
 

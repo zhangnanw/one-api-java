@@ -59,7 +59,7 @@ class BodyLimitFilterTest {
         ctx = filter.apply(ctx);
         assertFalse(ctx.hasError());
         assertEquals(1, ctx.candidates().size());
-        assertEquals("large", ctx.candidates().getFirst().modelName());
+        assertEquals("large", ctx.candidates().get(0).modelName());
     }
 
     @Test

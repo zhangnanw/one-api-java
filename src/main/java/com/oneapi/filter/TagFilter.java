@@ -22,9 +22,11 @@ public class TagFilter implements Filter {
     @Override
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
-        if (!(rule instanceof MatchRule.TagMatch(Set<String> allTags, Set<String> anyTags))) {
+        if (!(rule instanceof MatchRule.TagMatch tm)) {
             return ctx; // 无标签条件 — 直接通过
         }
+        Set<String> allTags = tm.allTags();
+        Set<String> anyTags = tm.anyTags();
 
         List<RoutedVendor> candidates = ctx.candidates();
         if (candidates == null || candidates.isEmpty()) {
