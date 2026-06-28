@@ -55,19 +55,67 @@ if [ -z "$JAVA_EXE" ]; then
 fi
 
 if [ -z "$JAVA_EXE" ]; then
-    err "未找到 Java 17+ 运行时。"
-    echo ""
-    echo "请安装 Eclipse Temurin JDK 17:"
-    echo "  https://adoptium.net/download/"
-    echo ""
-    echo "或手动设置 JAVA_HOME 后重试:"
-    echo "  export JAVA_HOME=/path/to/jdk-17"
-    echo "  bash deploy.sh"
-    exit 1
+    # ---- 自动下载 JDK 17 到 ~/.one-api/jdk17 ----
+    JDK_HOME="$HOME/.one-api/jdk17"
+    JDK_ZIP="$JDK_HOME/jdk17.zip"
+    JDK_URL="https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse"
+
+    if [ -f "$JDK_HOME/bin/java.exe" ]; then
+        # 已下载过，直接使用
+        JAVA_EXE="$JDK_HOME/bin/java.exe"
+        JAVA_HOME="$JDK_HOME"
+    else
+        warn "未找到 JDK 17，正在自动下载到 $JDK_HOME ..."
+        mkdir -p "$JDK_HOME"
+
+        if command -v curl &>/dev/null; then
+            log "下载 JDK 17 (约 180MB，请耐心等待)..."
+            curl -L --progress-bar -o "$JDK_ZIP" "$JDK_URL" 2>&1
+        elif command -v wget &>/dev/null; then
+            log "下载 JDK 17 (wget, 约 180MB)..."
+            wget -O "$JDK_ZIP" "$JDK_URL" 2>&1
+        else
+            err "未找到 curl 或 wget，无法下载。请手动安装 JDK 17。"
+            exit 1
+        fi
+
+        if [ ! -f "$JDK_ZIP" ] || [ ! -s "$JDK_ZIP" ]; then
+            err "JDK 下载失败。请手动安装: https://adoptium.net/download/"
+            rm -f "$JDK_ZIP"
+            exit 1
+        fi
+
+        log "解压 JDK 17..."
+        # 用 PowerShell Expand-Archive（Windows 原生，不需要额外工具）
+        JDK_ZIP_WIN=$(cygpath -w "$JDK_ZIP" 2>/dev/null || echo "$JDK_ZIP")
+        JDK_HOME_WIN=$(cygpath -w "$JDK_HOME" 2>/dev/null || echo "$JDK_HOME")
+        powershell -Command "Expand-Archive -Path '$JDK_ZIP_WIN' -DestinationPath '$JDK_HOME_WIN' -Force" 2>&1
+
+        # Eclipse Temurin zip 内部有一层目录（jdk-17.0.x+y），需要扁平化
+        EXTRACTED_DIR=$(ls -d "$JDK_HOME"/jdk-17* 2>/dev/null | head -1)
+        if [ -n "$EXTRACTED_DIR" ] && [ "$EXTRACTED_DIR" != "$JDK_HOME" ]; then
+            # 把内容移到上层
+            find "$EXTRACTED_DIR" -maxdepth 1 -mindepth 1 -exec mv {} "$JDK_HOME/" \; 2>/dev/null
+            rmdir "$EXTRACTED_DIR" 2>/dev/null
+        fi
+
+        rm -f "$JDK_ZIP"
+
+        if [ -f "$JDK_HOME/bin/java.exe" ]; then
+            JAVA_EXE="$JDK_HOME/bin/java.exe"
+            JAVA_HOME="$JDK_HOME"
+            log "JDK 17 安装完成: $JDK_HOME"
+        else
+            err "JDK 解压后未找到 java.exe。请手动安装。"
+            exit 1
+        fi
+    fi
 fi
 
-# 从 java.exe 路径推导 JAVA_HOME
-JAVA_HOME=$(dirname "$(dirname "$JAVA_EXE")")
+# 从 java.exe 路径推导 JAVA_HOME（如果尚未设置）
+if [ -z "$JAVA_HOME" ]; then
+    JAVA_HOME=$(dirname "$(dirname "$JAVA_EXE")")
+fi
 JAVA_HOME_WIN=$(cygpath -w "$JAVA_HOME" 2>/dev/null || echo "$JAVA_HOME")
 JAVA_VER=$("$JAVA_EXE" -version 2>&1 | head -1)
 log "Java 检测: $JAVA_VER"
