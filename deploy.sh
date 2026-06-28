@@ -58,7 +58,13 @@ if [ -z "$JAVA_EXE" ]; then
     # ---- 自动下载 JDK 17 到 ~/.one-api/jdk17 ----
     JDK_HOME="$HOME/.one-api/jdk17"
     JDK_ZIP="$JDK_HOME/jdk17.zip"
-    JDK_URL="https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse"
+
+    # 多源下载 URL（按速度排序，华北优先生效）
+    JDK_URLS=(
+        "https://repo.huaweicloud.com/openjdk/17.0.2/openjdk-17.0.2_windows-x64_bin.zip||华为云 (约178MB)"
+        "https://mirrors.ustc.edu.cn/adoptium/temurin17/jdk-17.0.12%2B7/windows/x64/OpenJDK17U-jdk_x64_windows_hotspot_17.0.12_7.zip||中科大 (约178MB)"
+        "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jdk/hotspot/normal/eclipse||Adoptium官方 (约180MB)"
+    )
 
     if [ -f "$JDK_HOME/bin/java.exe" ]; then
         # 已下载过，直接使用
@@ -68,20 +74,37 @@ if [ -z "$JAVA_EXE" ]; then
         warn "未找到 JDK 17，正在自动下载到 $JDK_HOME ..."
         mkdir -p "$JDK_HOME"
 
-        if command -v curl &>/dev/null; then
-            log "下载 JDK 17 (约 180MB，请耐心等待)..."
-            curl -L --progress-bar -o "$JDK_ZIP" "$JDK_URL" 2>&1
-        elif command -v wget &>/dev/null; then
-            log "下载 JDK 17 (wget, 约 180MB)..."
-            wget -O "$JDK_ZIP" "$JDK_URL" 2>&1
-        else
+        if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
             err "未找到 curl 或 wget，无法下载。请手动安装 JDK 17。"
             exit 1
         fi
 
-        if [ ! -f "$JDK_ZIP" ] || [ ! -s "$JDK_ZIP" ]; then
-            err "JDK 下载失败。请手动安装: https://adoptium.net/download/"
+        DOWNLOAD_OK=false
+        for entry in "${JDK_URLS[@]}"; do
+            URL="${entry%%||*}"
+            LABEL="${entry##*||}"
+            log "尝试: $LABEL"
             rm -f "$JDK_ZIP"
+
+            if command -v curl &>/dev/null; then
+                curl -L --progress-bar --max-time 300 -o "$JDK_ZIP" "$URL" 2>&1
+            else
+                wget --timeout=300 -O "$JDK_ZIP" "$URL" 2>&1
+            fi
+
+            if [ -f "$JDK_ZIP" ] && [ -s "$JDK_ZIP" ]; then
+                # 验证是有效的 zip 文件
+                if file "$JDK_ZIP" 2>/dev/null | grep -qi "zip"; then
+                    DOWNLOAD_OK=true
+                    break
+                fi
+            fi
+            warn "此源下载失败，尝试下一个..."
+            rm -f "$JDK_ZIP"
+        done
+
+        if ! $DOWNLOAD_OK; then
+            err "所有下载源均失败。请手动安装 JDK 17: https://adoptium.net/download/"
             exit 1
         fi
 
@@ -91,8 +114,8 @@ if [ -z "$JAVA_EXE" ]; then
         JDK_HOME_WIN=$(cygpath -w "$JDK_HOME" 2>/dev/null || echo "$JDK_HOME")
         powershell -Command "Expand-Archive -Path '$JDK_ZIP_WIN' -DestinationPath '$JDK_HOME_WIN' -Force" 2>&1
 
-        # Eclipse Temurin zip 内部有一层目录（jdk-17.0.x+y），需要扁平化
-        EXTRACTED_DIR=$(ls -d "$JDK_HOME"/jdk-17* 2>/dev/null | head -1)
+        # 扁平化：解压后可能有一层目录包装
+        EXTRACTED_DIR=$(ls -d "$JDK_HOME"/jdk-17* "$JDK_HOME"/openjdk-17* 2>/dev/null | head -1)
         if [ -n "$EXTRACTED_DIR" ] && [ "$EXTRACTED_DIR" != "$JDK_HOME" ]; then
             # 把内容移到上层
             find "$EXTRACTED_DIR" -maxdepth 1 -mindepth 1 -exec mv {} "$JDK_HOME/" \; 2>/dev/null
@@ -104,9 +127,11 @@ if [ -z "$JAVA_EXE" ]; then
         if [ -f "$JDK_HOME/bin/java.exe" ]; then
             JAVA_EXE="$JDK_HOME/bin/java.exe"
             JAVA_HOME="$JDK_HOME"
+            "$JAVA_EXE" -version 2>&1 | head -1
             log "JDK 17 安装完成: $JDK_HOME"
         else
-            err "JDK 解压后未找到 java.exe。请手动安装。"
+            err "JDK 解压后未找到 java.exe，请检查。"
+            ls "$JDK_HOME/" 2>/dev/null | head -5
             exit 1
         fi
     fi
