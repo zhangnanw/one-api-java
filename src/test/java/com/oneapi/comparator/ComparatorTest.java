@@ -12,15 +12,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ComparatorTest {
 
     @Test
-    void byPref_lowerFirst() {
+    void byScore_lowerPrefFirst() {
         RoutedVendor high = rv(1, 90);
         RoutedVendor low = rv(2, 10);
         RoutedVendor mid = rv(3, 50);
 
         List<RoutedVendor> list = new ArrayList<>(List.of(low, high, mid));
-        list.sort(new ByPref());
+        list.sort(new ByScore());
 
-        // ByPref sorts ascending — lower pref first
+        // ByScore sorts ascending — lower score first
         assertThat(list).extracting(RoutedVendor::instanceId)
             .containsExactly(2, 3, 1); // 10, 50, 90
     }
@@ -53,14 +53,14 @@ class ComparatorTest {
     }
 
     @Test
-    void byPref_equalPref_stable() {
+    void byScore_equalScore_stable() {
         RoutedVendor a = rv(1, 50);
         RoutedVendor b = rv(2, 50);
 
         List<RoutedVendor> list = new ArrayList<>(List.of(a, b));
-        list.sort(new ByPref());
+        list.sort(new ByScore());
 
-        // Equal pref — order preserved (stable sort)
+        // Equal score — order preserved (stable sort)
         assertThat(list).extracting(RoutedVendor::instanceId)
             .containsExactly(1, 2);
     }

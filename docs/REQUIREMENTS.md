@@ -278,7 +278,7 @@ one-api-java/
     │   └── RequestSetup.java     tokenHash
     ├── comparator/               ← 排序链
     │   ├── ById.java
-    │   ├── ByPref.java
+    │   ├── ByScore.java
     │   ├── ByStatusDesc.java
     │   ├── ByCost.java          （待加）
     │   ├── ByReliability.java   （待加）前置：relay-log.db
@@ -441,7 +441,7 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 |------|------|------|
 | 虚拟模型 match 规则 | ✅ 已有 | §功能对照 |
 | 能力过滤 | ❌ 部分（CapabilityMatch 规则可用，图像请求动态检测缺失） | §F Filter 链 |
-| 实例 layer 排序 | ✅ 已有 | ByPref comparator |
+| 实例 layer 排序 | ✅ 已有 | ByScore comparator |
 | 会话追踪 | ✅ 已有 | SessionTracker |
 | Cooldown 过滤 | ✅ 已有 | CooldownFilter |
 | relay-log.db（运行时指标） | ❌ | 主需求 §已知差异 |
@@ -492,8 +492,8 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 
 | # | 维度 | 数据源 | 类 |
 |---|------|--------|-----|
-| 1 | layer | instance meta | ByPref（已有） |
-| 2 | pref | instance meta | ByPref（已有） |
+| 1 | layer | instance meta | ByScore（已有） |
+| 2 | pref | instance meta | ByScore（已有） |
 | 3 | cost | model_catalog | ByCost（待加） |
 | 4 | reliability | relay-log.db | ByReliability（待加）<br>前置：relay-log.db |
 | 5 | latency | relay-log.db | ByLatency（待加）<br>前置：relay-log.db |
@@ -553,7 +553,7 @@ one-api-java 当前已支持"虚拟模型 → 实际模型实例"的路由。但
 | 10 | 加 `ByLatency` Comparator | comparator/ByLatency.java | ❌ |
 | 11 | 加 `ByModelWeakness` Comparator（按 match.models 顺序） | comparator/ByModelWeakness.java | ❌ |
 | 12 | RouterConfig 串入新 Comparator | RouterConfig.java | ❌ |
-| 13 | 清理 c11d887 的 scoring 包 | 删除 InstanceScorer.java / NoopInstanceScorer.java / NoopInstanceScorerTest.java | ❌ |
+| 13 | 清理 c11d887 的 scoring 包 | 删除 InstanceScorer.java / NoopInstanceScorer.java / NoopInstanceScorerTest.java | ✅ |
 | 14 | model_catalog 录入 15+ 个逻辑模型 | 数据库 INSERT | ❌ |
 | 15 | 测试：能力过滤、软粘性、cost/reliability/latency 计算 | test/ | ❌ |
 

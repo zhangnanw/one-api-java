@@ -12,7 +12,7 @@ import com.oneapi.service.RouterService;
 import com.oneapi.service.RouterService.RoutedVendor;
 import com.oneapi.service.SessionTracker;
 import com.oneapi.comparator.ById;
-import com.oneapi.comparator.ByPref;
+import com.oneapi.comparator.ByScore;
 import com.oneapi.comparator.ByStatusDesc;
 
 import io.vertx.core.MultiMap;
@@ -194,33 +194,17 @@ public class RelayCoordinator {
         }
     }
 
-    /** 非流式中继：遍历候选队列，重试直到成功。 */
-    private void tryBuffered(RoutingContext ctx, RelayRequest req,
-                              LinkedList<RoutedVendor> queue) {
-        relayBufferedInner(ctx, req, queue, null);
-    }
-
-    /** 流式中继：只试第一个候选，失败由外层 caller 处理（当前实现不重试流式）。 */
-    private void tryStream(RoutingContext ctx, RelayRequest req,
-                            LinkedList<RoutedVendor> queue, RelayContext relayCtx) {
-        relayStream(ctx, req, queue, relayCtx);
-    }
-
     // --- 缓冲式中继：遍历候选队列，逐个尝试 ---
 
-    private void relayBuffered(RoutingContext ctx, RelayRequest req,
-                               LinkedList<RoutedVendor> queue) {
-        relayBufferedInner(ctx, req, queue, null);
-    }
-
-    private void relayBufferedInner(RoutingContext ctx, RelayRequest req,
-                                    LinkedList<RoutedVendor> queue,
-                                    String lastUpstreamError) {
+    /**
+     * 非流式中继：用自我尾调用遍历候选队列，逐个尝试，失败则重试下一个（等价于 while 循环，避免递归栈累积）。
+     * 队列空时返回 503；非空则取队首，异步执行，失败后通过 tryBuffered 自我调用继续尝试下一个。
+     */
+    private void tryBuffered(RoutingContext ctx, RelayRequest req,
+                              LinkedList<RoutedVendor> queue) {
+        // 队列空 = 所有候选都失败了
         if (queue.isEmpty()) {
-            String msg = lastUpstreamError != null
-                ? lastUpstreamError
-                : "no available instances for " + req.requestedModel();
-            // ── 全息日志：全部失败 ──
+            String msg = "no available instances for " + req.requestedModel();
             var rec = ctx.<HolographicRecord>get("holographicRecord");
             if (rec != null) {
                 long totalMs = System.currentTimeMillis() - rec.startMs();
@@ -236,9 +220,9 @@ public class RelayCoordinator {
         Candidate candidate = routedVendor.toCandidate();
         String vendorName = routedVendor.vendor() != null ? routedVendor.vendor().getName() : "?";
 
-        // Reasoning 头部
-        var relayCtxObj = ctx.get("relayContext");
-        if (relayCtxObj instanceof RelayContext rc && rc.reasoning()) {
+        // Reasoning 模式
+        var rc = ctx.get("relayContext");
+        if (rc instanceof RelayContext relayCtx && relayCtx.reasoning()) {
             candidate.extraHeaders().add("X-Reasoning-Effort", "max");
         }
 
@@ -266,7 +250,6 @@ public class RelayCoordinator {
                 if (sidObj instanceof String sid && !sid.isEmpty()) {
                     sessions.recordInstance(sid, routedVendor.instanceId());
                 }
-                // ── 全息日志：成功 ──
                 var rec = ctx.<HolographicRecord>get("holographicRecord");
                 if (rec != null) {
                     long lat = System.currentTimeMillis() - startMs;
@@ -293,16 +276,12 @@ public class RelayCoordinator {
                 int status = extractHttpStatus(err);
                 String errMsg = extractErrorMessage(err);
 
-                // 重试策略：任何上游错误都试下一个候选，队空才暴露上游错误给客户端。
-                // 设计意图：有备用实例时静默切换，仅最后一个候选失败才返回错误。
                 log.warn("{} from vendor={}, try next ({} left)",
                     status, vendorName, queue.size());
-                // 冷却：429/403/200空响应都触发
                 if (routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200)) {
                     cooldown.setVendorCooldown(routedVendor.vendor().getId());
                 }
                 recorder.fail(logId, status, errMsg, latency);
-                // ── 全息日志：记录失败尝试 ──
                 var rec = ctx.<HolographicRecord>get("holographicRecord");
                 if (rec != null) {
                     String upstreamUrl = routedVendor.vendor() != null
@@ -314,8 +293,15 @@ public class RelayCoordinator {
                         routedVendor.upstreamModel(), upstreamUrl,
                         status, latency, errorTypeFromStatus(status), errMsg, cooled));
                 }
-                relayBufferedInner(ctx, req, queue, errMsg);
+                // while 循环重试下一个候选（尾部调用，等价于迭代）
+                tryBuffered(ctx, req, queue);
             });
+    }
+
+    /** 流式中继：只试队列中第一个候选，失败不重试（流式重试会导致客户端收到重复数据）。 */
+    private void tryStream(RoutingContext ctx, RelayRequest req,
+                            LinkedList<RoutedVendor> queue, RelayContext relayCtx) {
+        relayStream(ctx, req, queue, relayCtx);
     }
 
     private static int extractHttpStatus(Throwable err) {
@@ -500,7 +486,7 @@ public class RelayCoordinator {
 
     static Comparator<RoutedVendor> buildSorter(AppConfig config) {
         // pref 排序 = 基础 pref + layer 偏移（free+0, subscription+10000, payg+20000）
-        return new ByPref()
+        return new ByScore()
             .thenComparing(new ByStatusDesc());
     }
 

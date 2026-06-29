@@ -102,7 +102,7 @@ V2 5 阶段中继流水线：
      → stage 2 过滤器链（CapabilityRequirementMarker / VirtualModelLookup / NameMatcher / TagFilter）
      → RouterService.loadCandidates（从 Instance 表查候选）
      → stage 3 过滤器链（CooldownFilter / LayerFilter / CapabilityInstanceFilter / ActiveStatusFilter）
-     → Comparator 排序（ByPref / ByStatusDesc / ById）
+     → Comparator 排序（ByScore / ByStatusDesc / ById）
      → DefaultRelay 中继（→ UpstreamClient）
 ```
 
