@@ -46,7 +46,16 @@ class BodyLimitFilterTest {
     @Test
     void bodyWithinWindow_kept() {
         List<RoutedVendor> candidates = List.of(rv("small"));
-        RelayContext ctx = ctx(candidates, new byte[50]);
+        RelayContext ctx = ctx(candidates, new byte[50]); // 50 bytes < 100 tokens
+        ctx = filter.apply(ctx);
+        assertFalse(ctx.hasError());
+        assertEquals(1, ctx.candidates().size());
+    }
+
+    @Test
+    void bodyExactlyAtWindow_kept() {
+        List<RoutedVendor> candidates = List.of(rv("small"));
+        RelayContext ctx = ctx(candidates, new byte[100]); // 100 bytes == 100 tokens
         ctx = filter.apply(ctx);
         assertFalse(ctx.hasError());
         assertEquals(1, ctx.candidates().size());
@@ -55,7 +64,7 @@ class BodyLimitFilterTest {
     @Test
     void bodyExceedsWindow_filteredOut() {
         List<RoutedVendor> candidates = List.of(rv("small"), rv("large"));
-        RelayContext ctx = ctx(candidates, new byte[500]);
+        RelayContext ctx = ctx(candidates, new byte[101]); // 101 > 100 → small out, large in
         ctx = filter.apply(ctx);
         assertFalse(ctx.hasError());
         assertEquals(1, ctx.candidates().size());
@@ -65,11 +74,32 @@ class BodyLimitFilterTest {
     @Test
     void allCandidatesTooLarge_error413() {
         List<RoutedVendor> candidates = List.of(rv("small"), rv("small"));
-        RelayContext ctx = ctx(candidates, new byte[500]);
+        RelayContext ctx = ctx(candidates, new byte[101]);
         ctx = filter.apply(ctx);
         assertTrue(ctx.hasError());
         assertInstanceOf(RelayError.BodyTooLarge.class, ctx.error());
         assertEquals(413, ctx.error().httpStatus());
+        // 错误信息里有 min window
+        assertTrue(ctx.errorMessage().contains("100"));
+    }
+
+    @Test
+    void visionRequest_alwaysKeptAll() {
+        List<RoutedVendor> candidates = List.of(rv("small"));
+        RelayContext ctx = ctx(candidates, new byte[999999]);
+        ctx.setCapabilityRequired("vision"); // 设能力为 vision
+        ctx = filter.apply(ctx);
+        assertFalse(ctx.hasError());
+        assertEquals(1, ctx.candidates().size());
+    }
+
+    @Test
+    void allCandidatesCatalogMissing_kept() {
+        List<RoutedVendor> candidates = List.of(rv("unknown"));
+        RelayContext ctx = ctx(candidates, new byte[999999]);
+        ctx = filter.apply(ctx);
+        assertFalse(ctx.hasError());
+        assertEquals(1, ctx.candidates().size());
     }
 
     @Test

@@ -210,7 +210,7 @@ deploy-java.bat
 | `PUT` | `/api/virtual-models/:id` | ✅ |
 | `DELETE` | `/api/virtual-models/:id` | ✅ |
 | `POST` | `/v1/chat/completions` | ✅ |
-| `GET` | `/v1/models` | ❌ |
+| `GET` | `/v1/models` | ✅ |
 
 ---
 
@@ -222,7 +222,6 @@ deploy-java.bat
 | 无 relay-log.db | token 统计缺失，调试需看控制台日志 |
 | 无 request_logs | 完整请求体不可追溯 |
 | 无 GPU 双探针 | 能力标签需手动维护 |
-| 无 /v1/models | OpenAI SDK 的 model list 不可用 |
 
 ---
 

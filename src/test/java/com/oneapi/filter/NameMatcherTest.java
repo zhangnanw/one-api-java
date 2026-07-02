@@ -1,6 +1,7 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
+import com.oneapi.model.RelayError;
 import com.oneapi.repo.InstanceRepo;
 import com.oneapi.util.TestFixtures;
 import org.junit.jupiter.api.Test;
@@ -14,9 +15,10 @@ import static org.mockito.Mockito.when;
 /**
  * NameMatcher 单元测试。
  *
- * 核心行为：物理模型名（出现在 instances 表）不设任何 ctx 字段，
- * 交给后续 VirtualModelLookup filter 决定。
- * API 表面只暴露虚拟模型，不暴露具体实例。
+ * 核心行为：
+ * - 请求模型名 == 物理模型名（出现在 instances 表）→ 设 matchedPhysical = true，
+ *   标记 DirectUseForbidden 错误（404），明确提示"只接受虚拟模型名"
+ * - 没命中 → 透传 ctx
  */
 @ExtendWith(MockitoExtension.class)
 class NameMatcherTest {
@@ -28,13 +30,19 @@ class NameMatcherTest {
     private static final String PHYSICAL_MODEL = "doubao-seed-2.0-pro";
 
     @Test
-    void strict_skipsMatchedPhysicalMark() {
+    void physicalModelName_markedAsMatchedPhysical_withError() {
         when(instanceRepo.existsByModelName(PHYSICAL_MODEL)).thenReturn(true);
 
         RelayContext ctx = TestFixtures.relayContext(null, null, PHYSICAL_MODEL);
         new NameMatcher(instanceRepo).apply(ctx);
 
-        // 严格模式：filter 不 set 任何字段
+        // 新行为：设 matchedPhysical、mark DirectUseForbidden（404）
+        assertThat(ctx.matchedPhysical()).isTrue();
+        assertThat(ctx.hasError()).isTrue();
+        assertThat(ctx.error()).isInstanceOf(RelayError.DirectUseForbidden.class);
+        assertThat(ctx.errorMessage()).contains("physical model");
+        assertThat(ctx.errorMessage()).contains("virtual model");
+        // 其他旧字段（matchRule、routingModelName）保持不变（即 null）
         assertThat(ctx.matchRule()).isNull();
         assertThat(ctx.routingModelName()).isNull();
     }
@@ -49,6 +57,8 @@ class NameMatcherTest {
         // 物理实例表里也没有 → filter 不动 ctx，留给后续 filter
         assertThat(ctx.matchRule()).isNull();
         assertThat(ctx.routingModelName()).isNull();
+        assertThat(ctx.matchedPhysical()).isFalse();
+        assertThat(ctx.hasError()).isFalse();
     }
 
     @Test
@@ -61,5 +71,6 @@ class NameMatcherTest {
         assertThat(ctx.matchRule()).isNull();
         assertThat(ctx.routingModelName()).isNull();
         assertThat(ctx.matchedPhysical()).isFalse();
+        assertThat(ctx.hasError()).isFalse();
     }
 }

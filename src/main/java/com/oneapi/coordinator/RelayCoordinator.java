@@ -278,8 +278,16 @@ public class RelayCoordinator {
 
                 log.warn("{} from vendor={}, try next ({} left)",
                     status, vendorName, queue.size());
-                if (routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200)) {
-                    cooldown.setVendorCooldown(routedVendor.vendor().getId());
+                // 429 / 403 → vendor 级限流，冷却整 vendor（rate limit 通常是 vendor 级别）
+                // 200 + 空 choices → 仅本实例问题，冷却 instance（不应牵连 vendor 其它实例）
+                if (routedVendor.vendor() != null) {
+                    if (status == 429 || status == 403) {
+                        cooldown.setVendorCooldown(routedVendor.vendor().getId());
+                    } else if (status == 200) {
+                        // 200 + hasChoices==false：DefaultRelay 视为失败。仅冻当前 instance。
+                        cooldown.setInstanceCooldown(
+                            routedVendor.instanceId(), routedVendor.instanceTags());
+                    }
                 }
                 recorder.fail(logId, status, errMsg, latency);
                 var rec = ctx.<HolographicRecord>get("holographicRecord");
@@ -423,7 +431,9 @@ public class RelayCoordinator {
                         HolographicLogger.write(rec);
                     }
                 } else {
-                    // 任何非 200 → 冷却 → fallback 下一个
+                    // 任何非 200 → 冷却 vendor → fallback 下一个
+                    // 流式不会出现 "200 + 空 choices" 的情况（SSE chunk 总能收到），
+                    // 因此这里无 200 分支需要降级为 instance 级冷却。
                     cooldown.setVendorCooldown(first.vendor().getId());
                     recorder.fail(logId, statusCode, "", latency);
                     
