@@ -4,6 +4,8 @@ import com.oneapi.model.InstanceCaps;
 import com.oneapi.model.MetaKeys;
 import io.vertx.core.json.JsonObject;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Clamp model parameters that exceed upstream limits.
  * Not part of the Filter chain — utility invoked directly by the coordinator.
@@ -28,12 +30,12 @@ public class ParamClamp {
 
     private static byte[] clampTo(byte[] rawBody, int cap) {
         try {
-            JsonObject body = new JsonObject(new String(rawBody));
+            JsonObject body = new JsonObject(new String(rawBody, StandardCharsets.UTF_8));
             if (!body.containsKey(MetaKeys.MAX_TOKENS)) return rawBody;
             int maxTokens = body.getInteger(MetaKeys.MAX_TOKENS);
             if (maxTokens <= cap) return rawBody;
             body.put(MetaKeys.MAX_TOKENS, cap);
-            return body.toString().getBytes();
+            return body.toString().getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
             return rawBody;
         }

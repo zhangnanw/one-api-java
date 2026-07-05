@@ -19,6 +19,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import org.slf4j.Logger;
@@ -486,17 +487,19 @@ public class RelayCoordinator {
     private static byte[] substituteModel(byte[] rawBody, String upstreamModel, String srcModel) {
         if (upstreamModel == null || upstreamModel.equals(srcModel)) return rawBody;
         try {
-            JsonObject json = new JsonObject(new String(rawBody));
+            JsonObject json = new JsonObject(new String(rawBody, StandardCharsets.UTF_8));
             json.put("model", upstreamModel);
-            return json.encode().getBytes();
+            return json.encode().getBytes(StandardCharsets.UTF_8);
         } catch (Exception ex) {
             return rawBody;
         }
     }
 
     static Comparator<RoutedVendor> buildSorter(AppConfig config) {
-        // pref 排序 = 基础 pref + layer 偏移（free+0, subscription+10000, payg+20000）
-        return new ByScore()
+        List<String> layerOrder = config.getRelay() != null
+            ? config.getRelay().getLayerOrder()
+            : List.of("free", "subscription", "payg");
+        return new ByScore(layerOrder)
             .thenComparing(new ByStatusDesc());
     }
 

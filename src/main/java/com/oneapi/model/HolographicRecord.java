@@ -205,9 +205,8 @@ public class HolographicRecord {
             this.filterResults = List.of();
         }
 
-        this.candidatesAfter = (originalCandidates != null && sorted != null)
-            ? originalCandidates.stream()
-                .filter(c -> sorted.contains(c))
+        this.candidatesAfter = sorted != null
+            ? sorted.stream()
                 .map(c -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("vendor", c.vendor() != null ? c.vendor().getName() : "?");

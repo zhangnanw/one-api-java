@@ -70,7 +70,7 @@ public class VirtualModelRepo extends BaseRepo {
         } catch (SQLException e) {
             log.error("findByName {}: {}", name, e.getMessage());
         }
-        return null;
+        return VirtualModel.NOT_FOUND;
     }
 
     public VirtualModel findById(int id) {
