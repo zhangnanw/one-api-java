@@ -3,6 +3,7 @@ package com.oneapi.config;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.client.WebClient;
 
 import com.oneapi.repo.VirtualModelRepo;
@@ -75,31 +76,31 @@ public class RouterConfig {
         var vendorCtrl = new VendorController();
         router.get("/api/vendors").handler(vendorCtrl::getAll);
         router.get("/api/vendors/:id").handler(vendorCtrl::getOne);
-        router.post("/api/vendors").handler(vendorCtrl::create);
-        router.put("/api/vendors/:id").handler(vendorCtrl::update);
+        router.post("/api/vendors").handler(BodyHandler.create()).handler(vendorCtrl::create);
+        router.put("/api/vendors/:id").handler(BodyHandler.create()).handler(vendorCtrl::update);
         router.delete("/api/vendors/:id").handler(vendorCtrl::delete);
         router.post("/api/vendors/refresh-models").handler(vendorCtrl::refreshModels);
 
         var instanceCtrl = new InstanceController();
         router.get("/api/instances").handler(instanceCtrl::getAll);
         router.get("/api/instances/:id").handler(instanceCtrl::getOne);
-        router.post("/api/instances").handler(instanceCtrl::create);
-        router.put("/api/instances/:id").handler(instanceCtrl::update);
+        router.post("/api/instances").handler(BodyHandler.create()).handler(instanceCtrl::create);
+        router.put("/api/instances/:id").handler(BodyHandler.create()).handler(instanceCtrl::update);
         router.delete("/api/instances/:id").handler(instanceCtrl::delete);
         router.put("/api/instances/:id/toggle").handler(instanceCtrl::toggle);
 
         var vmCtrl = new VirtualModelController();
         router.get("/api/virtual-models").handler(vmCtrl::getAll);
         router.get("/api/virtual-models/:id").handler(vmCtrl::getOne);
-        router.post("/api/virtual-models").handler(vmCtrl::create);
-        router.put("/api/virtual-models/:id").handler(vmCtrl::update);
+        router.post("/api/virtual-models").handler(BodyHandler.create()).handler(vmCtrl::create);
+        router.put("/api/virtual-models/:id").handler(BodyHandler.create()).handler(vmCtrl::update);
         router.delete("/api/virtual-models/:id").handler(vmCtrl::delete);
 
         var mcCtrl = new ModelCatalogController();
         router.get("/api/model-catalog").handler(mcCtrl::getAll);
         router.get("/api/model-catalog/:name").handler(mcCtrl::getOne);
-        router.post("/api/model-catalog").handler(mcCtrl::create);
-        router.put("/api/model-catalog/:name").handler(mcCtrl::update);
+        router.post("/api/model-catalog").handler(BodyHandler.create()).handler(mcCtrl::create);
+        router.put("/api/model-catalog/:name").handler(BodyHandler.create()).handler(mcCtrl::update);
         router.delete("/api/model-catalog/:name").handler(mcCtrl::delete);
     }
 

@@ -31,7 +31,16 @@ public class InstanceController extends BaseController {
     }
 
     public void create(RoutingContext ctx) {
-        var body = ctx.body().asJsonObject();
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            badRequest(ctx, "request body is required");
+            return;
+        }
+        var body = ctx.getBody().toJsonObject();
+        if (body == null) {
+            badRequest(ctx, "invalid JSON body");
+            return;
+        }
         String modelName = body.getString("model_name");
         if (modelName == null || modelName.isEmpty()) {
             badRequest(ctx, "model_name is required");
@@ -65,7 +74,16 @@ public class InstanceController extends BaseController {
             notFound(ctx, "instance");
             return;
         }
-        var body = ctx.body().asJsonObject();
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            badRequest(ctx, "request body is required");
+            return;
+        }
+        var body = ctx.getBody().toJsonObject();
+        if (body == null) {
+            badRequest(ctx, "invalid JSON body");
+            return;
+        }
         if (body.containsKey("status")) existing.setStatus(body.getInteger("status"));
         if (body.containsKey("meta")) existing.setMeta(body.getString("meta"));
         repo.update(existing);

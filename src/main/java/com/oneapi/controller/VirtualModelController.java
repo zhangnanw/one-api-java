@@ -47,7 +47,16 @@ public class VirtualModelController extends BaseController {
     }
 
     public void create(RoutingContext ctx) {
-        var body = ctx.body().asJsonObject();
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            json(ctx, 400, "request body is required");
+            return;
+        }
+        var body = ctx.getBody().toJsonObject();
+        if (body == null) {
+            json(ctx, 400, "invalid JSON body");
+            return;
+        }
         String name = body.getString("name");
         String match = body.getString("match", "{}");
 

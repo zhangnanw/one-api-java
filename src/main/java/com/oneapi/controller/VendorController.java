@@ -49,7 +49,13 @@ public class VendorController extends BaseController {
     }
 
     public void create(RoutingContext ctx) {
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            badRequest(ctx, "request body is required");
+            return;
+        }
         Vendor vendor = parseBody(ctx);
+        if (vendor == null) return; // parseBody already sent error
         if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
             return;
@@ -67,8 +73,14 @@ public class VendorController extends BaseController {
     }
 
     public void update(RoutingContext ctx) {
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            badRequest(ctx, "request body is required");
+            return;
+        }
         int id = Integer.parseInt(ctx.pathParam("id"));
         Vendor vendor = parseBody(ctx);
+        if (vendor == null) return; // parseBody already sent error
         if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
             return;
@@ -129,7 +141,11 @@ public class VendorController extends BaseController {
     }
 
     private Vendor parseBody(RoutingContext ctx) {
-        var body = ctx.body().asJsonObject();
+        var body = ctx.getBody().toJsonObject();
+        if (body == null) {
+            badRequest(ctx, "invalid JSON body");
+            return null;
+        }
         Vendor vendor = new Vendor();
         if (body.containsKey("name")) vendor.setName(body.getString("name"));
         if (body.containsKey("description")) vendor.setDescription(body.getString("description"));

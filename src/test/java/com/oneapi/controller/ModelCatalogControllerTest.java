@@ -232,6 +232,8 @@ class ModelCatalogControllerTest {
         RequestBody reqBody = mock(RequestBody.class);
         when(reqBody.asJsonObject()).thenReturn(body);
         when(ctx.body()).thenReturn(reqBody);
+        // Also mock getBody() which is used by the controller
+        when(ctx.getBody()).thenReturn(io.vertx.core.buffer.Buffer.buffer(body.encode()));
     }
 
     private void insertCatalog(String name, String caps, int ctxWindow, Double inputPrice, Double outputPrice) throws Exception {

@@ -1,11 +1,14 @@
-feat: 补全四个资源的 HTTP CRUD 管理接口
+fix: admin API POST/PUT body handling + add auto virtual model
 
-- 新增 POST /api/instances（InstanceController.create）
-- 新增 ModelCatalogController（model_catalog 完整 CRUD 5 个端点）
-- RouterConfig 注册 model_catalog 路由
-- ModelCatalogRepo 新增 CRUD 方法，缓存同步更新
-- ModelCatalogControllerTest（11 个用例，字符串断言避免 Vert.x JsonObject 类型问题）
-- VirtualModelRepoTest 修复 SQLite 隔离 bug（独立数据库+NOT_FOUND 哨兵断言）
-- InstanceController.create 加 vendor_id 存在性校验（404）
-- 删 pom.xml 中无关的 ServicesResourceTransformer
-- ModelCatalogRepo 无参构造函数恢复为空缓存（向后兼容）
+Admin API (POST/PUT):
+- RouterConfig: add BodyHandler per-route for /api/* POST/PUT endpoints
+  (not globally — relay /v1/chat/completions must NOT have BodyHandler)
+- VirtualModelController: add null body guard + use getBody().toJsonObject()
+- ModelCatalogController: same body handling fixes for create/update
+- InstanceController: same fixes for create/update
+- VendorController: same fixes for parseBody()
+- ModelCatalogControllerTest: mock getBody() in mockBody()
+
+Also:
+- Add 'auto' virtual model entry (same models as flagship)
+- META-INF/services/java.sql.Driver via AppendingTransformer in shade plugin

@@ -45,7 +45,16 @@ public class ModelCatalogController extends BaseController {
 
     /** POST /api/model-catalog — create a new entry. */
     public void create(RoutingContext ctx) {
-        var body = ctx.body().asJsonObject();
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            badRequest(ctx, "request body is required");
+            return;
+        }
+        var body = ctx.getBody().toJsonObject();
+        if (body == null) {
+            badRequest(ctx, "invalid JSON body");
+            return;
+        }
         String name = body.getString("name");
         if (name == null || name.isEmpty()) {
             badRequest(ctx, "name is required");
@@ -72,7 +81,16 @@ public class ModelCatalogController extends BaseController {
             notFound(ctx, "model_catalog");
             return;
         }
-        var body = ctx.body().asJsonObject();
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            badRequest(ctx, "request body is required");
+            return;
+        }
+        var body = ctx.getBody().toJsonObject();
+        if (body == null) {
+            badRequest(ctx, "invalid JSON body");
+            return;
+        }
         ModelCatalogEntry entry = new ModelCatalogEntry();
         entry.setName(body.getString("name", name));
         entry.setCapabilities(body.getString("capabilities"));
