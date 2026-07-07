@@ -2,12 +2,14 @@ package com.oneapi.controller;
 
 import com.oneapi.model.Instance;
 import com.oneapi.repo.InstanceRepo;
+import com.oneapi.repo.VendorRepo;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 public class InstanceController extends BaseController {
     private final InstanceRepo repo = new InstanceRepo();
+    private final VendorRepo vendorRepo = new VendorRepo();
 
     public void getAll(RoutingContext ctx) {
         var instances = repo.findAll();
@@ -26,6 +28,34 @@ public class InstanceController extends BaseController {
             return;
         }
         ok(ctx, toJson(instance));
+    }
+
+    public void create(RoutingContext ctx) {
+        var body = ctx.body().asJsonObject();
+        String modelName = body.getString("model_name");
+        if (modelName == null || modelName.isEmpty()) {
+            badRequest(ctx, "model_name is required");
+            return;
+        }
+        if (!body.containsKey("vendor_id") || body.getInteger("vendor_id") == null) {
+            badRequest(ctx, "vendor_id is required");
+            return;
+        }
+        int vendorId = body.getInteger("vendor_id");
+        if (vendorRepo.findById(vendorId) == null) {
+            notFound(ctx, "vendor");
+            return;
+        }
+        Instance inst = new Instance();
+        inst.setModelName(modelName);
+        inst.setVendorId(vendorId);
+        inst.setUpstreamModel(body.getString("upstream_model", modelName));
+        inst.setStatus(body.getInteger("status", 1));
+        inst.setMeta(body.getString("meta", "{}"));
+        inst.setPref(body.getFloat("pref", 0.5f));
+        inst.setLayer(body.getString("layer", "payg"));
+        repo.insert(inst);
+        ok(ctx);
     }
 
     public void update(RoutingContext ctx) {

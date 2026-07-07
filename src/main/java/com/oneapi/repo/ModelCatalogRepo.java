@@ -1,5 +1,6 @@
 package com.oneapi.repo;
 
+import com.oneapi.model.ModelCatalogEntry;
 import io.vertx.core.json.JsonArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,26 +14,32 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
- * In-memory cache of model_catalog capabilities and context windows.
+ * In-memory cache of model_catalog capabilities and context windows,
+ * plus CRUD access to the model_catalog table.
  * <p>
  * Loads all (name, capabilities, context_window) rows on construction from the database.
  * Used by {@code CapabilityInstanceFilter} and {@code BodyLimitFilter}.
  */
-public class ModelCatalogRepo implements CapabilityCatalog, WindowCatalog {
+public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, WindowCatalog {
     private static final Logger log = LoggerFactory.getLogger(ModelCatalogRepo.class);
 
     private final ConcurrentHashMap<String, List<String>> catalog = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> contextWindows = new ConcurrentHashMap<>();
 
-    /** For testing — creates empty cache. */
-    public ModelCatalogRepo() {}
+    /** Creates empty cache — for testing or when DB is not available. */
+    public ModelCatalogRepo() {
+    }
 
     public ModelCatalogRepo(DataSource dataSource) {
+        super(dataSource);
+        load();
+    }
+
+    private void load() {
         String sql = "SELECT name, capabilities, context_window FROM model_catalog";
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
 
@@ -43,18 +50,7 @@ public class ModelCatalogRepo implements CapabilityCatalog, WindowCatalog {
                 int ctxWindow = rs.getInt("context_window");
                 if (name == null) continue;
 
-                if (capsJson != null) {
-                    List<String> caps = new ArrayList<>();
-                    try {
-                        JsonArray arr = new JsonArray(capsJson);
-                        for (int i = 0; i < arr.size(); i++) {
-                            caps.add(arr.getString(i));
-                        }
-                        catalog.put(name, Collections.unmodifiableList(caps));
-                    } catch (Exception e) {
-                        log.warn("Failed to parse capabilities for model {}: {}", name, e.getMessage());
-                    }
-                }
+                putCapabilities(name, capsJson);
                 if (ctxWindow > 0) {
                     contextWindows.put(name, ctxWindow);
                 }
@@ -65,6 +61,126 @@ public class ModelCatalogRepo implements CapabilityCatalog, WindowCatalog {
         } catch (SQLException e) {
             log.error("Failed to load model catalog from database", e);
         }
+    }
+
+    private void putCapabilities(String name, String capsJson) {
+        if (capsJson == null) return;
+        try {
+            JsonArray arr = new JsonArray(capsJson);
+            List<String> caps = new ArrayList<>(arr.size());
+            for (int i = 0; i < arr.size(); i++) {
+                caps.add(arr.getString(i));
+            }
+            catalog.put(name, Collections.unmodifiableList(caps));
+        } catch (Exception e) {
+            log.warn("Failed to parse capabilities for model {}: {}", name, e.getMessage());
+        }
+    }
+
+    private void removeFromCache(String name) {
+        catalog.remove(name);
+        contextWindows.remove(name);
+    }
+
+    private List<ModelCatalogEntry> findAllInternal() {
+        List<ModelCatalogEntry> list = new ArrayList<>();
+        String sql = "SELECT name, capabilities, context_window, input_price, output_price FROM model_catalog ORDER BY name";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapEntry(rs));
+            }
+        } catch (SQLException e) {
+            log.error("findAll model_catalog: {}", e.getMessage());
+        }
+        return list;
+    }
+
+    public List<ModelCatalogEntry> findAll() {
+        return findAllInternal();
+    }
+
+    public ModelCatalogEntry findByName(String name) {
+        String sql = "SELECT name, capabilities, context_window, input_price, output_price FROM model_catalog WHERE name = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return mapEntry(rs);
+            }
+        } catch (SQLException e) {
+            log.error("findByName {}: {}", name, e.getMessage());
+        }
+        return null;
+    }
+
+    public void insert(ModelCatalogEntry entry) {
+        String sql = "INSERT INTO model_catalog (name, capabilities, context_window, input_price, output_price) " +
+                     "VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, entry.getName());
+            ps.setString(2, entry.getCapabilities());
+            ps.setObject(3, entry.getContextWindow());
+            ps.setObject(4, entry.getInputPrice());
+            ps.setObject(5, entry.getOutputPrice());
+            ps.executeUpdate();
+            putCapabilities(entry.getName(), entry.getCapabilities());
+            if (entry.getContextWindow() != null && entry.getContextWindow() > 0) {
+                contextWindows.put(entry.getName(), entry.getContextWindow());
+            }
+        } catch (SQLException e) {
+            log.error("insert model_catalog {}: {}", entry.getName(), e.getMessage());
+        }
+    }
+
+    public void update(String name, ModelCatalogEntry entry) {
+        String sql = "UPDATE model_catalog SET name = ?, capabilities = ?, context_window = ?, input_price = ?, output_price = ? " +
+                     "WHERE name = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, entry.getName());
+            ps.setString(2, entry.getCapabilities());
+            ps.setObject(3, entry.getContextWindow());
+            ps.setObject(4, entry.getInputPrice());
+            ps.setObject(5, entry.getOutputPrice());
+            ps.setString(6, name);
+            ps.executeUpdate();
+            if (!name.equals(entry.getName())) {
+                removeFromCache(name);
+            }
+            putCapabilities(entry.getName(), entry.getCapabilities());
+            if (entry.getContextWindow() != null && entry.getContextWindow() > 0) {
+                contextWindows.put(entry.getName(), entry.getContextWindow());
+            } else {
+                contextWindows.remove(entry.getName());
+            }
+        } catch (SQLException e) {
+            log.error("update model_catalog {}: {}", name, e.getMessage());
+        }
+    }
+
+    public void delete(String name) {
+        String sql = "DELETE FROM model_catalog WHERE name = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.executeUpdate();
+            removeFromCache(name);
+        } catch (SQLException e) {
+            log.error("delete model_catalog {}: {}", name, e.getMessage());
+        }
+    }
+
+    private ModelCatalogEntry mapEntry(ResultSet rs) throws SQLException {
+        ModelCatalogEntry entry = new ModelCatalogEntry();
+        entry.setName(rs.getString("name"));
+        entry.setCapabilities(rs.getString("capabilities"));
+        entry.setContextWindow(rs.getInt("context_window"));
+        entry.setInputPrice(rs.getDouble("input_price"));
+        entry.setOutputPrice(rs.getDouble("output_price"));
+        return entry;
     }
 
     /**

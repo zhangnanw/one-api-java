@@ -1,13 +1,12 @@
 package com.oneapi.repo;
 
-import com.oneapi.config.DatabaseConfig;
 import com.oneapi.model.VirtualModel;
+import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.List;
@@ -16,20 +15,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class VirtualModelRepoTest {
 
-    private static VirtualModelRepo repo;
+    private HikariDataSource ds;
+    private VirtualModelRepo repo;
 
-    @BeforeAll
-    static void setupAll() throws Exception {
-        DatabaseConfig.init(":memory:");
-        DataSource ds = DatabaseConfig.getDataSource();
+    @BeforeEach
+    void setup() throws Exception {
+        HikariConfig cfg = new HikariConfig();
+        cfg.setJdbcUrl("jdbc:sqlite:file::memory:?cache=shared");
+        cfg.setMaximumPoolSize(1);
+        cfg.setConnectionTimeout(5000);
+        ds = new HikariDataSource(cfg);
 
-        try (Connection conn = ds.getConnection();
-             Statement stmt = conn.createStatement()) {
+        try (Connection conn = ds.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE virtual_models (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name TEXT," +
+                "name TEXT UNIQUE," +
                 "match TEXT)");
-
             stmt.execute("INSERT INTO virtual_models (id,name,match) VALUES " +
                 "(1,'deepseek','{\"models\":[\"deepseek-v4-flash\",\"deepseek-v4-pro\"]}')");
             stmt.execute("INSERT INTO virtual_models (id,name,match) VALUES " +
@@ -38,15 +39,12 @@ class VirtualModelRepoTest {
                 "(3,'empty-json','{}')");
         }
 
-        repo = new VirtualModelRepo();
+        repo = new VirtualModelRepo(ds);
     }
 
-    @AfterAll
-    static void teardown() {
-        var ds = DatabaseConfig.getDataSource();
-        if (ds instanceof HikariDataSource hds && !hds.isClosed()) {
-            hds.close();
-        }
+    @AfterEach
+    void teardown() {
+        if (ds != null && !ds.isClosed()) ds.close();
     }
 
     @Test
@@ -64,8 +62,8 @@ class VirtualModelRepoTest {
     }
 
     @Test
-    void findByName_nonexistent_returnsNull() {
-        assertNull(repo.findByName("nonexistent"));
+    void findByName_nonexistent_returnsNotFoundSentinel() {
+        assertEquals(VirtualModel.NOT_FOUND, repo.findByName("nonexistent"));
     }
 
     @Test
@@ -104,7 +102,7 @@ class VirtualModelRepoTest {
     }
 
     @Test
-    void delete_thenFindByName_returnsNull() {
+    void delete_thenFindByName_returnsNotFoundSentinel() {
         VirtualModel temp = new VirtualModel();
         temp.setName("to-delete");
         temp.setMatch("{}");
@@ -114,6 +112,6 @@ class VirtualModelRepoTest {
         assertNotNull(found);
 
         repo.delete(found.getId());
-        assertNull(repo.findByName("to-delete"));
+        assertEquals(VirtualModel.NOT_FOUND, repo.findByName("to-delete"));
     }
 }

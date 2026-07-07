@@ -12,6 +12,7 @@ import com.oneapi.controller.MiscController;
 import com.oneapi.controller.VendorController;
 import com.oneapi.controller.InstanceController;
 import com.oneapi.controller.VirtualModelController;
+import com.oneapi.controller.ModelCatalogController;
 import com.oneapi.controller.RelayControllerV2;
 import com.oneapi.coordinator.RelayCoordinator;
 import com.oneapi.middleware.CORS;
@@ -82,6 +83,7 @@ public class RouterConfig {
         var instanceCtrl = new InstanceController();
         router.get("/api/instances").handler(instanceCtrl::getAll);
         router.get("/api/instances/:id").handler(instanceCtrl::getOne);
+        router.post("/api/instances").handler(instanceCtrl::create);
         router.put("/api/instances/:id").handler(instanceCtrl::update);
         router.delete("/api/instances/:id").handler(instanceCtrl::delete);
         router.put("/api/instances/:id/toggle").handler(instanceCtrl::toggle);
@@ -92,6 +94,13 @@ public class RouterConfig {
         router.post("/api/virtual-models").handler(vmCtrl::create);
         router.put("/api/virtual-models/:id").handler(vmCtrl::update);
         router.delete("/api/virtual-models/:id").handler(vmCtrl::delete);
+
+        var mcCtrl = new ModelCatalogController();
+        router.get("/api/model-catalog").handler(mcCtrl::getAll);
+        router.get("/api/model-catalog/:name").handler(mcCtrl::getOne);
+        router.post("/api/model-catalog").handler(mcCtrl::create);
+        router.put("/api/model-catalog/:name").handler(mcCtrl::update);
+        router.delete("/api/model-catalog/:name").handler(mcCtrl::delete);
     }
 
     private void registerRelayRoutes(CooldownService cooldown) {
