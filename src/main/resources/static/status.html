@@ -108,6 +108,7 @@
     border: 1px solid rgba(88,166,255,0.2);
   }
   .empty { padding: 32px; text-align: center; color: var(--text-dim); font-size: 13px; }
+  .error-msg { padding: 16px; text-align: center; color: var(--red); font-size: 13px; }
   .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
   .truncate {
@@ -128,6 +129,10 @@
   code {
     font-family: 'SF Mono', Consolas, monospace; font-size: 12px;
     background: rgba(88,166,255,0.08); padding: 1px 5px; border-radius: 3px;
+  }
+  .vm-models {
+    font-size: 11px; color: var(--text-dim); margin-top: 2px;
+    font-family: 'SF Mono', Consolas, monospace;
   }
 </style>
 </head>
@@ -263,16 +268,21 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function showError(containerId, msg) {
+  document.getElementById(containerId).innerHTML = `<div class="error-msg">${esc(msg)}</div>`;
+}
+
 function renderVendors(list) {
   document.getElementById('s-vendors').textContent = list.length;
   document.getElementById('vendor-count').textContent = list.length;
   vendorMap = {};
   for (const v of list) vendorMap[v.id] = v;
-  // populate vendor filter dropdown
+  // populate vendor filter dropdown, sorted by name
   const sel = document.getElementById('inst-vendor-filter');
   const cur = sel.value;
   sel.innerHTML = '<option value="">全部供应商</option>';
-  for (const v of list) {
+  const sorted = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  for (const v of sorted) {
     sel.innerHTML += `<option value="${v.id}">${esc(v.name)}</option>`;
   }
   sel.value = cur;
@@ -347,9 +357,19 @@ function renderVModels(list) {
   if (!list.length) { document.getElementById('vmodels-body').innerHTML = '<div class="empty">无数据</div>'; return; }
   let html = '<table><tr><th>ID</th><th>名称</th><th>匹配规则</th></tr>';
   for (const v of list) {
-    const m = v.match || '-';
+    let matchDisplay = '';
+    let models = [];
+    try {
+      const rule = JSON.parse(v.match || '{}');
+      models = rule.models || [];
+    } catch { /* ignore */ }
+    if (models.length > 0) {
+      matchDisplay = '<div class="vm-models">' + models.map(m => esc(m)).join(', ') + '</div>';
+    } else {
+      matchDisplay = `<div class="truncate" title="${esc(v.match || '-')}">${esc(v.match || '-')}</div>`;
+    }
     html += `<tr><td>${v.id}</td><td><code>${esc(v.name)}</code></td>
-      <td><div class="truncate" title="${esc(m)}">${esc(m)}</div></td></tr>`;
+      <td>${matchDisplay}</td></tr>`;
   }
   html += '</table>';
   document.getElementById('vmodels-body').innerHTML = html;
@@ -378,6 +398,7 @@ document.getElementById('inst-search').addEventListener('input', filterInstances
 document.getElementById('inst-vendor-filter').addEventListener('change', filterInstances);
 document.getElementById('inst-status-filter').addEventListener('change', filterInstances);
 
+let loadedCount = 0;
 async function refresh() {
   try {
     const [status, vendors, instances, vmodels, catalog] = await Promise.all([
@@ -395,8 +416,15 @@ async function refresh() {
     renderVModels(vmodels);
     renderCatalog(catalog);
     document.getElementById('lastUpdate').textContent = '更新于 ' + new Date().toLocaleTimeString();
+    loadedCount++;
   } catch (e) {
     console.error('refresh error:', e);
+    if (loadedCount === 0) {
+      // first load failed, show error in all panels
+      ['vendors-body','vmodels-body','instances-body','catalog-body'].forEach(id => {
+        showError(id, 'API 请求失败: ' + e.message);
+      });
+    }
     document.getElementById('lastUpdate').textContent = '请求失败 ' + new Date().toLocaleTimeString();
   }
 }
