@@ -33,7 +33,8 @@ class ModelCatalogRepoTest {
                 "capabilities TEXT," +
                 "context_window INTEGER," +
                 "input_price REAL," +
-                "output_price REAL" +
+                "output_price REAL," +
+                "reference_notes TEXT" +
                 ")");
 
             // insert test data

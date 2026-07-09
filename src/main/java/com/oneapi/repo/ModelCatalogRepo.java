@@ -30,6 +30,8 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
 
     /** Creates empty cache — for testing or when DB is not available. */
     public ModelCatalogRepo() {
+        super();
+        load();
     }
 
     public ModelCatalogRepo(DataSource dataSource) {
@@ -38,7 +40,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
     }
 
     private void load() {
-        String sql = "SELECT name, capabilities, context_window FROM model_catalog";
+        String sql = "SELECT name, capabilities, context_window, reference_notes FROM model_catalog";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -84,7 +86,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
 
     private List<ModelCatalogEntry> findAllInternal() {
         List<ModelCatalogEntry> list = new ArrayList<>();
-        String sql = "SELECT name, capabilities, context_window, input_price, output_price FROM model_catalog ORDER BY name";
+        String sql = "SELECT name, capabilities, context_window, input_price, output_price, reference_notes FROM model_catalog ORDER BY name";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -102,7 +104,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
     }
 
     public ModelCatalogEntry findByName(String name) {
-        String sql = "SELECT name, capabilities, context_window, input_price, output_price FROM model_catalog WHERE name = ?";
+        String sql = "SELECT name, capabilities, context_window, input_price, output_price, reference_notes FROM model_catalog WHERE name = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, name);
@@ -116,8 +118,8 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
     }
 
     public void insert(ModelCatalogEntry entry) {
-        String sql = "INSERT INTO model_catalog (name, capabilities, context_window, input_price, output_price) " +
-                     "VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO model_catalog (name, capabilities, context_window, input_price, output_price, reference_notes) " +
+                     "VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, entry.getName());
@@ -125,6 +127,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
             ps.setObject(3, entry.getContextWindow());
             ps.setObject(4, entry.getInputPrice());
             ps.setObject(5, entry.getOutputPrice());
+            ps.setString(6, entry.getReferenceNotes());
             ps.executeUpdate();
             putCapabilities(entry.getName(), entry.getCapabilities());
             if (entry.getContextWindow() != null && entry.getContextWindow() > 0) {
@@ -136,7 +139,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
     }
 
     public void update(String name, ModelCatalogEntry entry) {
-        String sql = "UPDATE model_catalog SET name = ?, capabilities = ?, context_window = ?, input_price = ?, output_price = ? " +
+        String sql = "UPDATE model_catalog SET name = ?, capabilities = ?, context_window = ?, input_price = ?, output_price = ?, reference_notes = ? " +
                      "WHERE name = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -145,7 +148,8 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
             ps.setObject(3, entry.getContextWindow());
             ps.setObject(4, entry.getInputPrice());
             ps.setObject(5, entry.getOutputPrice());
-            ps.setString(6, name);
+            ps.setString(6, entry.getReferenceNotes());
+            ps.setString(7, name);
             ps.executeUpdate();
             if (!name.equals(entry.getName())) {
                 removeFromCache(name);
@@ -180,6 +184,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
         entry.setContextWindow(rs.getInt("context_window"));
         entry.setInputPrice(rs.getDouble("input_price"));
         entry.setOutputPrice(rs.getDouble("output_price"));
+        entry.setReferenceNotes(rs.getString("reference_notes"));
         return entry;
     }
 

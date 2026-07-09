@@ -67,7 +67,7 @@ class RelayCoordinatorIntegrationTest {
             // model_catalog
             stmt.execute("CREATE TABLE model_catalog (" +
                 "name TEXT PRIMARY KEY, capabilities TEXT, context_window INTEGER, " +
-                "input_price REAL, output_price REAL)");
+                "input_price REAL, output_price REAL, reference_notes TEXT)");
             stmt.execute("INSERT INTO model_catalog (name, capabilities, context_window) VALUES " +
                 "('deepseek-v4-flash', '[\"chat\",\"code\"]', 131072)");
             stmt.execute("INSERT INTO model_catalog (name, capabilities, context_window) VALUES " +

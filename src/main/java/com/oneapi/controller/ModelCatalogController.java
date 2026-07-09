@@ -29,7 +29,13 @@ public class ModelCatalogController extends BaseController {
         for (ModelCatalogEntry e : list) {
             arr.add(toJson(e));
         }
-        ok(ctx, new JsonObject().put("data", arr));
+        ctx.response()
+            .putHeader("Content-Type", "application/json")
+            .end(new JsonObject()
+                .put("success", true)
+                .put("message", "")
+                .put("data", arr)
+                .toString());
     }
 
     /** GET /api/model-catalog/:name — get one entry. */
@@ -70,6 +76,7 @@ public class ModelCatalogController extends BaseController {
         entry.setContextWindow(body.getInteger("context_window"));
         entry.setInputPrice(body.getDouble("input_price"));
         entry.setOutputPrice(body.getDouble("output_price"));
+        entry.setReferenceNotes(body.getString("reference_notes"));
         repo.insert(entry);
         ok(ctx);
     }
@@ -97,6 +104,7 @@ public class ModelCatalogController extends BaseController {
         entry.setContextWindow(body.getInteger("context_window"));
         entry.setInputPrice(body.getDouble("input_price"));
         entry.setOutputPrice(body.getDouble("output_price"));
+        entry.setReferenceNotes(body.getString("reference_notes"));
         repo.update(name, entry);
         ok(ctx);
     }
@@ -119,6 +127,7 @@ public class ModelCatalogController extends BaseController {
         obj.put("context_window", e.getContextWindow());
         obj.put("input_price", e.getInputPrice());
         obj.put("output_price", e.getOutputPrice());
+        obj.put("reference_notes", e.getReferenceNotes());
         return obj;
     }
 }

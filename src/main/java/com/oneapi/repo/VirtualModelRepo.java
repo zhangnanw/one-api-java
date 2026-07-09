@@ -94,12 +94,22 @@ public class VirtualModelRepo extends BaseRepo {
     }
 
     public void insert(VirtualModel virtualModel) {
-        String sql = "INSERT INTO virtual_models (name, match) VALUES (?, ?)";
+        String idSql = "SELECT COALESCE(MAX(id), 0) + 1 FROM virtual_models";
+        String sql = "INSERT INTO virtual_models (id, name, match) VALUES (?, ?, ?)";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, virtualModel.getName());
-            ps.setString(2, virtualModel.getMatch());
-            ps.executeUpdate();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(idSql)) {
+            int nextId = 1;
+            if (rs.next()) {
+                nextId = rs.getInt(1);
+            }
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, nextId);
+                ps.setString(2, virtualModel.getName());
+                ps.setString(3, virtualModel.getMatch());
+                ps.executeUpdate();
+                virtualModel.setId(nextId);
+            }
         } catch (SQLException e) {
             log.error("insert virtual_model: {}", e.getMessage());
         }

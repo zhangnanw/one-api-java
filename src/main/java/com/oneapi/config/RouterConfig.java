@@ -96,7 +96,9 @@ public class RouterConfig {
         router.put("/api/virtual-models/:id").handler(BodyHandler.create()).handler(vmCtrl::update);
         router.delete("/api/virtual-models/:id").handler(vmCtrl::delete);
 
-        var mcCtrl = new ModelCatalogController();
+        // DataSource fallback: test-route uses injected ds, prod uses DatabaseConfig
+        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
+        var mcCtrl = new ModelCatalogController(new ModelCatalogRepo(ds));
         router.get("/api/model-catalog").handler(mcCtrl::getAll);
         router.get("/api/model-catalog/:name").handler(mcCtrl::getOne);
         router.post("/api/model-catalog").handler(BodyHandler.create()).handler(mcCtrl::create);

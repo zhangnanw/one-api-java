@@ -4,7 +4,7 @@
 
 # === deepseek ===
 deepseek-v4-flash:
-  context_window: 131072
+  context_window: 1048576
   capabilities:
     - capability:code
     - capability:chat

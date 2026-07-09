@@ -22,5 +22,8 @@ public class ModelCatalogEntry {
     @JsonProperty("output_price")
     private Double outputPrice;
 
+    @JsonProperty("reference_notes")
+    private String referenceNotes;
+
     public ModelCatalogEntry() {}
 }

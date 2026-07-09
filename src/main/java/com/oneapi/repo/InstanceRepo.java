@@ -163,19 +163,29 @@ public class InstanceRepo extends BaseRepo {
     }
 
     public void insert(Instance inst) {
-        String sql = "INSERT INTO instances (vendor_id, model_name, upstream_model, status, created_time, meta, pref, layer) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String idSql = "SELECT COALESCE(MAX(id), 0) + 1 FROM instances";
+        String sql = "INSERT INTO instances (id, vendor_id, model_name, upstream_model, status, created_time, meta, pref, layer) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, inst.getVendorId());
-            ps.setString(2, inst.getModelName());
-            ps.setString(3, inst.getUpstreamModel());
-            ps.setInt(4, inst.getStatus());
-            ps.setLong(5, System.currentTimeMillis() / 1000);
-            ps.setString(6, inst.getMeta() != null ? inst.getMeta() : "{}");
-            ps.setFloat(7, inst.getPref());
-            ps.setString(8, inst.getLayer() != null ? inst.getLayer() : "payg");
-            ps.executeUpdate();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(idSql)) {
+            int nextId = 1;
+            if (rs.next()) {
+                nextId = rs.getInt(1);
+            }
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, nextId);
+                ps.setInt(2, inst.getVendorId());
+                ps.setString(3, inst.getModelName());
+                ps.setString(4, inst.getUpstreamModel());
+                ps.setInt(5, inst.getStatus());
+                ps.setLong(6, System.currentTimeMillis() / 1000);
+                ps.setString(7, inst.getMeta() != null ? inst.getMeta() : "{}");
+                ps.setFloat(8, inst.getPref());
+                ps.setString(9, inst.getLayer() != null ? inst.getLayer() : "payg");
+                ps.executeUpdate();
+                inst.setId(nextId);
+            }
         } catch (SQLException e) {
             log.error("insert instance: {}", e.getMessage());
         }
