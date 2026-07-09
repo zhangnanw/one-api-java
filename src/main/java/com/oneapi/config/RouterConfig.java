@@ -63,10 +63,28 @@ public class RouterConfig {
         // CooldownService 在所有路由之前单例化，/api/status 与 /v1/chat/completions 共用
         var cooldown = new CooldownService();
 
+        registerStaticRoutes();
         registerApiRoutes(cooldown);
         registerRelayRoutes(cooldown);
         registerFallback();
         return router;
+    }
+
+    /** Serve static files from classpath:/static/ */
+    private void registerStaticRoutes() {
+        router.get("/status").handler(ctx -> {
+            try (var is = getClass().getClassLoader().getResourceAsStream("static/status.html")) {
+                if (is == null) {
+                    ctx.response().setStatusCode(404).end("status page not found");
+                    return;
+                }
+                ctx.response()
+                    .putHeader("Content-Type", "text/html; charset=utf-8")
+                    .end(new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                ctx.response().setStatusCode(500).end("error loading status page");
+            }
+        });
     }
 
     private void registerApiRoutes(CooldownService cooldown) {
