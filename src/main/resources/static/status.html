@@ -187,6 +187,7 @@
         <span class="count" id="inst-count">0</span>
       </div>
       <div class="section-toolbar">
+        <button onclick="openInstance()">+ 添加实例</button>
         <input type="text" id="inst-search" placeholder="搜索模型名...">
         <select id="inst-vendor-filter"><option value="">全部供应商</option></select>
         <select id="inst-status-filter">
@@ -203,6 +204,10 @@
 
     <div class="section">
       <div class="section-header">模型画像 (Model Catalog)<span class="count" id="catalog-count">0</span></div>
+      <div class="section-toolbar">
+        <button onclick="openCatalog()">+ 添加画像</button>
+        <input type="text" id="catalog-search" placeholder="搜索模型名...">
+      </div>
       <div id="catalog-body"><div class="empty">加载中...</div></div>
     </div>
   </div>
@@ -432,13 +437,14 @@ function renderInstances() {
   if (pages <= 1) pager.style.display='none'; else pager.style.display='flex';
   const start = instCurPage * INST_PAGE_SIZE;
   const slice = filteredInstances.slice(start, start + INST_PAGE_SIZE);
-  let html = '<table><tr><th>模型</th><th>上游模型</th><th>状态</th><th>供应商</th></tr>';
+  let html = '<table><tr><th>模型</th><th>上游模型</th><th>状态</th><th>供应商</th><th>操作</th></tr>';
   for (const i of slice) {
     const up = i.upstream_model || i.model_name || '-';
     const v = vendorMap[i.vendor_id];
     const vendorName = v ? esc(v.name) : 'ID:' + i.vendor_id;
     html += `<tr><td><code>${esc(i.model_name)}</code></td><td><div class="truncate" title="${esc(up)}">${esc(up)}</div></td>
-      <td>${statusBadge(i.status)}</td><td>${vendorName}</td></tr>`;
+      <td>${statusBadge(i.status)}</td><td>${vendorName}</td>
+      <td><div class="row-actions"><button onclick="openInstance(${i.id})">编辑</button><button class="danger" onclick="deleteInstance(${i.id}, '${esc(i.model_name)}')">删除</button></div></td></tr>`;
   }
   html += '</table>';
   document.getElementById('instances-body').innerHTML = html;
@@ -448,29 +454,136 @@ function renderInstances() {
     document.getElementById('inst-next').disabled = instCurPage >= pages - 1;
   }
 }
+
+function openInstance(id) {
+  modalType = 'instance'; editingId = id || null;
+  const inst = id ? allInstances.find(x => x.id === id) || {} : {};
+  let vendorOpts = '<option value="">-- 选择供应商 --</option>';
+  const sortedVendors = Object.values(vendorMap).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  for (const v of sortedVendors) {
+    vendorOpts += `<option value="${v.id}" ${inst.vendor_id===v.id?'selected':''}>${esc(v.name)}</option>`;
+  }
+  const statusOpts = [{v:0,l:'未知'},{v:1,l:'活跃'},{v:2,l:'已标记'},{v:3,l:'已禁用'},{v:4,l:'已废弃'},{v:5,l:'失败'}];
+  let statusHtml = statusOpts.map(s => `<option value="${s.v}" ${inst.status===s.v?'selected':''}>${s.l}</option>`).join('');
+  const layerOpts = ['payg','reserved','spot','free'];
+  let layerHtml = layerOpts.map(l => `<option value="${l}" ${(inst.layer||'payg')===l?'selected':''}>${l}</option>`).join('');
+  openModal(editingId ? '编辑实例' : '添加实例', `
+    <div class="form-group"><label>模型名称 (model_name)</label><input id="i-name" value="${esc(inst.model_name||'')}"></div>
+    <div class="form-group"><label>上游模型 (upstream_model)</label><input id="i-upstream" value="${esc(inst.upstream_model||'')}"></div>
+    <div class="form-group"><label>供应商</label><select id="i-vendor">${vendorOpts}</select></div>
+    <div class="form-group"><label>状态</label><select id="i-status">${statusHtml}</select></div>
+    <div class="form-group"><label>层 (layer)</label><select id="i-layer">${layerHtml}</select></div>
+    <div class="form-group"><label>偏好 (pref, 0~1)</label><input id="i-pref" type="number" step="0.1" min="0" max="1" value="${inst.pref!=null?inst.pref:0.5}"></div>
+  `, saveInstance);
+}
+
+async function saveInstance() {
+  const name = getModalValue('i-name');
+  if (!name) { toast('模型名称必填', 'error'); return; }
+  const vendorId = parseInt(getModalValue('i-vendor'));
+  if (!vendorId) { toast('请选择供应商', 'error'); return; }
+  const payload = {
+    model_name: name,
+    upstream_model: getModalValue('i-upstream') || name,
+    vendor_id: vendorId,
+    status: parseInt(getModalValue('i-status')) || 1,
+    layer: getModalValue('i-layer') || 'payg',
+    pref: parseFloat(getModalValue('i-pref')) || 0.5,
+    meta: '{}'
+  };
+  if (editingId) {
+    await fetchText('/api/instances/' + editingId, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  } else {
+    await fetchText('/api/instances', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  }
+  closeModal(); toast(editingId ? '实例已更新' : '实例已创建'); refresh();
+}
+
+async function deleteInstance(id, name) {
+  if (!confirm('确定删除实例 ' + name + ' 吗？')) return;
+  await fetchText('/api/instances/' + id, { method: 'DELETE' });
+  toast('实例已删除'); refresh();
+}
 function instPage(delta) { instCurPage += delta; renderInstances(); }
 
 // ---------- Catalog ----------
+let allCatalog = [];
+let filteredCatalog = [];
+
+function filterCatalog() {
+  const q = document.getElementById('catalog-search').value.toLowerCase();
+  filteredCatalog = allCatalog.filter(c => {
+    if (q && !(c.name||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  renderCatalog(filteredCatalog);
+}
+
 function renderCatalog(list) {
-  document.getElementById('s-catalog').textContent = list.length;
-  document.getElementById('catalog-count').textContent = list.length;
+  document.getElementById('s-catalog').textContent = allCatalog.length;
+  document.getElementById('catalog-count').textContent = list.length + (list.length !== allCatalog.length ? ' / ' + allCatalog.length : '');
   if (!list.length) { document.getElementById('catalog-body').innerHTML = '<div class="empty">无数据</div>'; return; }
-  let html = '<table><tr><th>模型</th><th>能力</th><th>上下文</th></tr>';
+  let html = '<table><tr><th>模型</th><th>能力</th><th>上下文</th><th>操作</th></tr>';
   for (const c of list) {
     let caps = '';
     try { const arr = JSON.parse(c.capabilities || '[]'); caps = '<div class="caps">' + arr.map(x=>`<span class="cap">${esc(x)}</span>`).join('') + '</div>'; }
     catch { caps = c.capabilities || '-'; }
     const ctx = c.context_window ? (c.context_window >= 1000000 ? (c.context_window/1000000)+'M' : Math.round(c.context_window/1024)+'K') : '-';
-    html += `<tr><td><code>${esc(c.name)}</code></td><td>${caps}</td><td>${ctx}</td></tr>`;
+    html += `<tr><td><code>${esc(c.name)}</code></td><td>${caps}</td><td>${ctx}</td>
+      <td><div class="row-actions"><button onclick="openCatalog('${esc(c.name)}')">编辑</button><button class="danger" onclick="deleteCatalog('${esc(c.name)}')">删除</button></div></td></tr>`;
   }
   html += '</table>';
   document.getElementById('catalog-body').innerHTML = html;
+}
+
+function openCatalog(name) {
+  modalType = 'catalog'; editingId = name || null;
+  const c = name ? allCatalog.find(x => x.name === name) || {} : {};
+  let capsStr = '';
+  try { capsStr = JSON.stringify(JSON.parse(c.capabilities || '[]')); } catch { capsStr = c.capabilities || '[]'; }
+  openModal(editingId ? '编辑画像' : '添加画像', `
+    <div class="form-group"><label>模型名称</label><input id="c-name" value="${esc(c.name||'')}" ${editingId?'readonly style="opacity:0.6"':''}></div>
+    <div class="form-group"><label>能力 (JSON array)</label><textarea id="c-caps">${esc(capsStr)}</textarea></div>
+    <div class="form-group"><label>上下文窗口</label><input id="c-ctx" type="number" value="${c.context_window||''}"></div>
+    <div class="form-group"><label>输入价格</label><input id="c-iprice" type="number" step="0.01" value="${c.input_price||''}"></div>
+    <div class="form-group"><label>输出价格</label><input id="c-oprice" type="number" step="0.01" value="${c.output_price||''}"></div>
+    <div class="form-group"><label>参考备注 (reference_notes)</label><textarea id="c-notes" style="min-height:120px">${esc(c.reference_notes||'')}</textarea></div>
+  `, saveCatalog);
+}
+
+async function saveCatalog() {
+  const name = getModalValue('c-name');
+  if (!name) { toast('模型名称必填', 'error'); return; }
+  let caps = getModalValue('c-caps');
+  try { const arr = JSON.parse(caps || '[]'); if (!Array.isArray(arr)) throw 0; caps = JSON.stringify(arr); } catch { toast('能力必须是 JSON 数组', 'error'); return; }
+  const ctxVal = getModalValue('c-ctx');
+  const payload = {
+    name: name,
+    capabilities: caps,
+    context_window: ctxVal ? parseInt(ctxVal) : null,
+    input_price: parseFloat(getModalValue('c-iprice')) || null,
+    output_price: parseFloat(getModalValue('c-oprice')) || null,
+    reference_notes: getModalValue('c-notes') || null
+  };
+  if (editingId) {
+    await fetchText('/api/model-catalog/' + encodeURIComponent(editingId), { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  } else {
+    await fetchText('/api/model-catalog', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  }
+  closeModal(); toast(editingId ? '画像已更新' : '画像已创建'); refresh();
+}
+
+async function deleteCatalog(name) {
+  if (!confirm('确定删除画像 ' + name + ' 吗？')) return;
+  await fetchText('/api/model-catalog/' + encodeURIComponent(name), { method: 'DELETE' });
+  toast('画像已删除'); refresh();
 }
 
 // ---------- Events & Refresh ----------
 document.getElementById('inst-search').addEventListener('input', filterInstances);
 document.getElementById('inst-vendor-filter').addEventListener('change', filterInstances);
 document.getElementById('inst-status-filter').addEventListener('change', filterInstances);
+document.getElementById('catalog-search').addEventListener('input', filterCatalog);
 
 let loadedCount = 0;
 let allVModels = [];
@@ -483,10 +596,11 @@ async function refresh() {
     startTime = status.start_time;
     document.getElementById('uptime').textContent = fmtUptime(Math.floor(Date.now()/1000) - startTime);
     allVModels = vmodels || [];
+    allCatalog = catalog || [];
     renderVendors(vendors);
     allInstances = instances; filterInstances();
     renderVModels(vmodels);
-    renderCatalog(catalog);
+    filterCatalog();
     document.getElementById('lastUpdate').textContent = '更新于 ' + new Date().toLocaleTimeString();
     loadedCount++;
   } catch (e) {

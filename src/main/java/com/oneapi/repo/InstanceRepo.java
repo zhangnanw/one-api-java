@@ -122,14 +122,17 @@ public class InstanceRepo extends BaseRepo {
     }
 
     public void update(Instance inst) {
-        String sql = "UPDATE instances SET status=?, meta=?, pref=?, layer=? WHERE id=?";
+        String sql = "UPDATE instances SET model_name=?, upstream_model=?, vendor_id=?, status=?, meta=?, pref=?, layer=? WHERE id=?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, inst.getStatus());
-            ps.setString(2, inst.getMeta());
-            ps.setFloat(3, inst.getPref());
-            ps.setString(4, inst.getLayer());
-            ps.setInt(5, inst.getId());
+            ps.setString(1, inst.getModelName());
+            ps.setString(2, inst.getUpstreamModel());
+            ps.setInt(3, inst.getVendorId());
+            ps.setInt(4, inst.getStatus());
+            ps.setString(5, inst.getMeta());
+            ps.setFloat(6, inst.getPref());
+            ps.setString(7, inst.getLayer());
+            ps.setInt(8, inst.getId());
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("update instance {}: {}", inst.getId(), e.getMessage());

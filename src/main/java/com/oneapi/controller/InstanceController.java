@@ -84,8 +84,13 @@ public class InstanceController extends BaseController {
             badRequest(ctx, "invalid JSON body");
             return;
         }
+        if (body.containsKey("model_name")) existing.setModelName(body.getString("model_name"));
+        if (body.containsKey("upstream_model")) existing.setUpstreamModel(body.getString("upstream_model"));
+        if (body.containsKey("vendor_id")) existing.setVendorId(body.getInteger("vendor_id"));
         if (body.containsKey("status")) existing.setStatus(body.getInteger("status"));
         if (body.containsKey("meta")) existing.setMeta(body.getString("meta"));
+        if (body.containsKey("pref")) existing.setPref(body.getFloat("pref"));
+        if (body.containsKey("layer")) existing.setLayer(body.getString("layer"));
         repo.update(existing);
         ok(ctx);
     }
@@ -110,6 +115,8 @@ public class InstanceController extends BaseController {
             .put("upstream_model", instance.getUpstreamModel())
             .put("vendor_id", instance.getVendorId())
             .put("created_time", instance.getCreatedTime())
-            .put("meta", instance.getMeta());
+            .put("meta", instance.getMeta())
+            .put("pref", instance.getPref())
+            .put("layer", instance.getLayer());
     }
 }
