@@ -241,7 +241,9 @@ async function fetchJSON(path) {
   const r = await fetch(API + path);
   if (!r.ok) throw new Error(r.status);
   const j = await r.json();
-  return j.data || j;
+  // handle both {data:[...]} and {data:{data:[...]}} (double-wrapped)
+  const d = j.data || j;
+  return (d && d.data && Array.isArray(d.data)) ? d.data : d;
 }
 
 function fmtUptime(sec) {
