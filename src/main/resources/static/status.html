@@ -15,7 +15,6 @@
     --green: #3fb950;
     --red: #f85149;
     --yellow: #d29922;
-    --orange: #db6d28;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -33,171 +32,103 @@
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
-  .header h1 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #fff;
-  }
+  .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
   .header h1 span { color: var(--accent); }
-  .header .meta {
-    font-size: 12px;
-    color: var(--text-dim);
-    text-align: right;
-  }
+  .header .meta { font-size: 12px; color: var(--text-dim); text-align: right; }
   .header .meta .live {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    margin-right: 4px;
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--green); margin-right: 4px;
     animation: pulse 2s infinite;
   }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
     margin-bottom: 24px;
   }
   .stat-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    text-align: center;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; text-align: center;
   }
-  .stat-card .value {
-    font-size: 28px;
-    font-weight: 700;
-    color: #fff;
-  }
+  .stat-card .value { font-size: 28px; font-weight: 700; color: #fff; }
   .stat-card .label {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-top: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 12px; color: var(--text-dim); margin-top: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px;
   }
   .section {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 16px;
-    overflow: hidden;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 16px; overflow: hidden;
   }
   .section-header {
-    padding: 12px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
+    padding: 12px 16px; font-size: 14px; font-weight: 600; color: #fff;
     border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; justify-content: space-between; align-items: center;
   }
   .section-header .count {
-    background: var(--border);
-    color: var(--text);
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 500;
+    background: var(--border); color: var(--text); font-size: 11px;
+    padding: 2px 8px; border-radius: 10px; font-weight: 500;
   }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
+  .section-toolbar {
+    padding: 8px 16px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   }
+  .section-toolbar input, .section-toolbar select {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 10px; border-radius: 6px; font-size: 12px; outline: none;
+  }
+  .section-toolbar input:focus, .section-toolbar select:focus {
+    border-color: var(--accent);
+  }
+  .section-toolbar input { width: 180px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th {
-    text-align: left;
-    padding: 8px 16px;
-    color: var(--text-dim);
-    font-weight: 500;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--border);
+    text-align: left; padding: 8px 16px; color: var(--text-dim);
+    font-weight: 500; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
     background: rgba(0,0,0,0.2);
   }
   td {
-    padding: 8px 16px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
+    padding: 8px 16px; border-bottom: 1px solid var(--border); vertical-align: middle;
   }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(88,166,255,0.04); }
   .badge {
-    display: inline-block;
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 500;
+    display: inline-block; font-size: 11px; padding: 2px 8px;
+    border-radius: 10px; font-weight: 500;
   }
   .badge-active { background: rgba(63,185,80,0.15); color: var(--green); }
   .badge-inactive { background: rgba(248,81,73,0.15); color: var(--red); }
   .badge-disabled { background: rgba(139,148,158,0.15); color: var(--text-dim); }
   .badge-deprecated { background: rgba(210,153,34,0.15); color: var(--yellow); }
-  .caps {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-  }
+  .caps { display: flex; gap: 4px; flex-wrap: wrap; }
   .cap {
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(88,166,255,0.1);
-    color: var(--accent);
+    font-size: 10px; padding: 1px 6px; border-radius: 4px;
+    background: rgba(88,166,255,0.1); color: var(--accent);
     border: 1px solid rgba(88,166,255,0.2);
   }
-  .empty {
-    padding: 32px;
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 13px;
-  }
-  .error {
-    padding: 16px;
-    text-align: center;
-    color: var(--red);
-    font-size: 13px;
-  }
-  .refresh-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 4px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.15s;
-  }
-  .refresh-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  @media (max-width: 900px) {
-    .columns { grid-template-columns: 1fr; }
-  }
+  .empty { padding: 32px; text-align: center; color: var(--text-dim); font-size: 13px; }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
   .truncate {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: 'SF Mono', Consolas, monospace;
-    font-size: 12px;
-    color: var(--text-dim);
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: 'SF Mono', Consolas, monospace; font-size: 12px; color: var(--text-dim);
   }
   #uptime { color: var(--green); }
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);
+  }
+  .pager button {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .pager button:hover { border-color: var(--accent); color: var(--accent); }
+  .pager button:disabled { opacity: 0.3; cursor: default; }
+  code {
+    font-family: 'SF Mono', Consolas, monospace; font-size: 12px;
+    background: rgba(88,166,255,0.08); padding: 1px 5px; border-radius: 3px;
+  }
 </style>
 </head>
 <body>
@@ -258,7 +189,28 @@
         模型实例 (Instances)
         <span class="count" id="inst-count">0</span>
       </div>
+      <div class="section-toolbar">
+        <input type="text" id="inst-search" placeholder="搜索模型名...">
+        <select id="inst-vendor-filter">
+          <option value="">全部供应商</option>
+        </select>
+        <select id="inst-status-filter">
+          <option value="">全部状态</option>
+          <option value="1">活跃</option>
+          <option value="2">已标记</option>
+          <option value="3">已禁用</option>
+          <option value="4">已废弃</option>
+          <option value="5">失败</option>
+        </select>
+      </div>
       <div id="instances-body"><div class="empty">加载中...</div></div>
+      <div class="pager" id="inst-pager" style="display:none">
+        <span id="inst-page-info">--</span>
+        <div>
+          <button id="inst-prev" onclick="instPage(-1)">上一页</button>
+          <button id="inst-next" onclick="instPage(1)">下一页</button>
+        </div>
+      </div>
     </div>
 
     <div class="section">
@@ -274,6 +226,11 @@
 <script>
 const API = window.location.origin;
 let startTime = 0;
+let vendorMap = {};
+let allInstances = [];
+let filteredInstances = [];
+let instCurPage = 0;
+const INST_PAGE_SIZE = 50;
 
 async function fetchJSON(path) {
   const r = await fetch(API + path);
@@ -293,20 +250,32 @@ function fmtUptime(sec) {
 
 function statusBadge(s) {
   const map = {
-    0: ['未知', 'badge-disabled'],
-    1: ['活跃', 'badge-active'],
-    2: ['已标记', 'badge-active'],
-    3: ['已禁用', 'badge-disabled'],
-    4: ['已废弃', 'badge-deprecated'],
-    5: ['失败', 'badge-inactive'],
+    0: ['未知', 'badge-disabled'], 1: ['活跃', 'badge-active'],
+    2: ['已标记', 'badge-active'], 3: ['已禁用', 'badge-disabled'],
+    4: ['已废弃', 'badge-deprecated'], 5: ['失败', 'badge-inactive'],
   };
   const [text, cls] = map[s] || ['?' + s, 'badge-disabled'];
   return `<span class="badge ${cls}">${text}</span>`;
 }
 
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function renderVendors(list) {
   document.getElementById('s-vendors').textContent = list.length;
   document.getElementById('vendor-count').textContent = list.length;
+  vendorMap = {};
+  for (const v of list) vendorMap[v.id] = v;
+  // populate vendor filter dropdown
+  const sel = document.getElementById('inst-vendor-filter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部供应商</option>';
+  for (const v of list) {
+    sel.innerHTML += `<option value="${v.id}">${esc(v.name)}</option>`;
+  }
+  sel.value = cur;
   if (!list.length) { document.getElementById('vendors-body').innerHTML = '<div class="empty">无数据</div>'; return; }
   let html = '<table><tr><th>ID</th><th>名称</th><th>状态</th><th>Base URL</th></tr>';
   for (const v of list) {
@@ -318,20 +287,58 @@ function renderVendors(list) {
   document.getElementById('vendors-body').innerHTML = html;
 }
 
-function renderInstances(list) {
-  document.getElementById('s-instances').textContent = list.length;
-  document.getElementById('inst-count').textContent = list.length;
-  if (!list.length) { document.getElementById('instances-body').innerHTML = '<div class="empty">无数据</div>'; return; }
-  let html = '<table><tr><th>ID</th><th>模型</th><th>上游模型</th><th>状态</th><th>供应商</th></tr>';
-  for (const i of list) {
+function filterInstances() {
+  const q = document.getElementById('inst-search').value.toLowerCase();
+  const vfilter = document.getElementById('inst-vendor-filter').value;
+  const sfilter = document.getElementById('inst-status-filter').value;
+  filteredInstances = allInstances.filter(i => {
+    if (q && !(i.model_name || '').toLowerCase().includes(q) && !(i.upstream_model || '').toLowerCase().includes(q)) return false;
+    if (vfilter && String(i.vendor_id) !== vfilter) return false;
+    if (sfilter && String(i.status) !== sfilter) return false;
+    return true;
+  });
+  instCurPage = 0;
+  renderInstances();
+}
+
+function renderInstances() {
+  const total = filteredInstances.length;
+  document.getElementById('s-instances').textContent = allInstances.length;
+  document.getElementById('inst-count').textContent = total + (total !== allInstances.length ? ' / ' + allInstances.length : '');
+  const pager = document.getElementById('inst-pager');
+  if (total === 0) {
+    document.getElementById('instances-body').innerHTML = '<div class="empty">无匹配数据</div>';
+    pager.style.display = 'none';
+    return;
+  }
+  const pages = Math.ceil(total / INST_PAGE_SIZE);
+  if (pages <= 1) { pager.style.display = 'none'; } else { pager.style.display = 'flex'; }
+  const start = instCurPage * INST_PAGE_SIZE;
+  const slice = filteredInstances.slice(start, start + INST_PAGE_SIZE);
+
+  let html = '<table><tr><th>模型</th><th>上游模型</th><th>状态</th><th>供应商</th></tr>';
+  for (const i of slice) {
     const up = i.upstream_model || i.model_name || '-';
-    const vendor = i.vendor ? esc(i.vendor.name) : 'ID:' + i.vendor_id;
-    html += `<tr><td>${i.id}</td><td><code>${esc(i.model_name)}</code></td>
-      <td><div class="truncate">${esc(up)}</div></td>
-      <td>${statusBadge(i.status)}</td><td>${vendor}</td></tr>`;
+    const v = vendorMap[i.vendor_id];
+    const vendorName = v ? esc(v.name) : 'ID:' + i.vendor_id;
+    html += `<tr><td><code>${esc(i.model_name)}</code></td>
+      <td><div class="truncate" title="${esc(up)}">${esc(up)}</div></td>
+      <td>${statusBadge(i.status)}</td><td>${vendorName}</td></tr>`;
   }
   html += '</table>';
   document.getElementById('instances-body').innerHTML = html;
+
+  if (pages > 1) {
+    document.getElementById('inst-page-info').textContent =
+      `第 ${instCurPage+1}/${pages} 页，共 ${total} 条`;
+    document.getElementById('inst-prev').disabled = instCurPage <= 0;
+    document.getElementById('inst-next').disabled = instCurPage >= pages - 1;
+  }
+}
+
+function instPage(delta) {
+  instCurPage += delta;
+  renderInstances();
 }
 
 function renderVModels(list) {
@@ -359,17 +366,17 @@ function renderCatalog(list) {
       const arr = JSON.parse(c.capabilities || '[]');
       caps = '<div class="caps">' + arr.map(x => `<span class="cap">${esc(x)}</span>`).join('') + '</div>';
     } catch { caps = c.capabilities || '-'; }
-    const ctx = c.context_window ? (c.context_window >= 1000000 ? (c.context_window/1000000)+'M' : (c.context_window/1024)+'K') : '-';
+    const ctx = c.context_window ? (c.context_window >= 1000000 ? (c.context_window/1000000)+'M' : Math.round(c.context_window/1024)+'K') : '-';
     html += `<tr><td><code>${esc(c.name)}</code></td><td>${caps}</td><td>${ctx}</td></tr>`;
   }
   html += '</table>';
   document.getElementById('catalog-body').innerHTML = html;
 }
 
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+// wire up search/filter
+document.getElementById('inst-search').addEventListener('input', filterInstances);
+document.getElementById('inst-vendor-filter').addEventListener('change', filterInstances);
+document.getElementById('inst-status-filter').addEventListener('change', filterInstances);
 
 async function refresh() {
   try {
@@ -383,7 +390,8 @@ async function refresh() {
     startTime = status.start_time;
     document.getElementById('uptime').textContent = fmtUptime(Math.floor(Date.now()/1000) - startTime);
     renderVendors(vendors);
-    renderInstances(instances);
+    allInstances = instances;
+    filterInstances();
     renderVModels(vmodels);
     renderCatalog(catalog);
     document.getElementById('lastUpdate').textContent = '更新于 ' + new Date().toLocaleTimeString();
