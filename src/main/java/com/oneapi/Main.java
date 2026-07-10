@@ -9,6 +9,7 @@ import com.oneapi.config.AppConfig;
 import com.oneapi.config.ConfigLoader;
 import com.oneapi.config.DatabaseConfig;
 import com.oneapi.config.RouterConfig;
+import com.oneapi.config.SchemaManager;
 import com.oneapi.repo.ModelCatalogRepo;
 import com.oneapi.service.HolographicLogger;
 import com.oneapi.service.RelayLogger;
@@ -22,6 +23,9 @@ public class Main {
 
         // 初始化数据库（SQLite 或 PostgreSQL）
         DatabaseConfig.init(config.getDatabase());
+
+        // 确保表结构支持自增 id
+        new SchemaManager(DatabaseConfig.getDataSource()).migrate();
 
         // 初始化 model_catalog 缓存（从 DB 加载）
         new ModelCatalogRepo(DatabaseConfig.getDataSource());

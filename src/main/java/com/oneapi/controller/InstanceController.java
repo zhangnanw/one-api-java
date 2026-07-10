@@ -86,7 +86,14 @@ public class InstanceController extends BaseController {
         }
         if (body.containsKey("model_name")) existing.setModelName(body.getString("model_name"));
         if (body.containsKey("upstream_model")) existing.setUpstreamModel(body.getString("upstream_model"));
-        if (body.containsKey("vendor_id")) existing.setVendorId(body.getInteger("vendor_id"));
+        if (body.containsKey("vendor_id")) {
+            int vendorId = body.getInteger("vendor_id");
+            if (vendorRepo.findById(vendorId) == null) {
+                notFound(ctx, "vendor");
+                return;
+            }
+            existing.setVendorId(vendorId);
+        }
         if (body.containsKey("status")) existing.setStatus(body.getInteger("status"));
         if (body.containsKey("meta")) existing.setMeta(body.getString("meta"));
         if (body.containsKey("pref")) existing.setPref(body.getFloat("pref"));

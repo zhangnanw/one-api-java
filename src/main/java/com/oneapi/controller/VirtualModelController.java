@@ -77,7 +77,8 @@ public class VirtualModelController extends BaseController {
 
     public void update(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        var body = ctx.body().asJsonObject();
+        ctx.body(); // force read body buffer
+        var body = ctx.getBody().toJsonObject();
         String match = body.getString("match");
         if (match == null) {
             json(ctx, 400, "match is required");
