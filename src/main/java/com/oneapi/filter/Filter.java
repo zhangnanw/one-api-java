@@ -15,12 +15,12 @@ public interface Filter {
      * 链式组合：先应用当前 filter，再应用 {@code after}。
      * <p>
      * 用于在 RouterConfig 拼装阶段把多个轻量 filter 串成一条。
-     * 注意：{@code after} 仍会执行，即使当前 filter 已标记错误；
-     * 短路语义由调用方在协调器层判断（ctx.hasError）。
+     * 若当前 filter 已标记错误，则短路，不再执行后续 filter。
      */
     default Filter andThen(Filter after) {
         return ctx -> {
             RelayContext after1 = this.apply(ctx);
+            if (after1.hasError()) return after1;
             return after.apply(after1);
         };
     }

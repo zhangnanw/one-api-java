@@ -6,8 +6,7 @@ import com.oneapi.model.MatchRule;
 import com.oneapi.model.MatchRuleParser;
 import com.oneapi.model.VirtualModel;
 import com.oneapi.repo.VirtualModelRepo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 阶段 2 — 按名称查找虚拟模型，解析匹配规则。
@@ -15,8 +14,8 @@ import org.slf4j.LoggerFactory;
  * 如果 ctx.matchedPhysical 为 true，则不执行任何操作。
  * 数据库未命中 → 直接 404。
  */
+@Slf4j
 public class VirtualModelLookup implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(VirtualModelLookup.class);
 
     private final VirtualModelRepo vmRepo;
     private final String triggerSuffix;

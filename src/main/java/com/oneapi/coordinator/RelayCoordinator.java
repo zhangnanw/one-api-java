@@ -3,19 +3,20 @@ package com.oneapi.coordinator;
 import com.oneapi.config.AppConfig;
 import com.oneapi.filter.Filter;
 import com.oneapi.filter.ParamClamp;
+import com.oneapi.handler.HeaderInjector;
 import com.oneapi.handler.UpstreamClient;
 import com.oneapi.model.*;
 import com.oneapi.relay.DefaultRelay;
+import com.oneapi.relay.ModelSubstitutor;
 import com.oneapi.service.CooldownService;
-import com.oneapi.service.HolographicLogger;
+import com.oneapi.service.HolographicLogRecorder;
 import com.oneapi.service.RelayLogger;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.RouterService.RoutedVendor;
 import com.oneapi.service.SessionTracker;
-import com.oneapi.comparator.ById;
-import com.oneapi.comparator.ByScore;
-import com.oneapi.comparator.ByStatusDesc;
+import com.oneapi.comparator.SorterFactory;
 
+import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -23,8 +24,7 @@ import io.vertx.ext.web.RoutingContext;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * V2 中继协调器 — 5 阶段流水线。
@@ -35,8 +35,8 @@ import org.slf4j.LoggerFactory;
  * 阶段 4：Comparator.thenComparing 链排序
  * 阶段 5：relayChain.execute(first candidate, relayRequest)
  */
+@Slf4j
 public class RelayCoordinator {
-    private static final Logger log = LoggerFactory.getLogger(RelayCoordinator.class);
 
     private final RouterService router;
     private final CooldownService cooldown;
@@ -47,6 +47,7 @@ public class RelayCoordinator {
     private final Comparator<RoutedVendor> sorter;
     private final DefaultRelay baseRelay;
     private final AppConfig config;
+    private final HolographicLogRecorder holographicRecorder;
 
     public RelayCoordinator(RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
@@ -54,7 +55,8 @@ public class RelayCoordinator {
                             List<Filter> stage2Filters,
                             List<Filter> stage3Filters,
                             DefaultRelay baseRelay,
-                            AppConfig config) {
+                            AppConfig config,
+                            HolographicLogRecorder holographicRecorder) {
         this.router = router;
         this.cooldown = cooldown;
         this.sessions = sessions;
@@ -63,7 +65,8 @@ public class RelayCoordinator {
         this.stage3Filters = stage3Filters;
         this.baseRelay = baseRelay;
         this.config = config;
-        this.sorter = buildSorter(config);
+        this.holographicRecorder = holographicRecorder;
+        this.sorter = SorterFactory.build(config);
     }
 
     public void execute(RoutingContext ctx, byte[] rawBody) {
@@ -132,6 +135,7 @@ public class RelayCoordinator {
             candidates = router.loadCandidates(targetModel);
         }
         if (candidates.isEmpty()) {
+            holographicRecorder.logNoCandidates(ctx, req.requestedModel());
             error(ctx, 503, "no available instances for " + req.requestedModel());
             return;
         }
@@ -143,12 +147,14 @@ public class RelayCoordinator {
 
         // Check filter-set errors first (e.g. BodyLimitFilter 413)
         if (relayCtx.hasError()) {
+            holographicRecorder.logStage3Error(ctx, relayCtx.error().httpStatus(), relayCtx.errorMessage());
             error(ctx, relayCtx.error().httpStatus(), relayCtx.errorMessage());
             return;
         }
 
         var filtered = relayCtx.<RoutedVendor>candidates();
         if (filtered == null || filtered.isEmpty()) {
+            holographicRecorder.logAllFiltered(ctx, req.requestedModel());
             error(ctx, 400, "all instances filtered for " + req.requestedModel());
             return;
         }
@@ -204,15 +210,8 @@ public class RelayCoordinator {
                               LinkedList<RoutedVendor> queue) {
         // 队列空 = 所有候选都失败了
         if (queue.isEmpty()) {
-            String msg = "no available instances for " + req.requestedModel();
-            var rec = ctx.<HolographicRecord>get("holographicRecord");
-            if (rec != null) {
-                long totalMs = System.currentTimeMillis() - rec.startMs();
-                rec.finish("failure", 503, totalMs, 0, null,
-                    "relay", msg, rec.attemptCount(), null, 0);
-                HolographicLogger.write(rec);
-            }
-            error(ctx, 503, msg);
+            holographicRecorder.logAllFailed(ctx, 503, "no available instances for " + req.requestedModel());
+            error(ctx, 503, "no available instances for " + req.requestedModel());
             return;
         }
 
@@ -227,7 +226,6 @@ public class RelayCoordinator {
         log.info("V2 trying: instance={} vendor={} model={} upstream={}",
             routedVendor.instanceId(), vendorName, routedVendor.modelName(), routedVendor.upstreamModel());
 
-        long logId = startLog(req, candidate);
         long startMs = System.currentTimeMillis();
 
         byte[] finalBody = ParamClamp.clamp(
@@ -235,67 +233,92 @@ public class RelayCoordinator {
             MetaView.fromInstanceMeta(routedVendor.instanceMeta()).instanceCaps());
         RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody, false);
 
-        baseRelay.execute(candidate, finalReq)
-            .onSuccess(result -> {
-                completeLog(logId, result, startMs);
-                Object sidObj = ctx.get("sessionId");
-                if (sidObj instanceof String sid && !sid.isEmpty()) {
-                    sessions.recordInstance(sid, routedVendor.instanceId());
-                }
-                var rec = ctx.<HolographicRecord>get("holographicRecord");
-                if (rec != null) {
-                    long lat = System.currentTimeMillis() - startMs;
-                    String upstreamUrl = routedVendor.vendor() != null
-                        ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "";
-                    rec.addAttempt(HolographicRecord.AttemptRecord.success(
-                        vendorName, routedVendor.instanceId(),
-                        routedVendor.upstreamModel(), upstreamUrl,
-                        200, lat, 0,
-                        result.promptTokens(), result.completionTokens()));
-                    long totalMs = System.currentTimeMillis() - rec.startMs();
-                    int totalTokens = result.promptTokens() + result.completionTokens();
-                    rec.finish("success", 200, totalMs, totalTokens,
-                        result.responseBody(), null, null, rec.attemptCount(),
-                        vendorName, routedVendor.instanceId());
-                    HolographicLogger.write(rec);
-                }
-                ctx.response()
-                    .putHeader("Content-Type", "application/json")
-                    .end(result.responseBody());
-            })
-            .onFailure(err -> {
-                long latency = System.currentTimeMillis() - startMs;
-                int status = extractHttpStatus(err);
-                String errMsg = extractErrorMessage(err);
-
-                log.warn("{} from vendor={}, try next ({} left)",
-                    status, vendorName, queue.size());
-                // 429 / 403 → vendor 级限流，冷却整 vendor（rate limit 通常是 vendor 级别）
-                // 200 + 空 choices → 仅本实例问题，冷却 instance（不应牵连 vendor 其它实例）
-                if (routedVendor.vendor() != null) {
-                    if (status == 429 || status == 403) {
-                        cooldown.setVendorCooldown(routedVendor.vendor().getId());
-                    } else if (status == 200) {
-                        // 200 + hasChoices==false：DefaultRelay 视为失败。仅冻当前 instance。
-                        cooldown.setInstanceCooldown(
-                            routedVendor.instanceId(), routedVendor.instanceTags());
+        startLogAsync(ctx, req, candidate).onSuccess(logId -> {
+            baseRelay.execute(candidate, finalReq)
+                .onSuccess(result -> {
+                    updateStreamResultAsync(ctx, logId, result.httpStatus(),
+                        result.promptTokens() + result.completionTokens(),
+                        System.currentTimeMillis() - startMs, null);
+                    Object sidObj = ctx.get("sessionId");
+                    if (sidObj instanceof String sid && !sid.isEmpty()) {
+                        sessions.recordInstance(sid, routedVendor.instanceId());
                     }
-                }
-                failLog(logId, status, errMsg, latency);
-                var rec = ctx.<HolographicRecord>get("holographicRecord");
-                if (rec != null) {
-                    String upstreamUrl = routedVendor.vendor() != null
-                        ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "";
-                    boolean cooled = routedVendor.vendor() != null
-                        && (status == 429 || status == 403 || status == 200);
-                    rec.addAttempt(HolographicRecord.AttemptRecord.failure(
-                        vendorName, routedVendor.instanceId(),
-                        routedVendor.upstreamModel(), upstreamUrl,
-                        status, latency, errorTypeFromStatus(status), errMsg, cooled));
-                }
-                // while 循环重试下一个候选（尾部调用，等价于迭代）
-                tryBuffered(ctx, req, queue);
-            });
+                    long lat = System.currentTimeMillis() - startMs;
+                    holographicRecorder.logAttemptSuccessBuffered(ctx, vendorName, routedVendor.instanceId(),
+                        routedVendor.upstreamModel(),
+                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        200, lat,
+                        result.promptTokens(), result.completionTokens(),
+                        result.responseBody());
+                    ctx.response()
+                        .putHeader("Content-Type", "application/json")
+                        .end(result.responseBody());
+                })
+                .onFailure(err -> {
+                    long latency = System.currentTimeMillis() - startMs;
+                    int status = extractHttpStatus(err);
+                    String errMsg = extractErrorMessage(err);
+
+                    log.warn("{} from vendor={}, try next ({} left)",
+                        status, vendorName, queue.size());
+                    if (routedVendor.vendor() != null) {
+                        if (status == 429 || status == 403) {
+                            cooldown.setVendorCooldown(routedVendor.vendor().getId());
+                        } else if (status == 200) {
+                            cooldown.setInstanceCooldown(
+                                routedVendor.instanceId(), routedVendor.instanceTags());
+                        }
+                    }
+                    updateStreamResultAsync(ctx, logId, status, 0, latency, errMsg);
+                    holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
+                        routedVendor.upstreamModel(),
+                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        status, latency, errorTypeFromStatus(status), errMsg,
+                        routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200));
+                    tryBuffered(ctx, req, queue);
+                });
+        }).onFailure(err -> {
+            log.error("relay log start failed: {}", err.getMessage());
+            baseRelay.execute(candidate, finalReq)
+                .onSuccess(result -> {
+                    Object sidObj = ctx.get("sessionId");
+                    if (sidObj instanceof String sid && !sid.isEmpty()) {
+                        sessions.recordInstance(sid, routedVendor.instanceId());
+                    }
+                    long lat = System.currentTimeMillis() - startMs;
+                    holographicRecorder.logAttemptSuccessBuffered(ctx, vendorName, routedVendor.instanceId(),
+                        routedVendor.upstreamModel(),
+                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        200, lat,
+                        result.promptTokens(), result.completionTokens(),
+                        result.responseBody());
+                    ctx.response()
+                        .putHeader("Content-Type", "application/json")
+                        .end(result.responseBody());
+                })
+                .onFailure(err2 -> {
+                    long latency = System.currentTimeMillis() - startMs;
+                    int status = extractHttpStatus(err2);
+                    String errMsg = extractErrorMessage(err2);
+
+                    log.warn("{} from vendor={}, try next ({} left)",
+                        status, vendorName, queue.size());
+                    if (routedVendor.vendor() != null) {
+                        if (status == 429 || status == 403) {
+                            cooldown.setVendorCooldown(routedVendor.vendor().getId());
+                        } else if (status == 200) {
+                            cooldown.setInstanceCooldown(
+                                routedVendor.instanceId(), routedVendor.instanceTags());
+                        }
+                    }
+                    holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
+                        routedVendor.upstreamModel(),
+                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        status, latency, errorTypeFromStatus(status), errMsg,
+                        routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200));
+                    tryBuffered(ctx, req, queue);
+                });
+        });
     }
 
     /** 流式中继：只试队列中第一个候选，失败不重试（流式重试会导致客户端收到重复数据）。 */
@@ -305,11 +328,7 @@ public class RelayCoordinator {
     }
 
     private static int extractHttpStatus(Throwable err) {
-        if (err instanceof RelayException re
-                && re.getError() instanceof RelayError.UpstreamFailure upstreamFailure) {
-            return upstreamFailure.httpCode();
-        }
-        return 503;
+        return RelayErrorHelper.extractHttpStatus(err);
     }
 
     /**
@@ -317,21 +336,7 @@ public class RelayCoordinator {
      * 有备用实例时，此消息仅写入日志，不返回给客户端。
      */
     private static String extractErrorMessage(Throwable err) {
-        if (err instanceof RelayException re
-                && re.getError() instanceof RelayError.UpstreamFailure upstreamFailure) {
-            String body = upstreamFailure.responseBody();
-            if (body != null) {
-                try {
-                    var json = new JsonObject(body);
-                    var errorNode = json.getJsonObject("error");
-                    if (errorNode != null && errorNode.getString("message") != null) {
-                        return "upstream: " + errorNode.getString("message");
-                    }
-                } catch (Exception ignored) {}
-            }
-            return "upstream " + upstreamFailure.httpCode();
-        }
-        return err.getMessage() != null ? err.getMessage() : "relay failed";
+        return RelayErrorHelper.extractErrorMessage(err);
     }
 
     // --- 流式中继：遍历候选队列直到成功 ---
@@ -340,14 +345,7 @@ public class RelayCoordinator {
                              LinkedList<RoutedVendor> queue,
                              RelayContext relayCtx) {
         if (queue.isEmpty()) {
-            // ── 全息日志：流式无候选 ──
-            var rec = ctx.<HolographicRecord>get("holographicRecord");
-            if (rec != null) {
-                long totalMs = System.currentTimeMillis() - rec.startMs();
-                rec.finish("failure", 503, totalMs, 0, null,
-                    "relay", "no available instances", 0, null, 0);
-                HolographicLogger.write(rec);
-            }
+            holographicRecorder.logAllFailed(ctx, 503, "no available instances for " + req.requestedModel());
             error(ctx, 503, "no available instances for " + req.requestedModel());
             return;
         }
@@ -366,7 +364,6 @@ public class RelayCoordinator {
         // 供应商专用头（Reasoning + Kimi UA）
         injectVendorSpecificHeaders(candidate, first.vendor(), relayCtx);
 
-        long logId = startLog(req, candidate);
         long startMs = System.currentTimeMillis();
         byte[] finalBody = ParamClamp.clamp(
             substituteModel(req.rawBody(), first.upstreamModel(), req.requestedModel()),
@@ -387,139 +384,127 @@ public class RelayCoordinator {
 
         ctx.response().setChunked(true);
 
-        // 流式递归 fallback：非 200 → 不 pipe 到客户端 → 切下一个候选
-        upstreamClient.relayStream(relayReq,
-            statusCode -> statusCode == 200,  // 只有 200 才 pipe
-            (statusCode, tokens) -> {
-                long latency = System.currentTimeMillis() - startMs;
-                var rec = ctx.<HolographicRecord>get("holographicRecord");
-                
-                if (statusCode == 200) {
-                    cooldown.clearCooldown(first.instanceId(), first.vendor().getId());
-                    Object sidObj = ctx.get("sessionId");
-                    if (sidObj instanceof String sid && !sid.isEmpty()) {
-                        sessions.recordInstance(sid, first.instanceId());
-                    }
-                    RelayLogger.updateStreamResult(logId, statusCode, tokens, latency);
-                    
-                    if (rec != null) {
-                        String upstreamUrl = first.vendor().getBaseUrl() + "/v1/chat/completions";
-                        String vname = first.vendor().getName();
-                        rec.addAttempt(HolographicRecord.AttemptRecord.success(
-                            vname, first.instanceId(), first.upstreamModel(), upstreamUrl,
-                            statusCode, latency, 0, 0, tokens));
-                        long totalMs = System.currentTimeMillis() - rec.startMs();
-                        rec.finish("success", statusCode, totalMs, tokens,
-                            null, null, null, rec.attemptCount(),
-                            vname, first.instanceId());
-                        HolographicLogger.write(rec);
-                    }
-                } else {
-                    // 任何非 200 → 冷却 vendor → fallback 下一个
-                    // 流式不会出现 "200 + 空 choices" 的情况（SSE chunk 总能收到），
-                    // 因此这里无 200 分支需要降级为 instance 级冷却。
-                    cooldown.setVendorCooldown(first.vendor().getId());
-                    RelayLogger.updateStreamResult(logId, statusCode, 0, latency, "");
-                    
-                    if (rec != null) {
-                        String upstreamUrl = first.vendor().getBaseUrl() + "/v1/chat/completions";
-                        String vname = first.vendor().getName();
-                        rec.addAttempt(HolographicRecord.AttemptRecord.failure(
-                            vname, first.instanceId(), first.upstreamModel(), upstreamUrl,
-                            statusCode, latency, errorTypeFromStatus(statusCode),
-                            "stream upstream error", true));
-                    }
-                    
-                    if (!queue.isEmpty()) {
-                        // 递归：试下一个候选（新 conn → 新 sink）
-                        ctx.response().setChunked(false);
-                        ctx.response().headers().clear();
-                        relayStream(ctx, req, queue, relayCtx);
-                    } else {
-                        if (rec != null) {
-                            long totalMs = System.currentTimeMillis() - rec.startMs();
-                            rec.finish("failure", statusCode, totalMs, 0,
-                                null, "relay", "all upstream instances failed",
-                                rec.attemptCount(), null, 0);
-                            HolographicLogger.write(rec);
+        startLogAsync(ctx, req, candidate).onSuccess(logId -> {
+            // 流式递归 fallback：非 200 → 不 pipe 到客户端 → 切下一个候选
+            upstreamClient.relayStream(relayReq,
+                statusCode -> statusCode == 200,  // 只有 200 才 pipe
+                (statusCode, tokens) -> {
+                    long latency = System.currentTimeMillis() - startMs;
+
+                    if (statusCode == 200) {
+                        cooldown.clearCooldown(first.instanceId(), first.vendor().getId());
+                        Object sidObj = ctx.get("sessionId");
+                        if (sidObj instanceof String sid && !sid.isEmpty()) {
+                            sessions.recordInstance(sid, first.instanceId());
                         }
-                        error(ctx, 502, "all upstream instances failed");
+                        updateStreamResultAsync(ctx, logId, statusCode, tokens, latency, null);
+
+                        holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
+                            first.upstreamModel(),
+                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            statusCode, System.currentTimeMillis() - startMs, tokens);
+                    } else {
+                        // 任何非 200 → 冷却 vendor → fallback 下一个
+                        cooldown.setVendorCooldown(first.vendor().getId());
+                        updateStreamResultAsync(ctx, logId, statusCode, 0, latency, "");
+
+                        holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
+                            first.upstreamModel(),
+                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            statusCode, System.currentTimeMillis() - startMs,
+                            errorTypeFromStatus(statusCode), "stream upstream error", true);
+
+                        if (!queue.isEmpty()) {
+                            // 递归：试下一个候选（新 conn → 新 sink）
+                            ctx.response().setChunked(false);
+                            ctx.response().headers().clear();
+                            relayStream(ctx, req, queue, relayCtx);
+                        } else {
+                            holographicRecorder.logAllFailed(ctx, statusCode, "all upstream instances failed");
+                            error(ctx, 502, "all upstream instances failed");
+                        }
                     }
-                }
-            },
-            null  // chunkConverter: 不需要
-        );
+                },
+                null  // chunkConverter: 不需要
+            );
+        }).onFailure(err -> {
+            log.error("relay log start failed: {}", err.getMessage());
+            // 即使日志启动失败也继续流式转发
+            upstreamClient.relayStream(relayReq,
+                statusCode -> statusCode == 200,
+                (statusCode, tokens) -> {
+                    if (statusCode == 200) {
+                        cooldown.clearCooldown(first.instanceId(), first.vendor().getId());
+                        Object sidObj = ctx.get("sessionId");
+                        if (sidObj instanceof String sid && !sid.isEmpty()) {
+                            sessions.recordInstance(sid, first.instanceId());
+                        }
+                        holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
+                            first.upstreamModel(),
+                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            statusCode, System.currentTimeMillis() - startMs, tokens);
+                    } else {
+                        cooldown.setVendorCooldown(first.vendor().getId());
+                        holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
+                            first.upstreamModel(),
+                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            statusCode, System.currentTimeMillis() - startMs,
+                            errorTypeFromStatus(statusCode), "stream upstream error", true);
+                        if (!queue.isEmpty()) {
+                            ctx.response().setChunked(false);
+                            ctx.response().headers().clear();
+                            relayStream(ctx, req, queue, relayCtx);
+                        } else {
+                            holographicRecorder.logAllFailed(ctx, statusCode, "all upstream instances failed");
+                            error(ctx, 502, "all upstream instances failed");
+                        }
+                    }
+                },
+                null);
+        });
     }
 
     // --- 辅助方法 ---
 
     private static String errorTypeFromStatus(int status) {
-        return switch (status) {
-            case 429 -> "rate_limited";
-            case 403 -> "forbidden";
-            case 502 -> "bad_gateway";
-            case 503 -> "service_unavailable";
-            case 504 -> "gateway_timeout";
-            case 200 -> "empty_response";
-            default -> "http_" + status;
-        };
+        return RelayErrorHelper.errorTypeFromStatus(status);
     }
 
     /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
 
     /** 注入供应商专用头（X-Reasoning-Effort + Kimi CLI User-Agent）。 */
     private static void injectVendorSpecificHeaders(Candidate candidate, Vendor vendor, RelayContext relayCtx) {
-        if (relayCtx != null && relayCtx.reasoning()) {
-            candidate.extraHeaders().add("X-Reasoning-Effort", "max");
-        }
-        if (vendor != null && vendor.getBaseUrl() != null
-                && vendor.getBaseUrl().contains("kimi.com")) {
-            candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
-        }
+        HeaderInjector.inject(candidate, vendor, relayCtx);
     }
 
     /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
-    private static long startLog(RelayRequest req, Candidate candidate) {
-        RelayLog relayLog = new RelayLog();
-        relayLog.setTimestamp(System.currentTimeMillis() / 1000);
-        relayLog.setModelOrig(req.requestedModel());
-        relayLog.setUpstreamModel(candidate.upstreamModel());
-        relayLog.setBaseUrl(candidate.vendor() != null ? candidate.vendor().getBaseUrl() : "");
-        if (candidate.instance() != null) {
-            relayLog.setInstanceId(candidate.instance().getId());
-        }
-        relayLog.setStream(req.streaming());
-        relayLog.setBodySize(req.rawBody() != null ? req.rawBody().length : 0);
-        return RelayLogger.insert(relayLog);
-    }
-
-    private static void completeLog(long logId, RelayResult result, long startMs) {
-        int tokens = result.promptTokens() + result.completionTokens();
-        long latency = System.currentTimeMillis() - startMs;
-        RelayLogger.updateStreamResult(logId, result.httpStatus(), tokens, latency);
-    }
-
-    private static void failLog(long logId, int code, String err, long latencyMs) {
-        RelayLogger.updateStreamResult(logId, code, 0, latencyMs, err);
-    }
-
     private static byte[] substituteModel(byte[] rawBody, String upstreamModel, String srcModel) {
-        if (upstreamModel == null || upstreamModel.equals(srcModel)) return rawBody;
-        try {
-            String body = new String(rawBody, StandardCharsets.UTF_8);
-            return body.replaceFirst("\"model\"\\s*:\\s*\"[^\"]*\"",
-                "\"model\":\"" + upstreamModel + "\"").getBytes(StandardCharsets.UTF_8);
-        } catch (Exception ex) {
-            return rawBody;
-        }
+        return ModelSubstitutor.substitute(rawBody, upstreamModel, srcModel);
     }
 
-    static Comparator<RoutedVendor> buildSorter(AppConfig config) {
-        List<String> layerOrder = config.getRelay() != null
-            ? config.getRelay().getLayerOrder()
-            : List.of("free", "subscription", "payg");
-        return new ByScore(layerOrder)
-            .thenComparing(new ByStatusDesc());
+    // --- 异步 Relay 日志辅助方法 ---
+
+    private static Future<Long> startLogAsync(RoutingContext ctx, RelayRequest req, Candidate candidate) {
+        return ctx.vertx().executeBlocking(() -> {
+            RelayLog relayLog = new RelayLog();
+            relayLog.setTimestamp(System.currentTimeMillis() / 1000);
+            relayLog.setModelOrig(req.requestedModel());
+            relayLog.setUpstreamModel(candidate.upstreamModel());
+            relayLog.setBaseUrl(candidate.vendor() != null ? candidate.vendor().getBaseUrl() : "");
+            if (candidate.instance() != null) {
+                relayLog.setInstanceId(candidate.instance().getId());
+            }
+            relayLog.setStream(req.streaming());
+            relayLog.setBodySize(req.rawBody() != null ? req.rawBody().length : 0);
+            return RelayLogger.insert(relayLog);
+        });
+    }
+
+    private static void updateStreamResultAsync(RoutingContext ctx, long logId, int code, int tokens, long latencyMs, String err) {
+        ctx.vertx().executeBlocking(() -> {
+            RelayLogger.updateStreamResult(logId, code, tokens, latencyMs, err);
+            return null;
+        }).onFailure(e -> log.error("relay log update failed: {}", e.getMessage()));
     }
 
     private static void error(RoutingContext ctx, int code, String msg) {

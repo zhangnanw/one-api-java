@@ -1,8 +1,7 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 
@@ -16,8 +15,8 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * Gracefully handles malformed JSON — returns context unchanged (no vision marking).
  */
+@Slf4j
 public class VisionFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(VisionFilter.class);
 
     @Override
     public RelayContext apply(RelayContext ctx) {

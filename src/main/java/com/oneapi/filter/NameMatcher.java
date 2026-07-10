@@ -3,8 +3,7 @@ package com.oneapi.filter;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
 import com.oneapi.repo.InstanceRepo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 阶段 2 — 检查 requestedModel 是否为物理模型名称。
@@ -23,8 +22,8 @@ import org.slf4j.LoggerFactory;
  * 这覆盖了 {@code requirements §B.2 "API 不暴露具体实例"} 的需求——之前该 filter 仅打 debug log，
  * 物理模型名仍会落库查询并 404，但错误信息模糊（"model not registered"）。现在直接拒绝。
  */
+@Slf4j
 public class NameMatcher implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(NameMatcher.class);
 
     private final InstanceRepo instanceRepo;
 

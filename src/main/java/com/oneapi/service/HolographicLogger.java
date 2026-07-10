@@ -1,8 +1,7 @@
 package com.oneapi.service;
 
 import com.oneapi.model.HolographicRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -10,8 +9,8 @@ import java.sql.*;
 /**
  * 全息调试日志 — 写入失败静默丢弃，不影响主链路。
  */
+@Slf4j
 public class HolographicLogger {
-    private static final Logger log = LoggerFactory.getLogger(HolographicLogger.class);
     private static final int MAX_RECORDS = 50;
     private static DataSource ds;
 

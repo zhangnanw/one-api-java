@@ -27,8 +27,13 @@ public class VendorRefreshService {
         .connectTimeout(Duration.ofSeconds(15))
         .build();
 
-    private final VendorRepo vendorRepo = new VendorRepo();
-    private final InstanceRepo instanceRepo = new InstanceRepo();
+    private final VendorRepo vendorRepo;
+    private final InstanceRepo instanceRepo;
+
+    public VendorRefreshService(InstanceRepo instanceRepo, VendorRepo vendorRepo) {
+        this.instanceRepo = instanceRepo;
+        this.vendorRepo = vendorRepo;
+    }
 
     public record RefreshResult(int created, int deprecated, List<String> errors) {}
 
@@ -142,6 +147,10 @@ public class VendorRefreshService {
             }
 
             return new OneResult(created, deprecated, errors);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            errors.add("vendor " + vendor.getName() + ": interrupted");
+            return new OneResult(0, 0, errors);
         } catch (Exception ex) {
             errors.add("vendor " + vendor.getName() + ": " + ex.getMessage());
             return new OneResult(0, 0, errors);

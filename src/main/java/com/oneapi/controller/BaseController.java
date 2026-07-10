@@ -3,6 +3,7 @@ package com.oneapi.controller;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Shared response helpers for the CRUD controllers.
@@ -14,6 +15,7 @@ import io.vertx.ext.web.RoutingContext;
  *   { "success": boolean, "message": string, "data": object (optional) }
  * </pre>
  */
+@Slf4j
 public class BaseController {
 
     /**
@@ -84,5 +86,60 @@ public class BaseController {
      */
     protected void notFound(RoutingContext ctx, String entity) {
         json(ctx, 404, entity + " not found");
+    }
+
+    /**
+     * Log and respond with a 500 "Database error" response.
+     * Eliminates repeated try-catch boilerplate across write operations.
+     */
+    protected void dbError(RoutingContext ctx, RuntimeException e, String action) {
+        log.error("{} failed: {}", action, e.getMessage(), e);
+        ctx.response()
+            .setStatusCode(500)
+            .putHeader("Content-Type", "application/json")
+            .end(new JsonObject()
+                .put("success", false)
+                .put("message", "Database error")
+                .toString());
+    }
+
+    /**
+     * Force-read body and validate it exists and is valid JSON.
+     * Returns the parsed JsonObject, or null (with an error response already sent).
+     */
+    protected JsonObject requireBody(RoutingContext ctx) {
+        ctx.body(); // force read body buffer
+        if (ctx.getBody() == null) {
+            badRequest(ctx, "request body is required");
+            return null;
+        }
+        try {
+            var body = ctx.getBody().toJsonObject();
+            if (body == null) {
+                badRequest(ctx, "invalid JSON body");
+                return null;
+            }
+            return body;
+        } catch (Exception e) {
+            badRequest(ctx, "invalid JSON body");
+            return null;
+        }
+    }
+
+    /**
+     * Parse an integer path parameter; return null and send 400 on failure.
+     */
+    protected Integer parseIntParam(RoutingContext ctx, String param) {
+        String value = ctx.pathParam(param);
+        if (value == null || value.isEmpty()) {
+            badRequest(ctx, param + " is required");
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            badRequest(ctx, param + " must be an integer");
+            return null;
+        }
     }
 }

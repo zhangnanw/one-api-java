@@ -2,11 +2,9 @@ package com.oneapi.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Setter
-@Getter
+@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ModelCatalogEntry {
     private String name;

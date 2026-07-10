@@ -2,8 +2,7 @@ package com.oneapi.repo;
 
 import com.oneapi.model.ModelCatalogEntry;
 import io.vertx.core.json.JsonArray;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -21,9 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * Loads all (name, capabilities, context_window) rows on construction from the database.
  * Used by {@code CapabilityInstanceFilter} and {@code BodyLimitFilter}.
+ * <p>
+ * 错误处理：写操作抛出 RuntimeException；读操作也统一抛出 RuntimeException。
  */
+@Slf4j
 public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, WindowCatalog {
-    private static final Logger log = LoggerFactory.getLogger(ModelCatalogRepo.class);
 
     private final ConcurrentHashMap<String, List<String>> catalog = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> contextWindows = new ConcurrentHashMap<>();
@@ -62,6 +63,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
                 loaded, contextWindows.size());
         } catch (SQLException e) {
             log.error("Failed to load model catalog from database", e);
+            throw new RuntimeException("Failed to load model catalog", e);
         }
     }
 
@@ -94,7 +96,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
                 list.add(mapEntry(rs));
             }
         } catch (SQLException e) {
-            log.error("findAll model_catalog: {}", e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
@@ -112,7 +114,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
                 if (rs.next()) return mapEntry(rs);
             }
         } catch (SQLException e) {
-            log.error("findByName {}: {}", name, e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return null;
     }
@@ -135,6 +137,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
             }
         } catch (SQLException e) {
             log.error("insert model_catalog {}: {}", entry.getName(), e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -162,6 +165,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
             }
         } catch (SQLException e) {
             log.error("update model_catalog {}: {}", name, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 

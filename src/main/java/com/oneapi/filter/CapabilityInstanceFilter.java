@@ -5,8 +5,7 @@ import com.oneapi.model.RelayContext;
 import java.util.ArrayList;
 import com.oneapi.repo.CapabilityCatalog;
 import com.oneapi.service.RouterService.RoutedVendor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
@@ -17,8 +16,8 @@ import java.util.List;
  * 例如：请求包含 image_url → VisionFilter 设置 capabilityRequired="vision"
  * → 本 filter 过滤掉 model_catalog 中无 "vision" 能力的模型的所有实例。
  */
+@Slf4j
 public class CapabilityInstanceFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(CapabilityInstanceFilter.class);
 
     private final CapabilityCatalog catalogRepo;
 

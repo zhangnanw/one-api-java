@@ -2,11 +2,13 @@ package com.oneapi.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
-@Setter
-@Getter
+@Data
+@EqualsAndHashCode(exclude = "apiKey")
+@ToString(exclude = "apiKey")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Vendor {
     private int id;

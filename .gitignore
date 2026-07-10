@@ -2,6 +2,9 @@ target/
 META-INF/
 *.log
 .idea/
+.uploads/
+.trae/
+.vscode/
 dependency-reduced-pom.xml
 "server.*.log.gz"
 server*.log*

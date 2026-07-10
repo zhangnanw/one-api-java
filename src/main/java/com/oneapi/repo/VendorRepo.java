@@ -2,8 +2,7 @@ package com.oneapi.repo;
 
 import com.oneapi.model.Vendor;
 import com.oneapi.model.VendorWithCount;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -20,8 +19,17 @@ import java.util.List;
  * <p>
  * 闂佹寧鐟ㄩ銈嗗緞閸曨厽鍊為柨娑欑摂QLException 濞戞挴鍋撶€?log 闁告艾姘︾换鎴﹀炊閻愮鏁勯梻鍡楁閹酣鏁嶉崸妾宻t 闁哄倽顫夌涵鍫曟晬婢跺鐏?null闁挎稑娼歩ndById闁挎稑顦埀?
  */
+@Slf4j
 public class VendorRepo extends BaseRepo {
-    private static final Logger log = LoggerFactory.getLogger(VendorRepo.class);
+
+    public VendorRepo() {
+        super();
+    }
+
+    /** For testing — inject custom DataSource. */
+    public VendorRepo(javax.sql.DataSource ds) {
+        super(ds);
+    }
 
     /**
      * 闁告帒妫濋妴澶愬礆濡も偓閸ゎ參骞嶉埀顒勫嫉婢跺杩旈幖瀛樻煥閺呫垽鏁嶉崼婵囧創鐎规瓕灏欓々锕傛偨椤帞绀嗛柨娑樻湰鐎?id 闁告娲ょ花顓㈠Υ?
@@ -45,7 +53,7 @@ public class VendorRepo extends BaseRepo {
                 }
             }
         } catch (SQLException e) {
-            log.error("findAll vendors: {}", e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
@@ -72,7 +80,7 @@ public class VendorRepo extends BaseRepo {
                 }
             }
         } catch (SQLException e) {
-            log.error("findAllWithCounts: {}", e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
@@ -90,13 +98,13 @@ public class VendorRepo extends BaseRepo {
                 list.add(map(rs));
             }
         } catch (SQLException e) {
-            log.error("findAllActive: {}", e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
 
     /**
-     * 闁?id 缂侇喖澧介垾姗€寮婚妷锕€顥濋柛妤佹磻闁叉粍绗熷☉妯煎畨闁哥喎妫庨埀?
+     * 
      * @param id 濞撴碍绋戠花鏌ュ疮閸℃洖鐦滈梺?
      * @return 闁瑰灚鍎抽崺灞炬交閺傛寧绀€ Vendor闁挎稑鏈竟妯荤▔瀹ュ懎鐓傞柟?SQL 濠㈡儼绮剧憴锔芥交閺傛寧绀€ null
      */
@@ -114,7 +122,7 @@ public class VendorRepo extends BaseRepo {
                 }
             }
         } catch (SQLException e) {
-            log.error("findById vendor {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return null;
     }
@@ -197,7 +205,7 @@ public class VendorRepo extends BaseRepo {
                 if (rs.next()) return rs.getInt(1);
             }
         } catch (SQLException e) {
-            log.error("countInstances vendor {}: {}", vendorId, e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return 0;
     }

@@ -7,7 +7,6 @@ import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
 import com.oneapi.repo.InstanceRepo;
 
-import javax.sql.DataSource;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -15,13 +14,8 @@ public class RouterService {
     private final InstanceRepo instanceRepo;
     private CooldownService cooldownService; // 可选，由协调器注入
 
-    public RouterService() {
-        this.instanceRepo = new InstanceRepo();
-    }
-
-    /** For testing — inject custom DataSource. */
-    public RouterService(DataSource ds) {
-        this.instanceRepo = new InstanceRepo(ds);
+    public RouterService(InstanceRepo instanceRepo) {
+        this.instanceRepo = instanceRepo;
     }
 
     /**

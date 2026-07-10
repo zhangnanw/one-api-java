@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -25,8 +24,8 @@ import java.util.OptionalLong;
  * - On match → returns same sessionID, updates hash
  * - On miss → creates new UUID sessionID
  */
+@Slf4j
 public class SessionTracker {
-    private static final Logger log = LoggerFactory.getLogger(SessionTracker.class);
     private static final ObjectMapper mapper = new ObjectMapper();
 
     private static final int MIN_MATCH_LINES = 3;
@@ -52,8 +51,10 @@ public class SessionTracker {
     /**
      * Match conversation to a session.
      * Returns sessionID (new or existing).
+     * <p>
+     * Synchronized to prevent read-modify-write races on the shared store.
      */
-    public String match(List<Message> messages) {
+    public synchronized String match(List<Message> messages) {
         List<String> lines = normalize(messages);
         if (lines.isEmpty()) return "";
 

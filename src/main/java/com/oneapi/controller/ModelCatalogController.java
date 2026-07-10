@@ -4,8 +4,7 @@ import com.oneapi.model.ModelCatalogEntry;
 import com.oneapi.repo.ModelCatalogRepo;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * REST controller for model_catalog entries.
@@ -13,13 +12,9 @@ import org.slf4j.LoggerFactory;
  * All responses follow the envelope:
  * {@code { "success": boolean, "message": string, "data": object (optional) }}
  */
+@Slf4j
 public class ModelCatalogController extends BaseController {
-    private static final Logger log = LoggerFactory.getLogger(ModelCatalogController.class);
     private final ModelCatalogRepo repo;
-
-    public ModelCatalogController() {
-        this.repo = new ModelCatalogRepo();
-    }
 
     public ModelCatalogController(ModelCatalogRepo repo) {
         this.repo = repo;
@@ -48,16 +43,8 @@ public class ModelCatalogController extends BaseController {
 
     /** POST /api/model-catalog — create a new entry. */
     public void create(RoutingContext ctx) {
-        ctx.body(); // force read body buffer
-        if (ctx.getBody() == null) {
-            badRequest(ctx, "request body is required");
-            return;
-        }
-        var body = ctx.getBody().toJsonObject();
-        if (body == null) {
-            badRequest(ctx, "invalid JSON body");
-            return;
-        }
+        var body = requireBody(ctx);
+        if (body == null) return;
         String name = body.getString("name");
         if (name == null || name.isEmpty()) {
             badRequest(ctx, "name is required");
@@ -78,8 +65,7 @@ public class ModelCatalogController extends BaseController {
             repo.insert(entry);
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("model_catalog create failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "model_catalog create");
         }
     }
 
@@ -90,16 +76,8 @@ public class ModelCatalogController extends BaseController {
             notFound(ctx, "model_catalog");
             return;
         }
-        ctx.body(); // force read body buffer
-        if (ctx.getBody() == null) {
-            badRequest(ctx, "request body is required");
-            return;
-        }
-        var body = ctx.getBody().toJsonObject();
-        if (body == null) {
-            badRequest(ctx, "invalid JSON body");
-            return;
-        }
+        var body = requireBody(ctx);
+        if (body == null) return;
         ModelCatalogEntry entry = new ModelCatalogEntry();
         entry.setName(body.getString("name", name));
         entry.setCapabilities(body.getString("capabilities"));
@@ -111,8 +89,7 @@ public class ModelCatalogController extends BaseController {
             repo.update(name, entry);
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("model_catalog update failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "model_catalog update");
         }
     }
 
@@ -127,8 +104,7 @@ public class ModelCatalogController extends BaseController {
             repo.delete(name);
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("model_catalog delete failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "model_catalog delete");
         }
     }
 

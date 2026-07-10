@@ -1,8 +1,7 @@
 package com.oneapi.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 
@@ -10,8 +9,8 @@ import java.util.*;
  * 将 VirtualModel.match JSON 解析为类型化的 MatchRule。
  * 一次解析——所有消费者读取同一对象。
  */
+@Slf4j
 public class MatchRuleParser {
-    private static final Logger log = LoggerFactory.getLogger(MatchRuleParser.class);
     private static final ObjectMapper mapper = new ObjectMapper();
     
     /**

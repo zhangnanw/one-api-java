@@ -5,16 +5,15 @@ import com.oneapi.model.RelayContext;
 import java.util.ArrayList;
 import com.oneapi.service.CooldownService;
 import com.oneapi.service.RouterService.RoutedVendor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
 /**
  * 阶段 3 — 移除实例或供应商处于冷却期的候选。
  */
+@Slf4j
 public class CooldownFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(CooldownFilter.class);
 
     private final CooldownService cooldown;
 

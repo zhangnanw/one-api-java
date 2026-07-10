@@ -8,15 +8,14 @@ import com.oneapi.model.RelayRequest;
 import com.oneapi.model.RelayResult;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Default terminal executor: builds an {@link UpstreamClient.OutboundRequest} from a
  * {@link Candidate} + {@link RelayRequest} and delegates to {@link UpstreamClient#relay}.
  */
+@Slf4j
 public class DefaultRelay implements RelayExecutor {
-    private static final Logger log = LoggerFactory.getLogger(DefaultRelay.class);
     private static final String DEFAULT_PATH = "/v1/chat/completions";
 
     private final UpstreamClient upstreamClient;

@@ -6,8 +6,7 @@ import java.util.ArrayList;
 import com.oneapi.model.RelayError;
 import com.oneapi.repo.WindowCatalog;
 import com.oneapi.service.RouterService.RoutedVendor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
@@ -22,8 +21,8 @@ import java.util.List;
  *   <li>所有候选被筛 → 标记 {@link RelayError.BodyTooLarge}（413）</li>
  * </ul>
  */
+@Slf4j
 public class BodyLimitFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(BodyLimitFilter.class);
 
     private final WindowCatalog catalogRepo;
 
@@ -52,9 +51,14 @@ public class BodyLimitFilter implements Filter {
 
         int before = candidates.size();
         List<Integer> removedIds = new ArrayList<>();
+        int[] minWindow = {Integer.MAX_VALUE};
         List<RoutedVendor> filtered = candidates.stream()
             .filter(rv -> {
-                if (!acceptable(rv, bodyLen)) {
+                int window = catalogRepo.getContextWindow(rv.modelName());
+                if (window > 0 && window < minWindow[0]) {
+                    minWindow[0] = window;
+                }
+                if (!acceptable(rv, bodyLen, window)) {
                     removedIds.add(rv.instanceId());
                     return false;
                 }
@@ -62,33 +66,24 @@ public class BodyLimitFilter implements Filter {
             })
             .toList();
         int removed = before - filtered.size();
+        int finalMinWindow = minWindow[0] == Integer.MAX_VALUE ? 0 : minWindow[0];
 
         if (!removedIds.isEmpty()) {
-            int minWindow = candidates.stream()
-                .mapToInt(rv -> catalogRepo.getContextWindow(rv.modelName()))
-                .filter(w -> w > 0).min().orElse(0);
             String reason = String.format("body=%d bytes > window=%d tokens (1 token ≈ 1 byte)",
-                bodyLen, minWindow);
+                bodyLen, finalMinWindow);
             ctx.addFilterAction("BodyLimitFilter", before, filtered.size(), removedIds, reason);
         }
 
         if (filtered.isEmpty()) {
-            // Find the smallest known context window among candidates for the error message
-            int minWindow = candidates.stream()
-                .mapToInt(rv -> catalogRepo.getContextWindow(rv.modelName()))
-                .filter(w -> w > 0)
-                .min()
-                .orElse(0);
-            // 1 token ≈ 1 byte（保守估计）；minWindow == 0 表示 catalog 缺失，无法给出有效限制
-            String msg = minWindow > 0
+            String msg = finalMinWindow > 0
                 ? String.format("request body (%d bytes) exceeds smallest known context window (%d tokens)",
-                    bodyLen, minWindow)
+                    bodyLen, finalMinWindow)
                 : String.format("request body (%d bytes) exceeds context window (catalog unavailable)",
                     bodyLen);
             log.warn("BodyLimitFilter: {} of {} models — marking 413", msg, before);
             ctx.setCandidates(filtered);
             ctx.markError(new RelayError.BodyTooLarge(
-                candidates.get(0).modelName(), bodyLen, minWindow), msg);
+                candidates.get(0).modelName(), bodyLen, finalMinWindow), msg);
             return ctx;
         }
 
@@ -104,8 +99,7 @@ public class BodyLimitFilter implements Filter {
      * 是否通过：body 字节数 &lt;= 上下文 token 数（1 token ≈ 1 byte，保守估计）。
      * catalog 中无记录的模型（{@code window <= 0}）视为窗口未知，保留。
      */
-    private boolean acceptable(RoutedVendor rv, int bodyLen) {
-        int window = catalogRepo.getContextWindow(rv.modelName());
+    private boolean acceptable(RoutedVendor rv, int bodyLen, int window) {
         if (window <= 0) {
             // unknown model, keep
             return true;

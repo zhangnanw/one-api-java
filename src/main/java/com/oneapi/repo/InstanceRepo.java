@@ -2,8 +2,7 @@ package com.oneapi.repo;
 
 import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -20,10 +19,10 @@ import java.util.List;
  * 状态字段（{@code status}）语义：1=RAW（自动发现）、2=TAGGED（手动配置）、
  * 3=DISABLED（管理员停用）、4=DEPRECATED（上游不再提供）。
  * <p>
- * 错误处理：SQLException 一律 log 后返回空集合或 null。
+ * 错误处理：SQLException 由写操作抛出 RuntimeException；读操作也统一抛出 RuntimeException。
  */
+@Slf4j
 public class InstanceRepo extends BaseRepo {
-    private static final Logger log = LoggerFactory.getLogger(InstanceRepo.class);
 
     public InstanceRepo() {
         super();
@@ -72,7 +71,7 @@ public class InstanceRepo extends BaseRepo {
                 list.add(inst);
             }
         } catch (SQLException e) {
-            log.error("findAllWithVendor: {}", e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
@@ -92,7 +91,7 @@ public class InstanceRepo extends BaseRepo {
                 }
             }
         } catch (SQLException e) {
-            log.error("findByVendorId {}: {}", vendorId, e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
@@ -113,7 +112,7 @@ public class InstanceRepo extends BaseRepo {
                 }
             }
         } catch (SQLException e) {
-            log.error("findAll: {}", e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
@@ -129,7 +128,7 @@ public class InstanceRepo extends BaseRepo {
                 if (rs.next()) return map(rs);
             }
         } catch (SQLException e) {
-            log.error("findById {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return null;
     }
@@ -177,6 +176,7 @@ public class InstanceRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("delete instance {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 

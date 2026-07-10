@@ -2,8 +2,7 @@ package com.oneapi.middleware;
 
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -17,9 +16,8 @@ import java.security.NoSuchAlgorithmException;
  * Single-user deployment: userId hardcoded to 1.
  * TokenHash = SHA256(Authorization header) for routing affinity.
  */
+@Slf4j
 public class RequestSetup implements Handler<RoutingContext> {
-
-    private static final Logger log = LoggerFactory.getLogger(RequestSetup.class);
     private static final int USER_ID = 1; // single-user deployment
 
     @Override

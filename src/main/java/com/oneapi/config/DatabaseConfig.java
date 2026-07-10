@@ -2,15 +2,14 @@ package com.oneapi.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+@Slf4j
 public class DatabaseConfig {
-    private static final Logger log = LoggerFactory.getLogger(DatabaseConfig.class);
     private static HikariDataSource dataSource;
 
     // ── helpers ────────────────────────────────────────────────

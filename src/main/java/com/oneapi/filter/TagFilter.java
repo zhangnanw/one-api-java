@@ -6,8 +6,7 @@ import java.util.ArrayList;
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.MetaView;
 import com.oneapi.service.RouterService.RoutedVendor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Set;
@@ -16,8 +15,8 @@ import java.util.Set;
  * 阶段 3 — 根据 MatchRule.TagMatch 的标签条件过滤候选。
  * 支持 ALL（必须包含所有标签）和 ANY（必须包含至少一个）。
  */
+@Slf4j
 public class TagFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(TagFilter.class);
 
     @Override
     public RelayContext apply(RelayContext ctx) {

@@ -6,8 +6,9 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.client.WebClient;
 
-import com.oneapi.repo.VirtualModelRepo;
 import com.oneapi.repo.InstanceRepo;
+import com.oneapi.repo.VendorRepo;
+import com.oneapi.repo.VirtualModelRepo;
 import com.oneapi.repo.ModelCatalogRepo;
 import com.oneapi.controller.MiscController;
 import com.oneapi.controller.VendorController;
@@ -32,17 +33,24 @@ import com.oneapi.filter.BodyLimitFilter;
 import com.oneapi.handler.UpstreamClient;
 import com.oneapi.relay.DefaultRelay;
 import com.oneapi.service.CooldownService;
+import com.oneapi.service.HolographicLogRecorder;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.SessionTracker;
+import com.oneapi.service.VendorRefreshService;
 
 import javax.sql.DataSource;
+import java.io.Closeable;
 import java.util.List;
 
-public class RouterConfig {
+public class RouterConfig implements Closeable {
     private final Vertx vertx;
     private final Router router;
     private final AppConfig config;
     private final DataSource dataSource;
+
+    // Shared across builds so /api/status and relay routes see the same cooldown state.
+    private CooldownService cooldown;
+    private UpstreamClient upstreamClient;
 
     public RouterConfig(Vertx vertx, AppConfig config) {
         this(vertx, config, null);
@@ -61,13 +69,31 @@ public class RouterConfig {
         router.route().handler(new CORS());
 
         // CooldownService 在所有路由之前单例化，/api/status 与 /v1/chat/completions 共用
-        var cooldown = new CooldownService();
+        if (cooldown == null) {
+            cooldown = new CooldownService();
+        }
+
+        // DataSource init — single source for all repos
+        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
+        var instanceRepo = new InstanceRepo(ds);
+        var vendorRepo = new VendorRepo(ds);
+        var vmRepo = new VirtualModelRepo(ds);
+        var catalogRepo = new ModelCatalogRepo(ds);
+        var vendorRefreshSvc = new VendorRefreshService(instanceRepo, vendorRepo);
 
         registerStaticRoutes();
-        registerApiRoutes(cooldown);
-        registerRelayRoutes(cooldown);
+        registerApiRoutes(cooldown, vendorRepo, instanceRepo, vmRepo, catalogRepo, vendorRefreshSvc);
+        registerRelayRoutes(cooldown, vmRepo, instanceRepo, vendorRepo, catalogRepo);
         registerFallback();
         return router;
+    }
+
+    @Override
+    public void close() {
+        if (upstreamClient != null) {
+            upstreamClient.close();
+            upstreamClient = null;
+        }
     }
 
     /** Serve static files from classpath:/static/ */
@@ -78,88 +104,76 @@ public class RouterConfig {
                     ctx.response().setStatusCode(404).end("status page not found");
                     return;
                 }
-                ctx.response()
-                    .putHeader("Content-Type", "text/html; charset=utf-8")
-                    .end(new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+                ctx.response().putHeader("Content-Type", "text/html").end(new String(is.readAllBytes()));
             } catch (Exception e) {
-                ctx.response().setStatusCode(500).end("error loading status page");
+                ctx.response().setStatusCode(500).end("failed to load status page");
             }
         });
     }
 
-    private void registerApiRoutes(CooldownService cooldown) {
+    /** API routes — DB-backed CRUD, run on worker pool. */
+    private void registerApiRoutes(CooldownService cooldown, VendorRepo vendorRepo,
+                                    InstanceRepo instanceRepo, VirtualModelRepo vmRepo,
+                                    ModelCatalogRepo catalogRepo, VendorRefreshService vendorRefreshSvc) {
+        // BodyHandler for all /api/* routes so controllers can use ctx.body().
+        router.route("/api/*").handler(BodyHandler.create());
+
         var misc = new MiscController(cooldown);
-        router.get("/api/status").handler(misc::status);
+        router.get("/api/status").blockingHandler(misc::status);
 
-        var vendorCtrl = new VendorController();
-        router.get("/api/vendors").blockingHandler(vendorCtrl::getAll, false);
-        router.get("/api/vendors/:id").blockingHandler(vendorCtrl::getOne, false);
-        router.post("/api/vendors").handler(BodyHandler.create()).blockingHandler(vendorCtrl::create, false);
-        router.put("/api/vendors/:id").handler(BodyHandler.create()).blockingHandler(vendorCtrl::update, false);
-        router.delete("/api/vendors/:id").blockingHandler(vendorCtrl::delete, false);
-        router.post("/api/vendors/refresh-models").blockingHandler(vendorCtrl::refreshModels, false);
+        var vendorCtrl = new VendorController(vendorRepo, vendorRefreshSvc);
+        router.get("/api/vendors").blockingHandler(vendorCtrl::getAll);
+        router.get("/api/vendors/:id").blockingHandler(vendorCtrl::getOne);
+        router.post("/api/vendors").blockingHandler(vendorCtrl::create);
+        router.put("/api/vendors/:id").blockingHandler(vendorCtrl::update);
+        router.delete("/api/vendors/:id").blockingHandler(vendorCtrl::delete);
+        router.post("/api/vendors/:id/refresh-models").blockingHandler(vendorCtrl::refreshModels);
 
-        var instanceCtrl = new InstanceController();
-        router.get("/api/instances").blockingHandler(instanceCtrl::getAll, false);
-        router.get("/api/instances/:id").blockingHandler(instanceCtrl::getOne, false);
-        router.post("/api/instances").handler(BodyHandler.create()).blockingHandler(instanceCtrl::create, false);
-        router.put("/api/instances/:id").handler(BodyHandler.create()).blockingHandler(instanceCtrl::update, false);
-        router.delete("/api/instances/:id").blockingHandler(instanceCtrl::delete, false);
-        router.put("/api/instances/:id/toggle").blockingHandler(instanceCtrl::toggle, false);
+        var instanceCtrl = new InstanceController(instanceRepo, vendorRepo);
+        router.get("/api/instances").blockingHandler(instanceCtrl::getAll);
+        router.get("/api/instances/:id").blockingHandler(instanceCtrl::getOne);
+        router.post("/api/instances").blockingHandler(instanceCtrl::create);
+        router.put("/api/instances/:id").blockingHandler(instanceCtrl::update);
+        router.post("/api/instances/:id/toggle").blockingHandler(instanceCtrl::toggle);
+        router.delete("/api/instances/:id").blockingHandler(instanceCtrl::delete);
 
-        var vmCtrl = new VirtualModelController();
-        router.get("/api/virtual-models").blockingHandler(vmCtrl::getAll, false);
-        router.get("/api/virtual-models/:id").blockingHandler(vmCtrl::getOne, false);
-        router.post("/api/virtual-models").handler(BodyHandler.create()).blockingHandler(vmCtrl::create, false);
-        router.put("/api/virtual-models/:id").handler(BodyHandler.create()).blockingHandler(vmCtrl::update, false);
-        router.delete("/api/virtual-models/:id").blockingHandler(vmCtrl::delete, false);
+        var vmCtrl = new VirtualModelController(vmRepo);
+        router.get("/api/virtual-models").blockingHandler(vmCtrl::getAll);
+        router.get("/api/virtual-models/:id").blockingHandler(vmCtrl::getOne);
+        router.post("/api/virtual-models").blockingHandler(vmCtrl::create);
+        router.put("/api/virtual-models/:id").blockingHandler(vmCtrl::update);
+        router.delete("/api/virtual-models/:id").blockingHandler(vmCtrl::delete);
 
-        // DataSource fallback: test-route uses injected ds, prod uses DatabaseConfig
-        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
-        var mcCtrl = new ModelCatalogController(new ModelCatalogRepo(ds));
-        router.get("/api/model-catalog").blockingHandler(mcCtrl::getAll, false);
-        router.get("/api/model-catalog/:name").blockingHandler(mcCtrl::getOne, false);
-        router.post("/api/model-catalog").handler(BodyHandler.create()).blockingHandler(mcCtrl::create, false);
-        router.put("/api/model-catalog/:name").handler(BodyHandler.create()).blockingHandler(mcCtrl::update, false);
-        router.delete("/api/model-catalog/:name").blockingHandler(mcCtrl::delete, false);
+        var mcCtrl = new ModelCatalogController(catalogRepo);
+        router.get("/api/model-catalog").blockingHandler(mcCtrl::getAll);
+        router.get("/api/model-catalog/:name").blockingHandler(mcCtrl::getOne);
+        router.post("/api/model-catalog").blockingHandler(mcCtrl::create);
+        router.put("/api/model-catalog/:name").blockingHandler(mcCtrl::update);
+        router.delete("/api/model-catalog/:name").blockingHandler(mcCtrl::delete);
     }
 
-    private void registerRelayRoutes(CooldownService cooldown) {
-        // /v1/models — OpenAI 兼容模型列表
-        router.get("/v1/models").blockingHandler(ctx -> {
-            var repo = new VirtualModelRepo();
-            var data = new io.vertx.core.json.JsonArray();
-            for (var virtualModel : repo.findAll()) {
-                data.add(new JsonObject()
-                    .put("id", virtualModel.getName())
-                    .put("object", "model")
-                    .put("created", 1700000000)
-                    .put("owned_by", "one-api"));
-            }
-            ctx.response()
-                .putHeader("Content-Type", "application/json")
-                .end(new JsonObject()
-                    .put("object", "list")
-                    .put("data", data)
-                    .toString());
-        });
+    /** Relay routes — event-loop based async pipeline. */
+    private void registerRelayRoutes(CooldownService cooldown, VirtualModelRepo vmRepo,
+                                    InstanceRepo instanceRepo, VendorRepo vendorRepo,
+                                    ModelCatalogRepo catalogRepo) {
+        // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
+        router.post("/v1/chat/completions")
+            .handler(new RequestSetup())
+            .handler(buildV2Controller(cooldown, vmRepo, instanceRepo, vendorRepo, catalogRepo)::handle);
 
-        // /v1/chat/completions — V2 控制器
-        var requestSetup = new RequestSetup();
-        var v2Ctrl = buildV2Controller(cooldown);
-        router.route("/v1/chat/completions").handler(requestSetup);
-        router.route("/v1/chat/completions").handler(v2Ctrl::handle);
+        var modelsCtrl = new com.oneapi.controller.ModelsController(vmRepo);
+        router.get("/v1/models")
+            .handler(modelsCtrl::list);
     }
 
-    private RelayControllerV2 buildV2Controller(CooldownService cooldown) {
-        // ── 装配：组装所有 V2 依赖 ──
-
-        // 服务层（cooldown 由 RouterConfig.build() 单例传入）
-        var routerSvc = dataSource != null ? new RouterService(dataSource) : new RouterService();
+    private RelayControllerV2 buildV2Controller(CooldownService cooldown, VirtualModelRepo vmRepo,
+                                               InstanceRepo instanceRepo, VendorRepo vendorRepo,
+                                               ModelCatalogRepo catalogRepo) {
+        var routerSvc = new RouterService(instanceRepo);
         routerSvc.setCooldownService(cooldown); // 冷却预过滤（排序前生效）
         var sessions = new SessionTracker();
 
-        FilterSets filters = buildFilters(cooldown);
+        FilterSets filters = buildFilters(cooldown, instanceRepo, vmRepo, catalogRepo);
 
         // 第五阶段：上游客户端
         var upstreamClient = new UpstreamClient(
@@ -167,60 +181,74 @@ public class RouterConfig {
                 .setConnectTimeout(30000)
                 .setIdleTimeout(120)
                 .setUserAgentEnabled(false)), vertx);
+        this.upstreamClient = upstreamClient;
         var baseRelay = new DefaultRelay(upstreamClient);
 
         // 协调器
+        var holographicRecorder = new HolographicLogRecorder();
         var coordinator = new RelayCoordinator(
             routerSvc, cooldown, sessions, upstreamClient,
-            filters.stage2, filters.stage3, baseRelay, config);
+            filters.stage2, filters.stage3, baseRelay, config,
+            holographicRecorder);
         return new RelayControllerV2(coordinator);
     }
 
     /** Exposed for testing — assembles filter chain without Vert.x dependency. */
-    FilterSets buildFilters(CooldownService cooldown) {
-        // DataSource fallback: test-route uses injected ds, prod uses DatabaseConfig
-        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
+    FilterSets buildFilters(CooldownService cooldown,
+                           InstanceRepo instanceRepo,
+                           VirtualModelRepo vmRepo,
+                           ModelCatalogRepo catalogRepo) {
+        var nameMatcher = new NameMatcher(instanceRepo);
+        var vmLookup = new VirtualModelLookup(vmRepo,
+            config.getPolicies() != null && config.getPolicies().getReasoning() != null
+                ? config.getPolicies().getReasoning().getTriggerSuffix()
+                : "-max");
+        var capMarker = new CapabilityRequirementMarker();
+        var visionFilter = new VisionFilter();
 
-        // 第二阶段过滤器（模型解析）
         List<Filter> stage2 = List.of(
-            new NameMatcher(new InstanceRepo(ds)),
-            new VirtualModelLookup(new VirtualModelRepo(ds),
-                config.getPolicies().getReasoning().getTriggerSuffix()),
-            new CapabilityRequirementMarker(),
-            new VisionFilter()
+            nameMatcher,
+            vmLookup,
+            capMarker,
+            visionFilter
         );
 
-        // 第三阶段过滤器（候选实例筛选）
-        var catalogRepo = new ModelCatalogRepo(ds);
+        var cooldownFilter = new CooldownFilter(cooldown);
+        var capInstanceFilter = new CapabilityInstanceFilter(catalogRepo);
+        var bodyLimitFilter = new BodyLimitFilter(catalogRepo);
+        var tagFilter = new TagFilter();
+        var layerFilter = new LayerFilter();
+        var activeStatusFilter = new ActiveStatusFilter();
+
         List<Filter> stage3 = List.of(
-            new CooldownFilter(cooldown),
-            new CapabilityInstanceFilter(catalogRepo),
-            new BodyLimitFilter(catalogRepo),
-            new TagFilter(),
-            new LayerFilter(),
-            new ActiveStatusFilter()
+            cooldownFilter,
+            capInstanceFilter,
+            bodyLimitFilter,
+            tagFilter,
+            layerFilter,
+            activeStatusFilter
         );
 
         return new FilterSets(stage2, stage3);
     }
 
-    static class FilterSets {
-        final List<Filter> stage2;
-        final List<Filter> stage3;
-        FilterSets(List<Filter> stage2, List<Filter> stage3) {
+    private void registerFallback() {
+        router.errorHandler(404, ctx -> {
+            ctx.response()
+                .setStatusCode(404)
+                .putHeader("Content-Type", "application/json")
+                .end(new JsonObject()
+                    .put("error", "not found")
+                    .toString());
+        });
+    }
+
+    public static class FilterSets {
+        public final List<Filter> stage2;
+        public final List<Filter> stage3;
+        public FilterSets(List<Filter> stage2, List<Filter> stage3) {
             this.stage2 = stage2;
             this.stage3 = stage3;
         }
-    }
-
-    private void registerFallback() {
-        router.route().last().handler(ctx -> {
-            ctx.response()
-                .putHeader("Content-Type", "application/json")
-                .end(new JsonObject()
-                    .put("success", false)
-                    .put("message", "not found")
-                    .toString());
-        });
     }
 }

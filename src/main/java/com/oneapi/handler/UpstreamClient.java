@@ -12,9 +12,9 @@ import io.vertx.core.http.RequestOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.Closeable;
 import java.net.URI;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -25,8 +25,8 @@ import java.util.function.Function;
  * - WebClient for buffered relay (retry-friendly)
  * - HttpClient for streaming relay (real pipe)
  */
-public class UpstreamClient {
-    private static final Logger log = LoggerFactory.getLogger(UpstreamClient.class);
+@Slf4j
+public class UpstreamClient implements Closeable {
 
     private final WebClient client;
     private final HttpClient rawClient;
@@ -56,6 +56,7 @@ public class UpstreamClient {
         }
         return client.requestAbs(httpMethod, url)
             .putHeaders(headers)
+            .timeout(60000)
             .sendBuffer(Buffer.buffer(req.body))
             .onSuccess(resp -> log.debug("relay OK: {} -> status={}", url, resp.statusCode()))
             .onFailure(err -> log.error("relay failed: {}", err.getMessage()));
@@ -101,7 +102,8 @@ public class UpstreamClient {
                 .setHost(uri.getHost())
                 .setPort(uri.getPort() > 0 ? uri.getPort() : (uri.getScheme().equals("https") ? 443 : 80))
                 .setURI(uri.getPath() + (uri.getQuery() != null ? "?" + uri.getQuery() : ""))
-                .setSsl("https".equals(uri.getScheme()));
+                .setSsl("https".equals(uri.getScheme()))
+                .setTimeout(60000);
 
             rawClient.request(opts)
                 .onSuccess(request -> {
@@ -127,10 +129,18 @@ public class UpstreamClient {
                             }
                             sink.setChunked(true);
 
-                            // Parse tokens from each SSE chunk on the fly (no unbounded accumulation)
+                            // Parse tokens from each SSE chunk on the fly with cross-chunk buffering.
                             final int[] tokensHolder = {0};
+                            final StringBuilder lineBuffer = new StringBuilder();
                             upstream.handler(chunk -> {
-                                parseTokensFromChunk(chunk, tokensHolder);
+                                lineBuffer.append(chunk.toString());
+                                int lastNewline = lineBuffer.lastIndexOf("\n");
+                                if (lastNewline >= 0) {
+                                    String completeLines = lineBuffer.substring(0, lastNewline + 1);
+                                    lineBuffer.delete(0, lastNewline + 1);
+                                    int t = parseTokensFromBody(completeLines);
+                                    if (t > 0) tokensHolder[0] = t;
+                                }
                                 if (chunkConverter != null) {
                                     String converted = chunkConverter.apply(chunk);
                                     if (!converted.isEmpty()) {
@@ -145,6 +155,10 @@ public class UpstreamClient {
                                 }
                             });
                             upstream.endHandler(v -> {
+                                if (lineBuffer.length() > 0) {
+                                    int t = parseTokensFromBody(lineBuffer.toString());
+                                    if (t > 0) tokensHolder[0] = t;
+                                }
                                 sink.end();
                                 log.debug("stream done: status={} tokens={}", statusCode, tokensHolder[0]);
                                 onComplete.accept(statusCode, tokensHolder[0]);
@@ -184,9 +198,15 @@ public class UpstreamClient {
         int start = 0;
         while (true) {
             int end = body.indexOf('\n', start);
-            if (end < 0) break;
-            String line = body.substring(start, end).trim();
-            start = end + 1;
+            String line;
+            if (end < 0) {
+                if (start >= body.length()) break;
+                line = body.substring(start).trim();
+                start = body.length();
+            } else {
+                line = body.substring(start, end).trim();
+                start = end + 1;
+            }
             if (line.startsWith("data: ") && !line.equals("data: [DONE]")) {
                 try {
                     String json = line.substring(6);
@@ -198,8 +218,18 @@ public class UpstreamClient {
                     }
                 } catch (Exception ignore) {}
             }
+            if (end < 0) break;
         }
         return totalTokens;
+    }
+
+    /**
+     * Close the streaming HttpClient. The WebClient is owned by Vert.x and
+     * will be closed when the Vert.x instance is closed.
+     */
+    @Override
+    public void close() {
+        rawClient.close();
     }
 
     // --- URL building (matching Go) ---

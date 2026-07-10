@@ -1,7 +1,6 @@
 package com.oneapi.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -14,8 +13,8 @@ import java.sql.Statement;
  * Ensures `instances`, `virtual_models` and `vendors` use database-generated auto-increment ids.
  * Runs once on startup after the DataSource is initialized.
  */
+@Slf4j
 public class SchemaManager {
-    private static final Logger log = LoggerFactory.getLogger(SchemaManager.class);
 
     private final DataSource dataSource;
 

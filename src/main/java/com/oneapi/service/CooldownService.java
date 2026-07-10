@@ -3,8 +3,7 @@ package com.oneapi.service;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
 import java.util.Arrays;
@@ -13,18 +12,18 @@ import java.util.Arrays;
  * In-memory cooldown matching Go's sync.Map + damping decay.
  * Restart clears all cooldowns.
  */
+@Slf4j
 public class CooldownService {
-    private static final Logger log = LoggerFactory.getLogger(CooldownService.class);
 
     // Cooldown entries — Caffeine auto-expires after cap
     private final Cache<Integer, CooldownEntry> instanceCooldowns = Caffeine.newBuilder()
         .maximumSize(10000)
-        .expireAfterAccess(100, TimeUnit.MINUTES)  // max 100 min
+        .expireAfterWrite(100, TimeUnit.MINUTES)  // max 100 min
         .recordStats()
         .build();
     private final Cache<Integer, CooldownEntry> vendorCooldowns = Caffeine.newBuilder()
         .maximumSize(10000)
-        .expireAfterAccess(100, TimeUnit.MINUTES)
+        .expireAfterWrite(100, TimeUnit.MINUTES)
         .recordStats()
         .build();
 

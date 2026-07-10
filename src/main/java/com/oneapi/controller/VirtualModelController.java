@@ -5,12 +5,15 @@ import com.oneapi.repo.VirtualModelRepo;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class VirtualModelController extends BaseController {
-    private static final Logger log = LoggerFactory.getLogger(VirtualModelController.class);
-    private final VirtualModelRepo repo = new VirtualModelRepo();
+    private final VirtualModelRepo repo;
+
+    public VirtualModelController(VirtualModelRepo repo) {
+        this.repo = repo;
+    }
 
     public void getAll(RoutingContext ctx) {
         var models = repo.findAll();
@@ -25,7 +28,8 @@ public class VirtualModelController extends BaseController {
     }
 
     public void getOne(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
+        Integer id = parseIntParam(ctx, "id");
+        if (id == null) return;
         VirtualModel virtualModel = repo.findById(id);
         if (virtualModel == null) {
             notFound(ctx, "virtual model");
@@ -38,21 +42,17 @@ public class VirtualModelController extends BaseController {
     }
 
     public void create(RoutingContext ctx) {
-        ctx.body(); // force read body buffer
-        if (ctx.getBody() == null) {
-            badRequest(ctx, "request body is required");
-            return;
-        }
-        var body = ctx.getBody().toJsonObject();
-        if (body == null) {
-            badRequest(ctx, "invalid JSON body");
-            return;
-        }
+        var body = requireBody(ctx);
+        if (body == null) return;
         String name = body.getString("name");
         String match = body.getString("match", "{}");
 
         if (name == null || name.isEmpty()) {
             badRequest(ctx, "model name is required");
+            return;
+        }
+        if (repo.findByName(name) != null) {
+            badRequest(ctx, "virtual model already exists: " + name);
             return;
         }
 
@@ -63,32 +63,41 @@ public class VirtualModelController extends BaseController {
             repo.insert(virtualModel);
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("virtual model create failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "virtual model create");
         }
     }
 
     public void update(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
-        ctx.body(); // force read body buffer
-        var body = ctx.getBody().toJsonObject();
+        Integer id = parseIntParam(ctx, "id");
+        if (id == null) return;
+        VirtualModel existing = repo.findById(id);
+        if (existing == null) {
+            notFound(ctx, "virtual model");
+            return;
+        }
+        var body = requireBody(ctx);
+        if (body == null) return;
         String match = body.getString("match");
         if (match == null) {
             badRequest(ctx, "match is required");
             return;
         }
-        repo.updateMatch(id, match);
-        ok(ctx);
+        try {
+            repo.updateMatch(id, match);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            dbError(ctx, e, "virtual model update");
+        }
     }
 
     public void delete(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
+        Integer id = parseIntParam(ctx, "id");
+        if (id == null) return;
         try {
             repo.delete(id);
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("virtual model delete failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "virtual model delete");
         }
     }
 }

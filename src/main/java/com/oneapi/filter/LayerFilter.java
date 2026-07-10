@@ -6,8 +6,7 @@ import java.util.ArrayList;
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.MetaView;
 import com.oneapi.service.RouterService.RoutedVendor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
@@ -15,8 +14,8 @@ import java.util.List;
  * 阶段 3 — 根据 MatchRule 的层级条件过滤候选。
  * 仅在 matchRule 为 LayerMatch 时生效。
  */
+@Slf4j
 public class LayerFilter implements Filter {
-    private static final Logger log = LoggerFactory.getLogger(LayerFilter.class);
 
     @Override
     public RelayContext apply(RelayContext ctx) {

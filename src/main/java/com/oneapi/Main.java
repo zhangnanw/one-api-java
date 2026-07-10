@@ -2,20 +2,18 @@ package com.oneapi;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import com.oneapi.config.AppConfig;
 import com.oneapi.config.ConfigLoader;
 import com.oneapi.config.DatabaseConfig;
 import com.oneapi.config.RouterConfig;
 import com.oneapi.config.SchemaManager;
-import com.oneapi.repo.ModelCatalogRepo;
 import com.oneapi.service.HolographicLogger;
 import com.oneapi.service.RelayLogger;
 
+@Slf4j
 public class Main {
-    private static final Logger log = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
         AppConfig config = ConfigLoader.load();
@@ -26,9 +24,6 @@ public class Main {
 
         // 确保表结构支持自增 id
         new SchemaManager(DatabaseConfig.getDataSource()).migrate();
-
-        // 初始化 model_catalog 缓存（从 DB 加载）
-        new ModelCatalogRepo(DatabaseConfig.getDataSource());
 
         // 初始化日志 DB（复用主 DataSource）
         RelayLogger.init(DatabaseConfig.getDataSource());
@@ -57,6 +52,7 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Shutting down...");
             server.close();
+            routerConfig.close();
             vertx.close();
         }));
     }

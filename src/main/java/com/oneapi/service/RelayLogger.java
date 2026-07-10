@@ -1,8 +1,7 @@
 package com.oneapi.service;
 
 import com.oneapi.model.RelayLog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -10,8 +9,8 @@ import java.sql.*;
 /**
  * RelayLogger — 请求日志写入。
  */
+@Slf4j
 public class RelayLogger {
-    private static final Logger log = LoggerFactory.getLogger(RelayLogger.class);
     private static DataSource ds;
 
     public static void init(DataSource dataSource) {

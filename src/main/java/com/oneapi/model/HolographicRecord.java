@@ -6,8 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.coordinator.RelayCoordinator;
 import com.oneapi.service.RouterService.RoutedVendor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -19,8 +18,8 @@ import java.util.stream.Collectors;
  * 记录一次中继请求的完整生命周期数据，序列化为 JSON 存入 SQLite。
  * 通过 {@link RelayCoordinator} 在各阶段节点调用相应的填充方法。
  */
+@Slf4j
 public class HolographicRecord {
-    private static final Logger log = LoggerFactory.getLogger(HolographicRecord.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final String requestId;

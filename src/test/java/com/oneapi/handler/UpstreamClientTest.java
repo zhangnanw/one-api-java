@@ -184,10 +184,9 @@ class UpstreamClientTest {
     }
 
     @Test
-    @DisplayName("no trailing newline → last line ignored")
+    @DisplayName("no trailing newline -> last line still parsed")
     void parseTokensFromBody_noTrailingNewline() throws Exception {
-        // scan stops at \n; last line without \n is not processed
-        assertEquals(0, invokeParseTokensFromBody(
+        assertEquals(42, invokeParseTokensFromBody(
             "data: {\"usage\":{\"total_tokens\":42}}"));
     }
 

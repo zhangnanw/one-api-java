@@ -1,8 +1,7 @@
 package com.oneapi.repo;
 
 import com.oneapi.model.VirtualModel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -19,10 +18,10 @@ import java.util.List;
  * - {@link #findAll} — 查找所有虚拟模型，用于 /v1/models 端点
  * - 未找到时返回 null
  * <p>
- * SQL 异常会被捕获并记录日志，返回 NOT_FOUND 或空列表（不会向上抛出异常）。
+ * SQL 异常会被捕获并记录日志；写操作抛出 RuntimeException，读操作也统一抛出 RuntimeException。
  */
+@Slf4j
 public class VirtualModelRepo extends BaseRepo {
-    private static final Logger log = LoggerFactory.getLogger(VirtualModelRepo.class);
 
     public VirtualModelRepo() {
         super();
@@ -48,7 +47,7 @@ public class VirtualModelRepo extends BaseRepo {
                 list.add(virtualModel);
             }
         } catch (SQLException e) {
-            log.error("findAll virtual_models: {}", e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return list;
     }
@@ -68,7 +67,7 @@ public class VirtualModelRepo extends BaseRepo {
                 }
             }
         } catch (SQLException e) {
-            log.error("findByName {}: {}", name, e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return null;
     }
@@ -88,7 +87,7 @@ public class VirtualModelRepo extends BaseRepo {
                 }
             }
         } catch (SQLException e) {
-            log.error("findById {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB read failed", e);
         }
         return null;
     }
@@ -132,6 +131,7 @@ public class VirtualModelRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("delete virtual_model {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 }

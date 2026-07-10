@@ -6,12 +6,17 @@ import com.oneapi.service.VendorRefreshService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class VendorController extends BaseController {
-    private static final Logger log = LoggerFactory.getLogger(VendorController.class);
-    private final VendorRepo repo = new VendorRepo();
+    private final VendorRepo repo;
+    private final VendorRefreshService refreshService;
+
+    public VendorController(VendorRepo repo, VendorRefreshService refreshService) {
+        this.repo = repo;
+        this.refreshService = refreshService;
+    }
 
     public void getAll(RoutingContext ctx) {
         int page = parseInt(ctx.request().getParam("page"), 0);
@@ -30,7 +35,8 @@ public class VendorController extends BaseController {
     }
 
     public void getOne(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
+        Integer id = parseIntParam(ctx, "id");
+        if (id == null) return;
         Vendor vendor = repo.findById(id);
         if (vendor == null) {
             notFound(ctx, "vendor");
@@ -40,12 +46,9 @@ public class VendorController extends BaseController {
     }
 
     public void create(RoutingContext ctx) {
-        ctx.body(); // force read body buffer
-        if (ctx.getBody() == null) {
-            badRequest(ctx, "request body is required");
-            return;
-        }
-        Vendor vendor = parseBody(ctx);
+        var body = requireBody(ctx);
+        if (body == null) return;
+        Vendor vendor = parseBody(ctx, body);
         if (vendor == null) return; // parseBody already sent error
         if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
@@ -61,19 +64,20 @@ public class VendorController extends BaseController {
             repo.insert(vendor);
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("vendor create failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "vendor create");
         }
     }
 
     public void update(RoutingContext ctx) {
-        ctx.body(); // force read body buffer
-        if (ctx.getBody() == null) {
-            badRequest(ctx, "request body is required");
+        Integer id = parseIntParam(ctx, "id");
+        if (id == null) return;
+        if (repo.findById(id) == null) {
+            notFound(ctx, "vendor");
             return;
         }
-        int id = Integer.parseInt(ctx.pathParam("id"));
-        Vendor vendor = parseBody(ctx);
+        var body = requireBody(ctx);
+        if (body == null) return;
+        Vendor vendor = parseBody(ctx, body);
         if (vendor == null) return; // parseBody already sent error
         if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
@@ -87,25 +91,23 @@ public class VendorController extends BaseController {
             }
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("vendor update failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "vendor update");
         }
     }
 
     public void delete(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
+        Integer id = parseIntParam(ctx, "id");
+        if (id == null) return;
         try {
             repo.delete(id);
             ok(ctx);
         } catch (RuntimeException e) {
-            log.error("vendor delete failed: {}", e.getMessage());
-            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+            dbError(ctx, e, "vendor delete");
         }
     }
 
     public void refreshModels(RoutingContext ctx) {
-        var svc = new VendorRefreshService();
-        ctx.vertx().executeBlocking(svc::refreshAll).onSuccess(result -> {
+        ctx.vertx().executeBlocking(refreshService::refreshAll).onSuccess(result -> {
             ctx.response()
                 .putHeader("Content-Type", "application/json")
                 .end(new JsonObject()
@@ -117,6 +119,7 @@ public class VendorController extends BaseController {
                     .toString());
         }).onFailure(err -> {
             ctx.response().setStatusCode(500)
+                .putHeader("Content-Type", "application/json")
                 .end(new JsonObject()
                     .put("success", false)
                     .put("message", err.getMessage())
@@ -140,18 +143,27 @@ public class VendorController extends BaseController {
             .put("meta", vendor.getMeta());
     }
 
-    private Vendor parseBody(RoutingContext ctx) {
-        var body = ctx.getBody().toJsonObject();
-        if (body == null) {
-            badRequest(ctx, "invalid JSON body");
-            return null;
-        }
+    private Vendor parseBody(RoutingContext ctx, JsonObject body) {
         Vendor vendor = new Vendor();
         if (body.containsKey("name")) vendor.setName(body.getString("name"));
         if (body.containsKey("description")) vendor.setDescription(body.getString("description"));
-        if (body.containsKey("status")) vendor.setStatus(body.getInteger("status"));
+        if (body.containsKey("status")) {
+            Integer status = body.getInteger("status");
+            if (status == null) {
+                badRequest(ctx, "status must be an integer");
+                return null;
+            }
+            vendor.setStatus(status);
+        }
         if (body.containsKey("group")) vendor.setGroup(body.getString("group"));
-        if (body.containsKey("priority")) vendor.setPriority(body.getInteger("priority", 0));
+        if (body.containsKey("priority")) {
+            Integer priority = body.getInteger("priority");
+            if (priority == null) {
+                badRequest(ctx, "priority must be an integer");
+                return null;
+            }
+            vendor.setPriority(priority);
+        }
         if (body.containsKey("base_url")) vendor.setBaseUrl(body.getString("base_url"));
         if (body.containsKey("api_key")) vendor.setApiKey(body.getString("api_key"));
         if (body.containsKey("meta")) vendor.setMeta(body.getString("meta"));

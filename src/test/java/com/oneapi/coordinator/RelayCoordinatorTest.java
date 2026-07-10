@@ -1,5 +1,6 @@
 package com.oneapi.coordinator;
 
+import com.oneapi.comparator.SorterFactory;
 import com.oneapi.config.AppConfig;
 import com.oneapi.model.Instance;
 import com.oneapi.service.RouterService.RoutedVendor;
@@ -20,7 +21,7 @@ class RelayCoordinatorTest {
     }
 
     private final Comparator<RoutedVendor> sorter =
-        RelayCoordinator.buildSorter(new AppConfig());
+        SorterFactory.build(new AppConfig());
 
     @Test
     void byPrefPrimary_lowerPrefComesFirst() {
