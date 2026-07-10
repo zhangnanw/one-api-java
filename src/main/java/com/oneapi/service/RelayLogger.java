@@ -1,7 +1,6 @@
 package com.oneapi.service;
 
 import com.oneapi.model.RelayLog;
-import com.oneapi.config.DatabaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,44 +9,28 @@ import java.sql.*;
 
 /**
  * RelayLogger — 请求日志写入。
- * 支持 SQLite 和 PostgreSQL。
  */
 public class RelayLogger {
     private static final Logger log = LoggerFactory.getLogger(RelayLogger.class);
     private static DataSource ds;
-    private static boolean isPg;
 
     public static void init(DataSource dataSource) {
         ds = dataSource;
-        isPg = DatabaseConfig.isPostgreSQL();
-        log.info("RelayLogger initialized (DB={})", isPg ? "postgresql" : "sqlite");
+        log.info("RelayLogger initialized");
     }
 
     /** 插入记录，返回自增 ID。失败返回 -1（静默）。 */
     public static long insert(RelayLog rlog) {
         if (ds == null) return -1;
-        String sql = isPg
-            ? "INSERT INTO relay_logs (ts, channel_id, base_url, token_name, user_id, " +
+        String sql = "INSERT INTO relay_logs (ts, channel_id, base_url, token_name, user_id, " +
               "model_orig, model_real, stream, body_size, code, resp_size, tokens, latency_ms, err) " +
-              "VALUES (to_timestamp(?),?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id"
-            : "INSERT INTO relay_logs (ts, channel_id, base_url, token_name, user_id, " +
-              "model_orig, model_real, stream, body_size, code, resp_size, tokens, latency_ms, err) " +
-              "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+              "VALUES (to_timestamp(?),?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id";
         try (Connection conn = ds.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            if (isPg) {
-                ps.setLong(1, rlog.getTimestamp());
-                setCommonParams(ps, rlog, 2);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) return rs.getLong(1);
-                }
-            } else {
-                ps.setLong(1, rlog.getTimestamp());
-                setCommonParams(ps, rlog, 2);
-                ps.executeUpdate();
-                try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) return rs.getLong(1);
-                }
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, rlog.getTimestamp());
+            setCommonParams(ps, rlog, 2);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getLong(1);
             }
         } catch (SQLException e) {
             log.debug("relay log insert failed: {}", e.getMessage());

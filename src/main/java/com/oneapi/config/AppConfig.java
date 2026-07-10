@@ -30,25 +30,12 @@ public class AppConfig {
 
     public int port() { return server != null ? server.getPort() : 13000; }
 
-    /**
-     * SQLite 数据库文件绝对路径。
-     * 缺省值：~/.one-api/one-api.db。
-     * 配置走 yaml 的 database.path；缺失则用缺省值。
-     */
-    public String sqlitePath() {
-        if (database != null && database.getPath() != null && !database.getPath().isEmpty()) {
-            return database.getPath();
-        }
-        return System.getProperty("user.home") + "/.one-api/one-api.db";
-    }
 
     // --- 子配置 ---
 
     @Setter
     @Getter
     public static class DatabaseYamlConfig {
-        private String type = "sqlite";  // "sqlite" | "postgresql"
-        private String path;              // SQLite 文件路径
         // PostgreSQL 配置
         private String host = "localhost";
         private int port = 5432;

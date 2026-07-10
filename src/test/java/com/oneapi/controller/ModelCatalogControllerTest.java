@@ -19,9 +19,8 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for ModelCatalogController.
  * <p>
- * Uses an in-memory SQLite database injected into ModelCatalogRepo.
- * Response verification uses string contains to avoid Vert.x JsonObject
- * vs stdlib collection type mismatches.
+ * Uses an in-memory H2 database (PostgreSQL compatibility mode) injected into ModelCatalogRepo.
+ * Response verification uses string contains to avoid Vert.x JsonObject vs stdlib collection type mismatches.
  */
 class ModelCatalogControllerTest {
 
@@ -30,14 +29,11 @@ class ModelCatalogControllerTest {
 
     @BeforeEach
     void setup() throws Exception {
-        var cfg = new com.zaxxer.hikari.HikariConfig();
-        cfg.setJdbcUrl("jdbc:sqlite::memory:");
-        cfg.setMaximumPoolSize(1);
-        ds = new com.zaxxer.hikari.HikariDataSource(cfg);
+        ds = com.oneapi.config.TestDatabaseConfig.createDataSource();
         try (Connection conn = ds.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("""
                 CREATE TABLE model_catalog (
-                    name TEXT PRIMARY KEY,
+                    name VARCHAR(255) PRIMARY KEY,
                     capabilities TEXT,
                     context_window INTEGER,
                     input_price REAL,

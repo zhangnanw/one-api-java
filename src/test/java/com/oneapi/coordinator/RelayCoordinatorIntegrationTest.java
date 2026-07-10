@@ -2,7 +2,6 @@ package com.oneapi.coordinator;
 
 import com.oneapi.config.AppConfig;
 import com.oneapi.config.RouterConfig;
-import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
@@ -31,15 +30,12 @@ class RelayCoordinatorIntegrationTest {
 
     @BeforeAll
     static void initDb() throws Exception {
-        HikariConfig cfg = new HikariConfig();
-        cfg.setJdbcUrl("jdbc:sqlite::memory:");
-        cfg.setMaximumPoolSize(1);
-        ds = new HikariDataSource(cfg);
+        ds = com.oneapi.config.TestDatabaseConfig.createDataSource();
 
         try (Connection conn = ds.getConnection(); Statement stmt = conn.createStatement()) {
             // vendors
             stmt.execute("CREATE TABLE vendors (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, " +
+                "id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, " +
                 "status INTEGER DEFAULT 1, \"group\" TEXT, priority INTEGER DEFAULT 0, " +
                 "created_time INTEGER, base_url TEXT, api_key TEXT, meta TEXT)");
             stmt.execute("INSERT INTO vendors (id, name, base_url, api_key) VALUES (1, 'deepseek', 'https://api.deepseek.com', 'sk-ds')");
@@ -47,7 +43,7 @@ class RelayCoordinatorIntegrationTest {
 
             // instances
             stmt.execute("CREATE TABLE instances (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, model_name TEXT NOT NULL, status INTEGER DEFAULT 1, " +
+                "id SERIAL PRIMARY KEY, model_name TEXT NOT NULL, status INTEGER DEFAULT 1, " +
                 "upstream_model TEXT, vendor_id INTEGER REFERENCES vendors(id), created_time INTEGER, " +
                 "meta TEXT, pref REAL DEFAULT 0, layer TEXT DEFAULT 'payg')");
             stmt.execute("INSERT INTO instances (id, model_name, status, upstream_model, vendor_id, meta, pref, layer) VALUES " +
@@ -58,7 +54,7 @@ class RelayCoordinatorIntegrationTest {
                 "(3, 'minimax-m3', 1, 'minimax-m3', 2, '{}', 0, 'payg')");
 
             // virtual_models
-            stmt.execute("CREATE TABLE virtual_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, match TEXT)");
+            stmt.execute("CREATE TABLE virtual_models (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, match TEXT)");
             stmt.execute("INSERT INTO virtual_models (name, match) VALUES " +
                 "('deepseek', '{\"models\":[\"deepseek-v4-flash\",\"deepseek-v4-pro\"]}')");
             stmt.execute("INSERT INTO virtual_models (name, match) VALUES " +
@@ -66,7 +62,7 @@ class RelayCoordinatorIntegrationTest {
 
             // model_catalog
             stmt.execute("CREATE TABLE model_catalog (" +
-                "name TEXT PRIMARY KEY, capabilities TEXT, context_window INTEGER, " +
+                "name VARCHAR(255) PRIMARY KEY, capabilities TEXT, context_window INTEGER, " +
                 "input_price REAL, output_price REAL, reference_notes TEXT)");
             stmt.execute("INSERT INTO model_catalog (name, capabilities, context_window) VALUES " +
                 "('deepseek-v4-flash', '[\"chat\",\"code\"]', 131072)");

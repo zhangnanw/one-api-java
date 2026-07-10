@@ -246,15 +246,14 @@ cp target/one-api-java-1.0.0-shaded.jar "$DEPLOY_DIR/one-api-java.jar"
 if [ ! -f "$DEPLOY_DIR/config.yaml" ]; then
     warn "未找到 config.yaml，生成默认模板..."
     cat > "$DEPLOY_DIR/config.yaml" << 'YAML'
-port: 13000
+server:
+  port: 13000
 database:
-  type: postgresql
   host: bj.xiaoceng.space
   port: 5432
   database: oneapi
   user: oneapi
   password: "CHANGE_ME"
-models_path: ""
 YAML
     warn "请编辑 $DEPLOY_DIR/config.yaml 填入正确的数据库密码"
 fi

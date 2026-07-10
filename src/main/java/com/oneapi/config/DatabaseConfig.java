@@ -6,34 +6,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 public class DatabaseConfig {
     private static final Logger log = LoggerFactory.getLogger(DatabaseConfig.class);
     private static HikariDataSource dataSource;
 
     // ── helpers ────────────────────────────────────────────────
-
-    private static HikariDataSource createSqliteDataSource(String jdbcUrl) {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(jdbcUrl);
-        config.setMaximumPoolSize(5);
-        config.setMinimumIdle(1);
-        config.setConnectionTimeout(5000);
-        config.setIdleTimeout(300000);
-
-        // SQLite optimizations
-        config.addDataSourceProperty("journal_mode", "WAL");
-        config.addDataSourceProperty("busy_timeout", "5000");
-        config.addDataSourceProperty("synchronous", "NORMAL");
-        config.addDataSourceProperty("foreign_keys", "ON");
-
-        return new HikariDataSource(config);
-    }
 
     private static HikariDataSource createPostgresDataSource(AppConfig.DatabaseYamlConfig db) {
         HikariConfig config = new HikariConfig();
@@ -66,29 +46,22 @@ public class DatabaseConfig {
         if (dbConfig == null) {
             dbConfig = new AppConfig.DatabaseYamlConfig();
         }
-
-        String dbType = dbConfig.getType();
-        if ("postgresql".equalsIgnoreCase(dbType)) {
-            initPostgres(dbConfig);
-        } else {
-            // default: sqlite
-            String path = dbConfig.getPath();
-            if (path == null || path.isEmpty()) {
-                path = System.getProperty("user.home") + "/.one-api/one-api.db";
-            }
-            initSqlite(path);
-        }
+        initPostgres(dbConfig);
     }
 
-    /** Backward-compatible overload for tests. */
+    /** Backward-compatible overload for tests using an in-memory H2 database in PostgreSQL mode. */
     public static void init(String jdbcUrl) {
-        if (!jdbcUrl.startsWith("jdbc:")) {
-            jdbcUrl = "jdbc:sqlite:" + jdbcUrl;
-        }
-        AppConfig.DatabaseYamlConfig cfg = new AppConfig.DatabaseYamlConfig();
-        cfg.setType("sqlite");
-        cfg.setPath(jdbcUrl.replace("jdbc:sqlite:", ""));
-        init(cfg);
+        // SQLite is no longer supported; route old test URLs to a fresh H2 PostgreSQL-compatible DB.
+        String dbName = "legacy_test_" + Math.abs((long) (jdbcUrl != null ? jdbcUrl : "memory").hashCode());
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:h2:mem:" + dbName +
+            ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;NON_KEYWORDS=MATCH");
+        config.setUsername("sa");
+        config.setPassword("");
+        config.setMaximumPoolSize(5);
+        config.setConnectionTimeout(10000);
+        closeDataSource(dataSource);
+        dataSource = new HikariDataSource(config);
     }
 
     private static void initPostgres(AppConfig.DatabaseYamlConfig dbConfig) {
@@ -108,65 +81,6 @@ public class DatabaseConfig {
         }
     }
 
-    private static void initSqlite(String dbPath) {
-        String jdbcUrl = "jdbc:sqlite:" + dbPath;
-
-        // Tier 1: try existing database
-        try {
-            log.info("Connecting to SQLite: {}", jdbcUrl);
-            dataSource = createSqliteDataSource(jdbcUrl);
-            try (Connection conn = dataSource.getConnection();
-                 Statement stmt = conn.createStatement()) {
-                stmt.execute("PRAGMA journal_mode=WAL");
-                stmt.execute("PRAGMA busy_timeout=5000");
-                stmt.execute("PRAGMA foreign_keys=ON");
-            }
-            log.info("SQLite connected: {}", jdbcUrl);
-            return;
-        } catch (SQLException e) {
-            log.error("SQLite connection failed: {}", e.getMessage());
-            closeDataSource(dataSource);
-            dataSource = null;
-        }
-
-        // Tier 2: delete corrupt DB file and retry
-        if (!jdbcUrl.startsWith("jdbc:sqlite::memory:")) {
-            String filePath = jdbcUrl.substring("jdbc:sqlite:".length());
-            int q = filePath.indexOf('?');
-            if (q >= 0) filePath = filePath.substring(0, q);
-
-            try {
-                boolean deleted = Files.deleteIfExists(Paths.get(filePath));
-                if (deleted) {
-                    log.warn("SQLite DB corrupt, deleting and rebuilding: {}", filePath);
-                }
-                dataSource = createSqliteDataSource(jdbcUrl);
-                try (Connection conn = dataSource.getConnection();
-                     Statement stmt = conn.createStatement()) {
-                    stmt.execute("PRAGMA journal_mode=WAL");
-                    stmt.execute("PRAGMA busy_timeout=5000");
-                    stmt.execute("PRAGMA foreign_keys=ON");
-                }
-                log.info("SQLite rebuilt: {}", jdbcUrl);
-                return;
-            } catch (Exception e2) {
-                log.error("SQLite rebuild failed: {}", e2.getMessage());
-                closeDataSource(dataSource);
-                dataSource = null;
-            }
-        }
-
-        // Tier 3: in-memory fallback
-        log.error("SQLite unrecoverable, falling back to in-memory database");
-        dataSource = createSqliteDataSource("jdbc:sqlite::memory:");
-        log.info("SQLite connected: :memory: (fallback)");
-    }
-
-    public static boolean isPostgreSQL() {
-        if (dataSource == null) return false;
-        String url = dataSource.getJdbcUrl();
-        return url != null && url.startsWith("jdbc:postgresql:");
-    }
 
     public static DataSource getDataSource() {
         return dataSource;

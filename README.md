@@ -29,7 +29,11 @@ relay:
   layerOrder: [free, subscription, payg]
   requireVirtualModel: true
 database:
-  path: ~/.one-api/one-api.db
+  host: localhost
+  port: 5432
+  database: oneapi
+  user: oneapi
+  password: "CHANGE_ME"
 policies:
   reasoning:
     triggerSuffix: "-max"
@@ -38,7 +42,7 @@ policies:
 **关键字段**：
 
 - `relay.requireVirtualModel`（默认 `true`）：未命中虚拟模型直接 404，不允许按物理 model_name 兜底
-- `database.path`：缺省 `~/.one-api/one-api.db`
+- `database.host` / `database.port` / `database.database` / `database.user` / `database.password`：PostgreSQL 连接信息
 - `policies.reasoning.triggerSuffix`：`-max` 后缀触发 reasoning 模式
 
 ## 怎么加 vendor

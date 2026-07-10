@@ -18,11 +18,11 @@ class RouterConfigTest {
 
     @BeforeAll
     static void initDb() {
-        DatabaseConfig.init("jdbc:sqlite::memory:");
+        DatabaseConfig.init("test");
         // Create model_catalog table to avoid SQL errors when ModelCatalogRepo loads
         try (var conn = DatabaseConfig.getDataSource().getConnection();
              var stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE IF NOT EXISTS model_catalog (name TEXT PRIMARY KEY, capabilities TEXT, context_window INTEGER)");
+            stmt.execute("CREATE TABLE IF NOT EXISTS model_catalog (name VARCHAR(255) PRIMARY KEY, capabilities TEXT, context_window INTEGER, input_price REAL, output_price REAL, reference_notes TEXT)");
         } catch (Exception e) {
             // ignore — table may already exist
         }

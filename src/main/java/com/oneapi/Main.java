@@ -21,7 +21,7 @@ public class Main {
         AppConfig config = ConfigLoader.load();
         int port = config.port();
 
-        // 初始化数据库（SQLite 或 PostgreSQL）
+        // 初始化数据库（PostgreSQL）
         DatabaseConfig.init(config.getDatabase());
 
         // 确保表结构支持自增 id

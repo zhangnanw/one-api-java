@@ -23,6 +23,7 @@
         <slf4j.version>2.0.13</slf4j.version>
         <logback.version>1.5.6</logback.version>
         <sqlite.version>3.46.1.0</sqlite.version>
+        <h2.version>2.2.224</h2.version>
         <hikari.version>5.1.0</hikari.version>
         <caffeine.version>3.1.8</caffeine.version>
         <junit.version>5.10.3</junit.version>
@@ -74,6 +75,14 @@
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>${sqlite.version}</version>
+        </dependency>
+
+        <!-- H2 Database (PostgreSQL compatibility mode for tests) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>${h2.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- Connection Pool -->

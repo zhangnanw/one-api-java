@@ -40,7 +40,7 @@ public class ConfigLoader {
             " or in classpath.");
     }
 
-    // 端口和路径统一从 AppConfig 取值，Main.java 用 config.port() / config.sqlitePath()
+    // 端口统一从 AppConfig 取值，Main.java 用 config.port()
     private static AppConfig parse(File file) {
         try {
             AppConfig config = yamlMapper.readValue(file, AppConfig.class);

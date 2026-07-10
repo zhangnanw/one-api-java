@@ -183,15 +183,14 @@ $configPath = "$deployDir\config.yaml"
 if (-not (Test-Path $configPath)) {
     Warn "config.yaml not found, generating template..."
     @"
-port: 13000
+server:
+  port: 13000
 database:
-  type: postgresql
   host: bj.xiaoceng.space
   port: 5432
   database: oneapi
   user: oneapi
   password: "CHANGE_ME"
-models_path: ""
 "@ | Out-File -FilePath $configPath -Encoding UTF8
     Warn "Edit $configPath to set database password"
 }

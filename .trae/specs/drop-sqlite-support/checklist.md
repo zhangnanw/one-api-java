@@ -1,0 +1,12 @@
+- [x] DatabaseConfig 不存在 SQLite 相关代码
+- [x] RelayLogger 不存在 SQLite 分支
+- [x] HolographicLogger 不存在 SQLite 分支
+- [x] SchemaManager 只处理 PostgreSQL
+- [x] AppConfig.DatabaseYamlConfig 不包含 SQLite 相关字段
+- [x] 测试不再直接依赖 SQLite 内存数据库
+- [x] `mvn clean test` 全部通过
+- [x] 服务可正常启动并连接 PostgreSQL
+- [x] `/status` 页面数据加载正常
+- [x] 供应商/实例/虚拟模型/画像的增删改查功能正常
+- [x] 部署脚本和配置示例已更新
+- [x] 代码已提交并推送

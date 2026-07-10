@@ -1,6 +1,5 @@
 package com.oneapi.repo;
 
-import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,16 +19,13 @@ class ModelCatalogRepoTest {
 
     @BeforeAll
     static void setupAll() throws Exception {
-        HikariConfig cfg = new HikariConfig();
-        cfg.setJdbcUrl("jdbc:sqlite::memory:");
-        cfg.setMaximumPoolSize(1);
-        ds = new HikariDataSource(cfg);
+        ds = com.oneapi.config.TestDatabaseConfig.createDataSource();
 
         // create table
         try (Connection conn = ds.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS model_catalog (" +
-                "name TEXT PRIMARY KEY," +
+                "name VARCHAR(255) PRIMARY KEY," +
                 "capabilities TEXT," +
                 "context_window INTEGER," +
                 "input_price REAL," +

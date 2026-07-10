@@ -1,6 +1,13 @@
 server:
   port: 13000
 
+database:
+  host: localhost
+  port: 5432
+  database: oneapi
+  user: oneapi
+  password: oneapi
+
 relay:
   maxRetries: 2
   cacheTtlSeconds: 10
