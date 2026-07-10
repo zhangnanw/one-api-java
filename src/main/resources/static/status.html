@@ -242,8 +242,15 @@ async function fetchJSON(path, opts) {
   const r = await fetch(API + path, opts);
   if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
   const j = await r.json();
-  const d = j.data || j;
-  return (d && d.data && Array.isArray(d.data)) ? d.data : d;
+  // 处理单层包装 {data:[...]} 和双层包装 {data:{data:[...]}}
+  if (j && j.data !== undefined) {
+    const d = j.data;
+    if (d && typeof d === 'object' && !Array.isArray(d) && Array.isArray(d.data)) {
+      return d.data;
+    }
+    return d;
+  }
+  return j;
 }
 
 async function fetchText(path, opts) {
@@ -347,13 +354,16 @@ async function saveVendor() {
   const group = getModalValue('v-group') || 'default';
   const status = parseInt(getModalValue('v-status')) || 1;
   if (!name || !baseUrl) { toast('名称和 Base URL 必填', 'error'); return; }
-  const payload = { name, base_url: baseUrl, api_key: apiKey, group, status, description: '', meta: '{}' };
-  if (editingId) {
-    await fetchText('/api/vendors/' + editingId, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  } else {
-    await fetchText('/api/vendors', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  }
-  closeModal(); toast(editingId ? '供应商已更新' : '供应商已创建'); refresh();
+  const orig = editingId ? vendorMap[editingId] : {};
+  const payload = { name, base_url: baseUrl, api_key: apiKey, group, status, description: orig.description || '', meta: orig.meta || '{}' };
+  try {
+    if (editingId) {
+      await fetchText('/api/vendors/' + editingId, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    } else {
+      await fetchText('/api/vendors', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    closeModal(); toast(editingId ? '供应商已更新' : '供应商已创建'); refresh();
+  } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }
 
 async function refreshUpstream() {
@@ -400,18 +410,22 @@ async function saveVM() {
   catch (e) { toast('匹配模型必须是 JSON 数组', 'error'); return; }
   if (!name) { toast('名称必填', 'error'); return; }
   const payload = { name, match: JSON.stringify({models}) };
-  if (editingId) {
-    await fetchText('/api/virtual-models/' + editingId, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  } else {
-    await fetchText('/api/virtual-models', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  }
-  closeModal(); toast(editingId ? '虚拟模型已更新' : '虚拟模型已创建'); refresh();
+  try {
+    if (editingId) {
+      await fetchText('/api/virtual-models/' + editingId, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    } else {
+      await fetchText('/api/virtual-models', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    closeModal(); toast(editingId ? '虚拟模型已更新' : '虚拟模型已创建'); refresh();
+  } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }
 
 async function deleteVM(id, name) {
   if (!confirm('确定删除虚拟模型 ' + name + ' 吗？')) return;
-  await fetchText('/api/virtual-models/' + id, { method: 'DELETE' });
-  toast('虚拟模型已删除'); refresh();
+  try {
+    await fetchText('/api/virtual-models/' + id, { method: 'DELETE' });
+    toast('虚拟模型已删除'); refresh();
+  } catch (e) { toast('删除失败: ' + e.message, 'error'); }
 }
 
 // ---------- Instances ----------
@@ -482,6 +496,7 @@ async function saveInstance() {
   if (!name) { toast('模型名称必填', 'error'); return; }
   const vendorId = parseInt(getModalValue('i-vendor'));
   if (!vendorId) { toast('请选择供应商', 'error'); return; }
+  const orig = editingId ? allInstances.find(x => x.id === editingId) || {} : {};
   const payload = {
     model_name: name,
     upstream_model: getModalValue('i-upstream') || name,
@@ -489,20 +504,24 @@ async function saveInstance() {
     status: parseInt(getModalValue('i-status')) || 1,
     layer: getModalValue('i-layer') || 'payg',
     pref: parseFloat(getModalValue('i-pref')) || 0.5,
-    meta: '{}'
+    meta: orig.meta || '{}'
   };
-  if (editingId) {
-    await fetchText('/api/instances/' + editingId, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  } else {
-    await fetchText('/api/instances', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  }
-  closeModal(); toast(editingId ? '实例已更新' : '实例已创建'); refresh();
+  try {
+    if (editingId) {
+      await fetchText('/api/instances/' + editingId, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    } else {
+      await fetchText('/api/instances', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    closeModal(); toast(editingId ? '实例已更新' : '实例已创建'); refresh();
+  } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }
 
 async function deleteInstance(id, name) {
   if (!confirm('确定删除实例 ' + name + ' 吗？')) return;
-  await fetchText('/api/instances/' + id, { method: 'DELETE' });
-  toast('实例已删除'); refresh();
+  try {
+    await fetchText('/api/instances/' + id, { method: 'DELETE' });
+    toast('实例已删除'); refresh();
+  } catch (e) { toast('删除失败: ' + e.message, 'error'); }
 }
 function instPage(delta) { instCurPage += delta; renderInstances(); }
 
@@ -565,18 +584,22 @@ async function saveCatalog() {
     output_price: parseFloat(getModalValue('c-oprice')) || null,
     reference_notes: getModalValue('c-notes') || null
   };
-  if (editingId) {
-    await fetchText('/api/model-catalog/' + encodeURIComponent(editingId), { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  } else {
-    await fetchText('/api/model-catalog', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  }
-  closeModal(); toast(editingId ? '画像已更新' : '画像已创建'); refresh();
+  try {
+    if (editingId) {
+      await fetchText('/api/model-catalog/' + encodeURIComponent(editingId), { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    } else {
+      await fetchText('/api/model-catalog', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    closeModal(); toast(editingId ? '画像已更新' : '画像已创建'); refresh();
+  } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }
 
 async function deleteCatalog(name) {
   if (!confirm('确定删除画像 ' + name + ' 吗？')) return;
-  await fetchText('/api/model-catalog/' + encodeURIComponent(name), { method: 'DELETE' });
-  toast('画像已删除'); refresh();
+  try {
+    await fetchText('/api/model-catalog/' + encodeURIComponent(name), { method: 'DELETE' });
+    toast('画像已删除'); refresh();
+  } catch (e) { toast('删除失败: ' + e.message, 'error'); }
 }
 
 // ---------- Events & Refresh ----------
@@ -585,35 +608,45 @@ document.getElementById('inst-vendor-filter').addEventListener('change', filterI
 document.getElementById('inst-status-filter').addEventListener('change', filterInstances);
 document.getElementById('catalog-search').addEventListener('input', filterCatalog);
 
-let loadedCount = 0;
 let allVModels = [];
-async function refresh() {
+
+// 每个 section 独立加载，互不阻塞
+async function loadSection(path, renderFn, errContainerId) {
   try {
-    const [status, vendors, instances, vmodels, catalog] = await Promise.all([
-      fetchJSON('/api/status'), fetchJSON('/api/vendors'), fetchJSON('/api/instances'),
-      fetchJSON('/api/virtual-models'), fetchJSON('/api/model-catalog')
-    ]);
-    startTime = status.start_time;
-    document.getElementById('uptime').textContent = fmtUptime(Math.floor(Date.now()/1000) - startTime);
-    allVModels = vmodels || [];
-    allCatalog = catalog || [];
-    renderVendors(vendors);
-    allInstances = instances; filterInstances();
-    renderVModels(vmodels);
-    filterCatalog();
-    document.getElementById('lastUpdate').textContent = '更新于 ' + new Date().toLocaleTimeString();
-    loadedCount++;
+    const data = await fetchJSON(path);
+    renderFn(data || []);
   } catch (e) {
-    console.error('refresh error:', e);
-    if (loadedCount === 0) {
-      ['vendors-body','vmodels-body','instances-body','catalog-body'].forEach(id => showError(id, 'API 请求失败: ' + e.message));
-    }
-    document.getElementById('lastUpdate').textContent = '请求失败 ' + new Date().toLocaleTimeString();
+    console.error(path, e);
+    if (errContainerId) showError(errContainerId, '加载失败: ' + e.message);
   }
+}
+
+async function refresh() {
+  loadSection('/api/status', data => {
+    startTime = data.start_time;
+    document.getElementById('uptime').textContent = fmtUptime(Math.floor(Date.now()/1000) - startTime);
+  }, null);
+
+  loadSection('/api/vendors', renderVendors, 'vendors-body');
+
+  loadSection('/api/instances', data => {
+    allInstances = data; filterInstances();
+  }, 'instances-body');
+
+  loadSection('/api/virtual-models', data => {
+    allVModels = data;
+    renderVModels(data);
+  }, 'vmodels-body');
+
+  loadSection('/api/model-catalog', data => {
+    allCatalog = data; filterCatalog();
+  }, 'catalog-body');
+
+  document.getElementById('lastUpdate').textContent = '更新于 ' + new Date().toLocaleTimeString();
 }
 setInterval(() => { if (startTime) document.getElementById('uptime').textContent = fmtUptime(Math.floor(Date.now()/1000) - startTime); }, 1000);
 refresh();
-setInterval(refresh, 10000);
+setInterval(refresh, 30000);
 </script>
 </body>
 </html>
