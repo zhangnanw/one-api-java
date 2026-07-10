@@ -58,8 +58,8 @@ class VirtualModelRepoTest {
     }
 
     @Test
-    void findByName_nonexistent_returnsNotFoundSentinel() {
-        assertEquals(VirtualModel.NOT_FOUND, repo.findByName("nonexistent"));
+    void findByName_nonexistent_returnsNull() {
+        assertNull(repo.findByName("nonexistent"));
     }
 
     @Test
@@ -98,7 +98,7 @@ class VirtualModelRepoTest {
     }
 
     @Test
-    void delete_thenFindByName_returnsNotFoundSentinel() {
+    void delete_thenFindByName_returnsNull() {
         VirtualModel temp = new VirtualModel();
         temp.setName("to-delete");
         temp.setMatch("{}");
@@ -108,6 +108,6 @@ class VirtualModelRepoTest {
         assertNotNull(found);
 
         repo.delete(found.getId());
-        assertEquals(VirtualModel.NOT_FOUND, repo.findByName("to-delete"));
+        assertNull(repo.findByName("to-delete"));
     }
 }

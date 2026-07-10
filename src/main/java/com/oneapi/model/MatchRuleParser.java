@@ -49,8 +49,8 @@ public class MatchRuleParser {
         } catch (IllegalArgumentException e) {
             throw e; // 必须在 catch(Exception) 之前，否则校验异常被吞
         } catch (Exception e) {
-            log.warn("Failed to parse match JSON, falling back to AllMatch: {}", e.getMessage());
-            return new MatchRule.AllMatch();
+            log.warn("Failed to parse match JSON: {}", e.getMessage());
+            throw new IllegalArgumentException("Failed to parse match JSON: " + e.getMessage(), e);
         }
     }
     

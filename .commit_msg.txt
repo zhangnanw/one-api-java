@@ -1,0 +1,22 @@
+﻿fix: 全局代码质量修复（20项）
+
+- MatchRuleParser 解析失败抛异常不降级
+- DefaultRelay 一次解析 JSON，移除字符串扫描
+- Repo 写操作异常传播到 Controller 返回 500
+- VirtualModelController 增加空值检查+存在性校验
+- SchemaManager 迁移失败传播+PG identity 列识别
+- RouterConfig DB 路由使用 blockingHandler
+- HolographicLogger 移除每次写入的 COUNT+DELETE
+- VendorRefreshService 按 vendorId 查询实例
+- SessionTracker 增加二级索引 O(1) 查找
+- Controller 层统一使用 BaseController 响应方法
+- RelayCoordinator 提取 Kimi 头部注入公共方法
+- UpstreamClient 开启 keep-alive + 超时
+- SubstituteModel 改为字符串替换
+- VendorRepo.status 过滤一致性修复
+- VirtualModelRepo 统一 null 语义
+- Instance 状态常量移到 Instance 模型
+- 删除 RelayRecorder 包装类
+- HolographicRecord.toJson() 改用 Jackson
+- 中文字符编码损坏修复
+- 多个 filter 移除重复样板

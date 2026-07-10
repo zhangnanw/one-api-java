@@ -17,7 +17,7 @@ import java.util.List;
  * 主要方法：
  * - {@link #findByName} — 按名称查找虚拟模型，用于 /v1/chat/completions 路由
  * - {@link #findAll} — 查找所有虚拟模型，用于 /v1/models 端点
- * - NOT_FOUND 哨兵：{@link VirtualModel#NOT_FOUND} 的 id=0，表示未找到。调用方应检查 {@code virtualModel == VirtualModel.NOT_FOUND}
+ * - 未找到时返回 null
  * <p>
  * SQL 异常会被捕获并记录日志，返回 NOT_FOUND 或空列表（不会向上抛出异常）。
  */
@@ -70,7 +70,7 @@ public class VirtualModelRepo extends BaseRepo {
         } catch (SQLException e) {
             log.error("findByName {}: {}", name, e.getMessage());
         }
-        return VirtualModel.NOT_FOUND;
+        return null;
     }
 
     public VirtualModel findById(int id) {
@@ -107,6 +107,7 @@ public class VirtualModelRepo extends BaseRepo {
             }
         } catch (SQLException e) {
             log.error("insert virtual_model: {}", e.getMessage(), e);
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -119,6 +120,7 @@ public class VirtualModelRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("update virtual_model {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 

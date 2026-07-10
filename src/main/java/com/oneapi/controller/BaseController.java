@@ -1,5 +1,6 @@
 package com.oneapi.controller;
 
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
@@ -33,6 +34,20 @@ public class BaseController {
      * Send a JSON success response with data payload.
      */
     protected void ok(RoutingContext ctx, JsonObject data) {
+        ctx.response()
+            .setStatusCode(200)
+            .putHeader("Content-Type", "application/json")
+            .end(new JsonObject()
+                .put("success", true)
+                .put("message", "")
+                .put("data", data)
+                .toString());
+    }
+
+    /**
+     * Send a JSON success response with array data payload.
+     */
+    protected void ok(RoutingContext ctx, JsonArray data) {
         ctx.response()
             .setStatusCode(200)
             .putHeader("Content-Type", "application/json")

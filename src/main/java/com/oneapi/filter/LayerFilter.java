@@ -53,7 +53,7 @@ public class LayerFilter implements Filter {
                 removedIds, "layer != " + requiredLayer);
         }
 
-        log.debug("LayerFilter layer={}: {} 鈫?{} candidates",
+        log.debug("LayerFilter layer={}: {} → {} candidates",
             requiredLayer, candidates.size(), filtered.size());
         ctx.setCandidates(filtered);
         return ctx;

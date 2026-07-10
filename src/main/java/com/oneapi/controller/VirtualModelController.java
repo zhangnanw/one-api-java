@@ -5,8 +5,11 @@ import com.oneapi.repo.VirtualModelRepo;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VirtualModelController extends BaseController {
+    private static final Logger log = LoggerFactory.getLogger(VirtualModelController.class);
     private final VirtualModelRepo repo = new VirtualModelRepo();
 
     public void getAll(RoutingContext ctx) {
@@ -18,61 +21,51 @@ public class VirtualModelController extends BaseController {
                 .put("name", virtualModel.getName())
                 .put("match", virtualModel.getMatch()));
         }
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject()
-                .put("success", true)
-                .put("message", "")
-                .put("data", arr)
-                .toString());
+        ok(ctx, arr);
     }
 
     public void getOne(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
         VirtualModel virtualModel = repo.findById(id);
         if (virtualModel == null) {
-            json(ctx, 404, "virtual model not found");
+            notFound(ctx, "virtual model");
             return;
         }
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject()
-                .put("success", true)
-                .put("message", "")
-                .put("data", new JsonObject()
-                    .put("id", virtualModel.getId())
-                    .put("name", virtualModel.getName())
-                    .put("match", virtualModel.getMatch()))
-                .toString());
+        ok(ctx, new JsonObject()
+            .put("id", virtualModel.getId())
+            .put("name", virtualModel.getName())
+            .put("match", virtualModel.getMatch()));
     }
 
     public void create(RoutingContext ctx) {
         ctx.body(); // force read body buffer
         if (ctx.getBody() == null) {
-            json(ctx, 400, "request body is required");
+            badRequest(ctx, "request body is required");
             return;
         }
         var body = ctx.getBody().toJsonObject();
         if (body == null) {
-            json(ctx, 400, "invalid JSON body");
+            badRequest(ctx, "invalid JSON body");
             return;
         }
         String name = body.getString("name");
         String match = body.getString("match", "{}");
 
         if (name == null || name.isEmpty()) {
-            json(ctx, 400, "model name is required");
+            badRequest(ctx, "model name is required");
             return;
         }
 
         VirtualModel virtualModel = new VirtualModel();
         virtualModel.setName(name);
         virtualModel.setMatch(match);
-        repo.insert(virtualModel);
-
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
+        try {
+            repo.insert(virtualModel);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("virtual model create failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     public void update(RoutingContext ctx) {
@@ -81,18 +74,21 @@ public class VirtualModelController extends BaseController {
         var body = ctx.getBody().toJsonObject();
         String match = body.getString("match");
         if (match == null) {
-            json(ctx, 400, "match is required");
+            badRequest(ctx, "match is required");
             return;
         }
         repo.updateMatch(id, match);
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
+        ok(ctx);
     }
 
     public void delete(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        repo.delete(id);
-        ok(ctx);
+        try {
+            repo.delete(id);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("virtual model delete failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 }

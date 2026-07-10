@@ -86,8 +86,9 @@ class MatchRuleParserTest {
 
     @Test
     void allMatch_malformedJson() {
-        // malformed JSON falls back to AllMatch (doesn't crash)
-        assertInstanceOf(MatchRule.AllMatch.class, MatchRuleParser.parse("{bad"));
+        // malformed JSON should throw, not silently fall back
+        assertThrows(IllegalArgumentException.class,
+            () -> MatchRuleParser.parse("{bad"));
     }
 
     @Test

@@ -38,6 +38,7 @@ public class SchemaManager {
             log.info("PostgreSQL schema migration completed");
         } catch (SQLException e) {
             log.error("Schema migration failed", e);
+            throw new RuntimeException("Schema migration failed", e);
         }
     }
 
@@ -49,12 +50,14 @@ public class SchemaManager {
 
     private void ensurePostgresSerial(Statement stmt, String table, String column) throws SQLException {
         // Check if column already has a default (serial/identity)
-        String sql = "SELECT column_default FROM information_schema.columns " +
+        String sql = "SELECT column_default, is_identity FROM information_schema.columns " +
                      "WHERE table_name = '" + table + "' AND column_name = '" + column + "'";
         try (ResultSet rs = stmt.executeQuery(sql)) {
             if (rs.next()) {
                 String def = rs.getString("column_default");
-                if (def != null && (def.contains("nextval") || def.contains("serial"))) {
+                String isIdentity = rs.getString("is_identity");
+                if ("YES".equalsIgnoreCase(isIdentity)
+                    || (def != null && (def.contains("nextval") || def.contains("serial")))) {
                     return;
                 }
             }

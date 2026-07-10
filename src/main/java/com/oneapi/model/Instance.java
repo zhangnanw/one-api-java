@@ -9,6 +9,13 @@ import lombok.Setter;
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Instance {
+    public static final int STATUS_RAW = 1;
+    public static final int STATUS_TAGGED = 2;
+    public static final int STATUS_DISABLED = 3;
+    public static final int STATUS_DEPRECATED = 4;
+    public static final int STATUS_FAILED = 5;     // 上游持续失败，已标记为不可用
+    public static final int STATUS_UNKNOWN = 0;    // 尚未探测或状态未知
+
     private int id;
     @JsonProperty("model_name")
     private String modelName;

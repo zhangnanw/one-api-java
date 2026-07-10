@@ -6,8 +6,11 @@ import com.oneapi.service.VendorRefreshService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VendorController extends BaseController {
+    private static final Logger log = LoggerFactory.getLogger(VendorController.class);
     private final VendorRepo repo = new VendorRepo();
 
     public void getAll(RoutingContext ctx) {
@@ -23,13 +26,7 @@ public class VendorController extends BaseController {
             arr.add(obj);
         }
 
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject()
-                .put("success", true)
-                .put("message", "")
-                .put("data", arr)
-                .toString());
+        ok(ctx, arr);
     }
 
     public void getOne(RoutingContext ctx) {
@@ -39,13 +36,7 @@ public class VendorController extends BaseController {
             notFound(ctx, "vendor");
             return;
         }
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject()
-                .put("success", true)
-                .put("message", "")
-                .put("data", toJson(vendor))
-                .toString());
+        ok(ctx, toJson(vendor));
     }
 
     public void create(RoutingContext ctx) {
@@ -66,10 +57,13 @@ public class VendorController extends BaseController {
         }
         // Default status
         if (vendor.getStatus() == 0) vendor.setStatus(1);
-        repo.insert(vendor);
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
+        try {
+            repo.insert(vendor);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("vendor create failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     public void update(RoutingContext ctx) {
@@ -86,21 +80,27 @@ public class VendorController extends BaseController {
             return;
         }
         vendor.setId(id);
-        repo.update(id, vendor);
-        if (vendor.getApiKey() != null && !vendor.getApiKey().isEmpty()) {
-            repo.updateApiKey(id, vendor.getApiKey());
+        try {
+            repo.update(id, vendor);
+            if (vendor.getApiKey() != null && !vendor.getApiKey().isEmpty()) {
+                repo.updateApiKey(id, vendor.getApiKey());
+            }
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("vendor update failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
         }
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
     }
 
     public void delete(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        repo.delete(id);
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject().put("success", true).put("message", "").toString());
+        try {
+            repo.delete(id);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("vendor delete failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     public void refreshModels(RoutingContext ctx) {

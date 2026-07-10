@@ -97,10 +97,9 @@ public class VendorRefreshService {
             }
 
             // Load existing instances mapped by identity
-            var allInstances = instanceRepo.findAllWithVendor();
+            var vendorInstances = instanceRepo.findByVendorId(vendor.getId());
             Map<String, Instance> existingMap = new HashMap<>();
-            for (Instance inst : allInstances) {
-                if (inst.getVendorId() != vendor.getId()) continue;
+            for (Instance inst : vendorInstances) {
                 String identity = inst.getUpstreamModel();
                 if (identity == null || identity.isEmpty()) identity = inst.getModelName();
                 existingMap.put(identity, inst);
@@ -112,9 +111,9 @@ public class VendorRefreshService {
                 if (existingMap.containsKey(id)) {
                     Instance inst = existingMap.get(id);
                     // Undeprecate if needed
-                    if (inst.getStatus() == InstanceRepo.STATUS_DEPRECATED) {
+                    if (inst.getStatus() == Instance.STATUS_DEPRECATED) {
                         // §J2-D1: restore to PrevStatus, not forced TAGGED
-                        inst.setStatus(InstanceRepo.STATUS_RAW);
+                        inst.setStatus(Instance.STATUS_RAW);
                         inst.setMeta(mergeVendorTags(inst.getMeta(), vendor.getMeta()));
                         instanceRepo.update(inst);
                     }
@@ -125,7 +124,7 @@ public class VendorRefreshService {
                     newInst.setModelName(id);
                     newInst.setUpstreamModel(id);
                     newInst.setVendorId(vendor.getId());
-                    newInst.setStatus(InstanceRepo.STATUS_RAW);
+                    newInst.setStatus(Instance.STATUS_RAW);
                     newInst.setMeta(mergeVendorTags("{}", vendor.getMeta()));
                     instanceRepo.insert(newInst);
                     created++;
@@ -134,9 +133,9 @@ public class VendorRefreshService {
 
             // Remaining → deprecate
             for (Instance stale : existingMap.values()) {
-                if (stale.getStatus() == InstanceRepo.STATUS_RAW
-                    || stale.getStatus() == InstanceRepo.STATUS_TAGGED) {
-                    stale.setStatus(InstanceRepo.STATUS_DEPRECATED);
+                if (stale.getStatus() == Instance.STATUS_RAW
+                    || stale.getStatus() == Instance.STATUS_TAGGED) {
+                    stale.setStatus(Instance.STATUS_DEPRECATED);
                     instanceRepo.update(stale);
                     deprecated++;
                 }

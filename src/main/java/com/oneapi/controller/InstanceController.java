@@ -6,8 +6,11 @@ import com.oneapi.repo.VendorRepo;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class InstanceController extends BaseController {
+    private static final Logger log = LoggerFactory.getLogger(InstanceController.class);
     private final InstanceRepo repo = new InstanceRepo();
     private final VendorRepo vendorRepo = new VendorRepo();
 
@@ -63,8 +66,13 @@ public class InstanceController extends BaseController {
         inst.setMeta(body.getString("meta", "{}"));
         inst.setPref(body.getFloat("pref", 0.5f));
         inst.setLayer(body.getString("layer", "payg"));
-        repo.insert(inst);
-        ok(ctx);
+        try {
+            repo.insert(inst);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("instance create failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     public void update(RoutingContext ctx) {
@@ -98,8 +106,13 @@ public class InstanceController extends BaseController {
         if (body.containsKey("meta")) existing.setMeta(body.getString("meta"));
         if (body.containsKey("pref")) existing.setPref(body.getFloat("pref"));
         if (body.containsKey("layer")) existing.setLayer(body.getString("layer"));
-        repo.update(existing);
-        ok(ctx);
+        try {
+            repo.update(existing);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("instance update failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     public void toggle(RoutingContext ctx) {
@@ -110,8 +123,13 @@ public class InstanceController extends BaseController {
 
     public void delete(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
-        repo.delete(id);
-        ok(ctx);
+        try {
+            repo.delete(id);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("instance delete failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     private JsonObject toJson(Instance instance) {

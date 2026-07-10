@@ -1,7 +1,7 @@
 package com.oneapi.filter;
 
+import com.oneapi.model.Instance;
 import com.oneapi.model.RelayContext;
-import com.oneapi.repo.InstanceRepo;
 import com.oneapi.service.RouterService.RoutedVendor;
 import org.junit.jupiter.api.Test;
 
@@ -15,28 +15,28 @@ class ActiveStatusFilterTest {
 
     @Test
     void rawStatus_kept() {
-        RelayContext ctx = ctx(rv(1, InstanceRepo.STATUS_RAW));
+        RelayContext ctx = ctx(rv(1, Instance.STATUS_RAW));
         filter.apply(ctx);
         assertThat(ctx.candidates()).hasSize(1);
     }
 
     @Test
     void taggedStatus_kept() {
-        RelayContext ctx = ctx(rv(1, InstanceRepo.STATUS_TAGGED));
+        RelayContext ctx = ctx(rv(1, Instance.STATUS_TAGGED));
         filter.apply(ctx);
         assertThat(ctx.candidates()).hasSize(1);
     }
 
     @Test
     void disabledStatus_excluded() {
-        RelayContext ctx = ctx(rv(1, InstanceRepo.STATUS_DISABLED));
+        RelayContext ctx = ctx(rv(1, Instance.STATUS_DISABLED));
         filter.apply(ctx);
         assertThat(ctx.candidates()).isEmpty();
     }
 
     @Test
     void deprecatedStatus_excluded() {
-        RelayContext ctx = ctx(rv(1, InstanceRepo.STATUS_DEPRECATED));
+        RelayContext ctx = ctx(rv(1, Instance.STATUS_DEPRECATED));
         filter.apply(ctx);
         assertThat(ctx.candidates()).isEmpty();
     }
@@ -44,10 +44,10 @@ class ActiveStatusFilterTest {
     @Test
     void mixed_onlyActiveKept() {
         RelayContext ctx = ctx(
-            rv(1, InstanceRepo.STATUS_RAW),
-            rv(2, InstanceRepo.STATUS_DISABLED),
-            rv(3, InstanceRepo.STATUS_TAGGED),
-            rv(4, InstanceRepo.STATUS_DEPRECATED)
+            rv(1, Instance.STATUS_RAW),
+            rv(2, Instance.STATUS_DISABLED),
+            rv(3, Instance.STATUS_TAGGED),
+            rv(4, Instance.STATUS_DEPRECATED)
         );
         filter.apply(ctx);
         assertThat(ctx.candidates()).hasSize(2);

@@ -8,6 +8,7 @@ import com.oneapi.model.*;
 import com.oneapi.relay.DefaultRelay;
 import com.oneapi.service.CooldownService;
 import com.oneapi.service.HolographicLogger;
+import com.oneapi.service.RelayLogger;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.RouterService.RoutedVendor;
 import com.oneapi.service.SessionTracker;
@@ -46,7 +47,6 @@ public class RelayCoordinator {
     private final Comparator<RoutedVendor> sorter;
     private final DefaultRelay baseRelay;
     private final AppConfig config;
-    private final RelayRecorder recorder;
 
     public RelayCoordinator(RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
@@ -63,7 +63,6 @@ public class RelayCoordinator {
         this.stage3Filters = stage3Filters;
         this.baseRelay = baseRelay;
         this.config = config;
-        this.recorder = new RelayRecorder();
         this.sorter = buildSorter(config);
     }
 
@@ -221,22 +220,14 @@ public class RelayCoordinator {
         Candidate candidate = routedVendor.toCandidate();
         String vendorName = routedVendor.vendor() != null ? routedVendor.vendor().getName() : "?";
 
-        // Reasoning 模式
+        // Reasoning 模式 + Kimi UA（供应商专用头）
         var rc = ctx.get("relayContext");
-        if (rc instanceof RelayContext relayCtx && relayCtx.reasoning()) {
-            candidate.extraHeaders().add("X-Reasoning-Effort", "max");
-        }
-
-        // Kimi API 需要 CLI UA
-        if (routedVendor.vendor() != null && routedVendor.vendor().getBaseUrl() != null
-                && routedVendor.vendor().getBaseUrl().contains("kimi.com")) {
-            candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
-        }
+        injectVendorSpecificHeaders(candidate, routedVendor.vendor(), rc instanceof RelayContext relayCtx ? relayCtx : null);
 
         log.info("V2 trying: instance={} vendor={} model={} upstream={}",
             routedVendor.instanceId(), vendorName, routedVendor.modelName(), routedVendor.upstreamModel());
 
-        long logId = recorder.start(req, candidate);
+        long logId = startLog(req, candidate);
         long startMs = System.currentTimeMillis();
 
         byte[] finalBody = ParamClamp.clamp(
@@ -246,7 +237,7 @@ public class RelayCoordinator {
 
         baseRelay.execute(candidate, finalReq)
             .onSuccess(result -> {
-                recorder.complete(logId, result, startMs);
+                completeLog(logId, result, startMs);
                 Object sidObj = ctx.get("sessionId");
                 if (sidObj instanceof String sid && !sid.isEmpty()) {
                     sessions.recordInstance(sid, routedVendor.instanceId());
@@ -290,7 +281,7 @@ public class RelayCoordinator {
                             routedVendor.instanceId(), routedVendor.instanceTags());
                     }
                 }
-                recorder.fail(logId, status, errMsg, latency);
+                failLog(logId, status, errMsg, latency);
                 var rec = ctx.<HolographicRecord>get("holographicRecord");
                 if (rec != null) {
                     String upstreamUrl = routedVendor.vendor() != null
@@ -372,18 +363,10 @@ public class RelayCoordinator {
 
         Candidate candidate = first.toCandidate();
 
-        // Kimi API 需要 CLI UA
-        if (first.vendor().getBaseUrl() != null
-                && first.vendor().getBaseUrl().contains("kimi.com")) {
-            candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
-        }
+        // 供应商专用头（Reasoning + Kimi UA）
+        injectVendorSpecificHeaders(candidate, first.vendor(), relayCtx);
 
-        // Reasoning 头部
-        if (relayCtx.reasoning()) {
-            candidate.extraHeaders().add("X-Reasoning-Effort", "max");
-        }
-
-        long logId = recorder.start(req, candidate);
+        long logId = startLog(req, candidate);
         long startMs = System.currentTimeMillis();
         byte[] finalBody = ParamClamp.clamp(
             substituteModel(req.rawBody(), first.upstreamModel(), req.requestedModel()),
@@ -417,7 +400,7 @@ public class RelayCoordinator {
                     if (sidObj instanceof String sid && !sid.isEmpty()) {
                         sessions.recordInstance(sid, first.instanceId());
                     }
-                    recorder.completeStream(logId, statusCode, tokens, latency);
+                    RelayLogger.updateStreamResult(logId, statusCode, tokens, latency);
                     
                     if (rec != null) {
                         String upstreamUrl = first.vendor().getBaseUrl() + "/v1/chat/completions";
@@ -436,7 +419,7 @@ public class RelayCoordinator {
                     // 流式不会出现 "200 + 空 choices" 的情况（SSE chunk 总能收到），
                     // 因此这里无 200 分支需要降级为 instance 级冷却。
                     cooldown.setVendorCooldown(first.vendor().getId());
-                    recorder.fail(logId, statusCode, "", latency);
+                    RelayLogger.updateStreamResult(logId, statusCode, 0, latency, "");
                     
                     if (rec != null) {
                         String upstreamUrl = first.vendor().getBaseUrl() + "/v1/chat/completions";
@@ -484,12 +467,48 @@ public class RelayCoordinator {
 
     /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
 
+    /** 注入供应商专用头（X-Reasoning-Effort + Kimi CLI User-Agent）。 */
+    private static void injectVendorSpecificHeaders(Candidate candidate, Vendor vendor, RelayContext relayCtx) {
+        if (relayCtx != null && relayCtx.reasoning()) {
+            candidate.extraHeaders().add("X-Reasoning-Effort", "max");
+        }
+        if (vendor != null && vendor.getBaseUrl() != null
+                && vendor.getBaseUrl().contains("kimi.com")) {
+            candidate.extraHeaders().add("User-Agent", "KimiCLI/1.6");
+        }
+    }
+
+    /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
+    private static long startLog(RelayRequest req, Candidate candidate) {
+        RelayLog relayLog = new RelayLog();
+        relayLog.setTimestamp(System.currentTimeMillis() / 1000);
+        relayLog.setModelOrig(req.requestedModel());
+        relayLog.setUpstreamModel(candidate.upstreamModel());
+        relayLog.setBaseUrl(candidate.vendor() != null ? candidate.vendor().getBaseUrl() : "");
+        if (candidate.instance() != null) {
+            relayLog.setInstanceId(candidate.instance().getId());
+        }
+        relayLog.setStream(req.streaming());
+        relayLog.setBodySize(req.rawBody() != null ? req.rawBody().length : 0);
+        return RelayLogger.insert(relayLog);
+    }
+
+    private static void completeLog(long logId, RelayResult result, long startMs) {
+        int tokens = result.promptTokens() + result.completionTokens();
+        long latency = System.currentTimeMillis() - startMs;
+        RelayLogger.updateStreamResult(logId, result.httpStatus(), tokens, latency);
+    }
+
+    private static void failLog(long logId, int code, String err, long latencyMs) {
+        RelayLogger.updateStreamResult(logId, code, 0, latencyMs, err);
+    }
+
     private static byte[] substituteModel(byte[] rawBody, String upstreamModel, String srcModel) {
         if (upstreamModel == null || upstreamModel.equals(srcModel)) return rawBody;
         try {
-            JsonObject json = new JsonObject(new String(rawBody, StandardCharsets.UTF_8));
-            json.put("model", upstreamModel);
-            return json.encode().getBytes(StandardCharsets.UTF_8);
+            String body = new String(rawBody, StandardCharsets.UTF_8);
+            return body.replaceFirst("\"model\"\\s*:\\s*\"[^\"]*\"",
+                "\"model\":\"" + upstreamModel + "\"").getBytes(StandardCharsets.UTF_8);
         } catch (Exception ex) {
             return rawBody;
         }

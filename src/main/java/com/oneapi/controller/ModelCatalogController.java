@@ -4,6 +4,8 @@ import com.oneapi.model.ModelCatalogEntry;
 import com.oneapi.repo.ModelCatalogRepo;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * REST controller for model_catalog entries.
@@ -12,6 +14,7 @@ import io.vertx.ext.web.RoutingContext;
  * {@code { "success": boolean, "message": string, "data": object (optional) }}
  */
 public class ModelCatalogController extends BaseController {
+    private static final Logger log = LoggerFactory.getLogger(ModelCatalogController.class);
     private final ModelCatalogRepo repo;
 
     public ModelCatalogController() {
@@ -29,13 +32,7 @@ public class ModelCatalogController extends BaseController {
         for (ModelCatalogEntry e : list) {
             arr.add(toJson(e));
         }
-        ctx.response()
-            .putHeader("Content-Type", "application/json")
-            .end(new JsonObject()
-                .put("success", true)
-                .put("message", "")
-                .put("data", arr)
-                .toString());
+        ok(ctx, arr);
     }
 
     /** GET /api/model-catalog/:name — get one entry. */
@@ -77,8 +74,13 @@ public class ModelCatalogController extends BaseController {
         entry.setInputPrice(body.getDouble("input_price"));
         entry.setOutputPrice(body.getDouble("output_price"));
         entry.setReferenceNotes(body.getString("reference_notes"));
-        repo.insert(entry);
-        ok(ctx);
+        try {
+            repo.insert(entry);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("model_catalog create failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     /** PUT /api/model-catalog/:name — update an existing entry. */
@@ -105,8 +107,13 @@ public class ModelCatalogController extends BaseController {
         entry.setInputPrice(body.getDouble("input_price"));
         entry.setOutputPrice(body.getDouble("output_price"));
         entry.setReferenceNotes(body.getString("reference_notes"));
-        repo.update(name, entry);
-        ok(ctx);
+        try {
+            repo.update(name, entry);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("model_catalog update failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     /** DELETE /api/model-catalog/:name — delete an entry. */
@@ -116,8 +123,13 @@ public class ModelCatalogController extends BaseController {
             notFound(ctx, "model_catalog");
             return;
         }
-        repo.delete(name);
-        ok(ctx);
+        try {
+            repo.delete(name);
+            ok(ctx);
+        } catch (RuntimeException e) {
+            log.error("model_catalog delete failed: {}", e.getMessage());
+            ctx.response().setStatusCode(500).end(new JsonObject().put("success", false).put("message", "Database error").toString());
+        }
     }
 
     private JsonObject toJson(ModelCatalogEntry e) {

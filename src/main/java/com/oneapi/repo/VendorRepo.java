@@ -55,7 +55,7 @@ public class VendorRepo extends BaseRepo {
         String sql = "SELECT v.id, v.name, v.description, v.status, " +
                      "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.meta, " +
                      "COUNT(i.id) AS instance_count " +
-                     "FROM vendors v LEFT JOIN instances i ON v.id = i.vendor_id AND i.status = 1 " +
+                     "FROM vendors v LEFT JOIN instances i ON v.id = i.vendor_id AND i.status NOT IN (0, 3, 4, 5) " +
                      "GROUP BY v.id, v.name, v.description, v.status, " +
                      "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.meta " +
                      "ORDER BY v.id LIMIT ? OFFSET ?";
@@ -138,6 +138,7 @@ public class VendorRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("insert vendor: {}", e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -158,6 +159,7 @@ public class VendorRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("update vendor {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -170,6 +172,7 @@ public class VendorRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("updateApiKey vendor {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -181,6 +184,7 @@ public class VendorRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("delete vendor {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 

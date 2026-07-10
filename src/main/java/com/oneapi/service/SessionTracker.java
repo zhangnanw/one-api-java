@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.OptionalLong;
 
@@ -36,6 +37,9 @@ public class SessionTracker {
     private final Cache<String, SessionTrack> store = Caffeine.newBuilder()
         .maximumSize(500)
         .build();
+
+    // sessionId → hash index for O(1) lookup (replaces full scan)
+    private final ConcurrentHashMap<String, String> sessionIdIndex = new ConcurrentHashMap<>();
 
     public record SessionTrack(String sessionId, String hash, int updateCount,
                                 Long lastInstanceId, long lastUsedAt) {
@@ -113,6 +117,7 @@ public class SessionTracker {
         if (matched == null) {
             String sessionId = UUID.randomUUID().toString();
             store.put(finalHash, new SessionTrack(sessionId, finalHash, 0));
+            sessionIdIndex.put(sessionId, finalHash);
             return sessionId;
         }
         // 复用已有会话：重扫描找当前 hash（incrementalHash 不在锁内，可能被 captureSummary 改过）
@@ -123,6 +128,7 @@ public class SessionTracker {
             store.put(finalHash, new SessionTrack(matched.sessionId, finalHash,
                 existing.updateCount() + 1,
                 existing.lastInstanceId(), existing.lastUsedAt()));
+            sessionIdIndex.put(matched.sessionId, finalHash);
             return matched.sessionId;
         }
         // 会话在 incrementalHash → lookupOrCreate 之间被驱逐了，仍返回原 sessionId
@@ -130,14 +136,17 @@ public class SessionTracker {
     }
 
     /**
-     * Scan store by sessionId. O(n), n≤500 (bounded by Caffeine maximumSize) —
-     * per-scan cost negligible vs LLM inference (~2000ms). Returns null if not found.
+     * O(1) lookup via sessionIdIndex. Returns null if not found.
      */
     private Map.Entry<String, SessionTrack> findBySessionId(String sessionId) {
-        for (var entry : store.asMap().entrySet()) {
-            if (entry.getValue().sessionId().equals(sessionId)) return entry;
+        String hash = sessionIdIndex.get(sessionId);
+        if (hash == null) return null;
+        SessionTrack track = store.getIfPresent(hash);
+        if (track == null) {
+            sessionIdIndex.remove(sessionId);
+            return null;
         }
-        return null;
+        return new AbstractMap.SimpleEntry<>(hash, track);
     }
 
     /** 内部记录：哈希过程中的（命中状态 + digest 指针）。 */
@@ -158,6 +167,7 @@ public class SessionTracker {
             store.put(newHash, new SessionTrack(sessionId, newHash,
                 existing.updateCount() + 1,
                 existing.lastInstanceId(), existing.lastUsedAt()));
+            sessionIdIndex.put(sessionId, newHash);
         }
     }
 

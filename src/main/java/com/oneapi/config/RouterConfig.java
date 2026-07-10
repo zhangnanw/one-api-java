@@ -92,41 +92,41 @@ public class RouterConfig {
         router.get("/api/status").handler(misc::status);
 
         var vendorCtrl = new VendorController();
-        router.get("/api/vendors").handler(vendorCtrl::getAll);
-        router.get("/api/vendors/:id").handler(vendorCtrl::getOne);
-        router.post("/api/vendors").handler(BodyHandler.create()).handler(vendorCtrl::create);
-        router.put("/api/vendors/:id").handler(BodyHandler.create()).handler(vendorCtrl::update);
-        router.delete("/api/vendors/:id").handler(vendorCtrl::delete);
-        router.post("/api/vendors/refresh-models").handler(vendorCtrl::refreshModels);
+        router.get("/api/vendors").blockingHandler(vendorCtrl::getAll, false);
+        router.get("/api/vendors/:id").blockingHandler(vendorCtrl::getOne, false);
+        router.post("/api/vendors").handler(BodyHandler.create()).blockingHandler(vendorCtrl::create, false);
+        router.put("/api/vendors/:id").handler(BodyHandler.create()).blockingHandler(vendorCtrl::update, false);
+        router.delete("/api/vendors/:id").blockingHandler(vendorCtrl::delete, false);
+        router.post("/api/vendors/refresh-models").blockingHandler(vendorCtrl::refreshModels, false);
 
         var instanceCtrl = new InstanceController();
-        router.get("/api/instances").handler(instanceCtrl::getAll);
-        router.get("/api/instances/:id").handler(instanceCtrl::getOne);
-        router.post("/api/instances").handler(BodyHandler.create()).handler(instanceCtrl::create);
-        router.put("/api/instances/:id").handler(BodyHandler.create()).handler(instanceCtrl::update);
-        router.delete("/api/instances/:id").handler(instanceCtrl::delete);
-        router.put("/api/instances/:id/toggle").handler(instanceCtrl::toggle);
+        router.get("/api/instances").blockingHandler(instanceCtrl::getAll, false);
+        router.get("/api/instances/:id").blockingHandler(instanceCtrl::getOne, false);
+        router.post("/api/instances").handler(BodyHandler.create()).blockingHandler(instanceCtrl::create, false);
+        router.put("/api/instances/:id").handler(BodyHandler.create()).blockingHandler(instanceCtrl::update, false);
+        router.delete("/api/instances/:id").blockingHandler(instanceCtrl::delete, false);
+        router.put("/api/instances/:id/toggle").blockingHandler(instanceCtrl::toggle, false);
 
         var vmCtrl = new VirtualModelController();
-        router.get("/api/virtual-models").handler(vmCtrl::getAll);
-        router.get("/api/virtual-models/:id").handler(vmCtrl::getOne);
-        router.post("/api/virtual-models").handler(BodyHandler.create()).handler(vmCtrl::create);
-        router.put("/api/virtual-models/:id").handler(BodyHandler.create()).handler(vmCtrl::update);
-        router.delete("/api/virtual-models/:id").handler(vmCtrl::delete);
+        router.get("/api/virtual-models").blockingHandler(vmCtrl::getAll, false);
+        router.get("/api/virtual-models/:id").blockingHandler(vmCtrl::getOne, false);
+        router.post("/api/virtual-models").handler(BodyHandler.create()).blockingHandler(vmCtrl::create, false);
+        router.put("/api/virtual-models/:id").handler(BodyHandler.create()).blockingHandler(vmCtrl::update, false);
+        router.delete("/api/virtual-models/:id").blockingHandler(vmCtrl::delete, false);
 
         // DataSource fallback: test-route uses injected ds, prod uses DatabaseConfig
         var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
         var mcCtrl = new ModelCatalogController(new ModelCatalogRepo(ds));
-        router.get("/api/model-catalog").handler(mcCtrl::getAll);
-        router.get("/api/model-catalog/:name").handler(mcCtrl::getOne);
-        router.post("/api/model-catalog").handler(BodyHandler.create()).handler(mcCtrl::create);
-        router.put("/api/model-catalog/:name").handler(BodyHandler.create()).handler(mcCtrl::update);
-        router.delete("/api/model-catalog/:name").handler(mcCtrl::delete);
+        router.get("/api/model-catalog").blockingHandler(mcCtrl::getAll, false);
+        router.get("/api/model-catalog/:name").blockingHandler(mcCtrl::getOne, false);
+        router.post("/api/model-catalog").handler(BodyHandler.create()).blockingHandler(mcCtrl::create, false);
+        router.put("/api/model-catalog/:name").handler(BodyHandler.create()).blockingHandler(mcCtrl::update, false);
+        router.delete("/api/model-catalog/:name").blockingHandler(mcCtrl::delete, false);
     }
 
     private void registerRelayRoutes(CooldownService cooldown) {
         // /v1/models — OpenAI 兼容模型列表
-        router.get("/v1/models").handler(ctx -> {
+        router.get("/v1/models").blockingHandler(ctx -> {
             var repo = new VirtualModelRepo();
             var data = new io.vertx.core.json.JsonArray();
             for (var virtualModel : repo.findAll()) {

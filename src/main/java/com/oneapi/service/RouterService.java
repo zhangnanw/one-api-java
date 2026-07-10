@@ -84,10 +84,10 @@ public class RouterService {
         List<RoutedVendor> candidates = all.stream()
             .filter(i -> i.getVendor() != null)
             .filter(i -> i.getModelName() != null && i.getModelName().equals(modelName))
-            .filter(i -> i.getStatus() != InstanceRepo.STATUS_DISABLED
-                      && i.getStatus() != InstanceRepo.STATUS_DEPRECATED
-                      && i.getStatus() != InstanceRepo.STATUS_FAILED
-                      && i.getStatus() != InstanceRepo.STATUS_UNKNOWN)
+            .filter(i -> i.getStatus() != Instance.STATUS_DISABLED
+                      && i.getStatus() != Instance.STATUS_DEPRECATED
+                      && i.getStatus() != Instance.STATUS_FAILED
+                      && i.getStatus() != Instance.STATUS_UNKNOWN)
             .map(i -> new RoutedVendor(
                 i.getVendor(),
                 i.getModelName(),

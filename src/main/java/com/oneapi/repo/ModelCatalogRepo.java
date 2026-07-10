@@ -174,6 +174,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
             removeFromCache(name);
         } catch (SQLException e) {
             log.error("delete model_catalog {}: {}", name, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 

@@ -35,8 +35,7 @@ public class UpstreamClient {
         this.client = client;
         this.rawClient = vertx.createHttpClient(new HttpClientOptions()
             .setConnectTimeout(30000)
-            .setIdleTimeout(120)
-            .setKeepAlive(false));
+            .setIdleTimeout(120));
     }
 
     /** Buffered relay — returns full response body. Used for retry. */

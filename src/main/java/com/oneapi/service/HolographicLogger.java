@@ -24,7 +24,6 @@ public class HolographicLogger {
         if (ds == null || record == null) return;
         try {
             insert(record);
-            enforceRingBuffer();
         } catch (Exception e) {
             log.warn("HolographicLogger write failed: {}", e.getMessage());
         }

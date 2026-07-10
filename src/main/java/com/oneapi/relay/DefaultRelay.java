@@ -46,10 +46,25 @@ public class DefaultRelay implements RelayExecutor {
                 String body = resp.bodyAsString();
                 int status = resp.statusCode();
                 if (status >= 200 && status < 300) {
-                    // 空响应检测：上游返回 200 但 choices 无效 → 视为失败，重试下一个实例
-                    if (body == null || !hasChoices(body)) {
+                    if (body == null) {
+                        log.warn("upstream returned {} with null body", status);
+                        return Future.failedFuture(
+                            new RelayException(new RelayError.UpstreamFailure(status, null)));
+                    }
+                    // Parse body once as JsonObject
+                    JsonObject json;
+                    try {
+                        json = new JsonObject(body);
+                    } catch (Exception e) {
+                        log.warn("upstream returned {} with invalid JSON: {}",
+                            status, body.substring(0, Math.min(200, body.length())));
+                        return Future.failedFuture(
+                            new RelayException(new RelayError.UpstreamFailure(status, body)));
+                    }
+                    // Check choices validity from parsed object
+                    if (!hasChoices(json)) {
                         log.warn("upstream returned {} with null/empty choices: {}",
-                            status, body != null ? body.substring(0, Math.min(200, body.length())) : "null");
+                            status, body.substring(0, Math.min(200, body.length())));
                         return Future.failedFuture(
                             new RelayException(new RelayError.UpstreamFailure(status, body)));
                     }
@@ -57,8 +72,8 @@ public class DefaultRelay implements RelayExecutor {
                         status,
                         body,
                         candidate.upstreamModel(),
-                        parsePromptTokens(body),
-                        parseCompletionTokens(body)
+                        parsePromptTokens(json),
+                        parseCompletionTokens(json)
                     ));
                 }
                 log.warn("upstream returned {}: {}", status,
@@ -76,36 +91,20 @@ public class DefaultRelay implements RelayExecutor {
             });
     }
 
-    /** Quick check: does the body contain a non-null, non-empty "choices" array? */
-    private static boolean hasChoices(String body) {
-        if (body == null || body.isEmpty()) return false;
-        // Check for "choices":null or "choices":[]
-        int idx = body.indexOf("\"choices\"");
-        if (idx < 0) return false;
-        // Get the value after "choices":
-        int colon = body.indexOf(':', idx);
-        if (colon < 0) return false;
-        String afterColon = body.substring(colon + 1).trim();
-        return !afterColon.startsWith("null") && !afterColon.startsWith("[]");
+    /** Check: does the parsed JsonObject contain a non-null, non-empty "choices" array? */
+    private static boolean hasChoices(JsonObject json) {
+        if (json == null) return false;
+        var choices = json.getJsonArray("choices");
+        return choices != null && !choices.isEmpty();
     }
 
-    private static int parsePromptTokens(String body) {
-        try {
-            JsonObject json = new JsonObject(body);
-            JsonObject usage = json.getJsonObject("usage");
-            return usage != null ? usage.getInteger("prompt_tokens", 0) : 0;
-        } catch (Exception e) {
-            return 0;
-        }
+    private static int parsePromptTokens(JsonObject json) {
+        JsonObject usage = json.getJsonObject("usage");
+        return usage != null ? usage.getInteger("prompt_tokens", 0) : 0;
     }
 
-    private static int parseCompletionTokens(String body) {
-        try {
-            JsonObject json = new JsonObject(body);
-            JsonObject usage = json.getJsonObject("usage");
-            return usage != null ? usage.getInteger("completion_tokens", 0) : 0;
-        } catch (Exception e) {
-            return 0;
-        }
+    private static int parseCompletionTokens(JsonObject json) {
+        JsonObject usage = json.getJsonObject("usage");
+        return usage != null ? usage.getInteger("completion_tokens", 0) : 0;
     }
 }

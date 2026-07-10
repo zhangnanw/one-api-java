@@ -1,5 +1,7 @@
 package com.oneapi.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.coordinator.RelayCoordinator;
@@ -182,7 +184,6 @@ public class HolographicRecord {
                     m.put("upstream", c.upstreamModel());
                     m.put("tags", c.instanceTags());
                     m.put("status", c.instanceStatus());
-                    // 从 instanceMeta JSON 提取 layer 和 pref
                     parseMeta(c.instanceMeta(), m);
                     return m;
                 })
@@ -244,7 +245,6 @@ public class HolographicRecord {
             if (node.has("layer")) target.put("layer", node.get("layer").asText());
             if (node.has("pref")) target.put("pref", node.get("pref").asDouble());
         } catch (Exception ignored) {
-            // 解析失败静默跳过
         }
     }
 
@@ -277,94 +277,88 @@ public class HolographicRecord {
 
     public String toJson() {
         try {
-            Map<String, Object> root = new LinkedHashMap<>();
-
-            // request
-            Map<String, Object> req = new LinkedHashMap<>();
-            req.put("client_ip", clientIp);
-            req.put("requested_model", requestedModel);
-            req.put("stream", stream);
-            req.put("body_size", bodySize);
-            req.put("body_preview", bodyPreview);
-            req.put("messages_count", messagesCount);
-            req.put("max_tokens", maxTokens);
-            req.put("temperature", temperature);
-            req.put("auth_type", authType);
-            req.put("full_body", fullRequestBody);
-            root.put("request", req);
-
-            // routing
-            Map<String, Object> routing = new LinkedHashMap<>();
-            routing.put("virtual_model", virtualModel);
-            routing.put("match_rule_type", matchRuleType);
-            routing.put("match_rule_detail", matchRuleDetail);
-            routing.put("routing_model_names", routingModelNames);
-            routing.put("capability_required", capabilityRequired);
-            routing.put("filter_chain", filterChain);
-            root.put("routing", routing);
-
-            // candidates
-            Map<String, Object> cand = new LinkedHashMap<>();
-            cand.put("total", totalCandidates);
-            cand.put("before_filter", candidatesBefore);
-            cand.put("filter_results", filterResults);
-            cand.put("after_filter", candidatesAfter);
-            cand.put("sort_order", sortOrder);
-            root.put("candidates", cand);
-
-            // attempts
-            List<Map<String, Object>> attemptList = new ArrayList<>();
-            int n = 1;
-            for (var a : attempts) {
-                Map<String, Object> am = new LinkedHashMap<>();
-                am.put("n", n++);
-                am.put("vendor", a.vendorName);
-                am.put("instance_id", a.instanceId);
-                am.put("upstream_model", a.upstreamModel);
-                am.put("upstream_url", a.upstreamUrl);
-                am.put("http_status", a.httpStatus);
-                am.put("latency_ms", a.latencyMs);
-                am.put("ttfb_ms", a.ttfbMs);
-                am.put("error_type", a.errorType);
-                am.put("error_body", a.errorBody);
-                am.put("cooldown_triggered", a.cooldownTriggered);
-                Map<String, Integer> tokens = new LinkedHashMap<>();
-                tokens.put("prompt", a.promptTokens);
-                tokens.put("completion", a.completionTokens);
-                am.put("tokens", tokens);
-                attemptList.add(am);
-            }
-            root.put("attempts", attemptList);
-
-            // stream_metrics
-            if (stream) {
-                Map<String, Object> sm = new LinkedHashMap<>();
-                sm.put("chunk_count", chunkCount);
-                sm.put("stream_duration_ms", streamDurationMs);
-                sm.put("first_chunk_ms", firstChunkMs);
-                sm.put("last_chunk_ms", lastChunkMs);
-                root.put("stream_metrics", sm);
-            }
-
-            // result
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("final_status", finalStatus);
-            result.put("final_http_code", finalHttpCode);
-            result.put("total_latency_ms", totalLatencyMs);
-            result.put("total_tokens", totalTokens);
-            result.put("error_stage", errorStage);
-            result.put("error_detail", errorDetail);
-            result.put("retry_count", retryCount);
-            result.put("final_vendor", finalVendor);
-            result.put("final_instance_id", finalInstanceId);
-            result.put("response_body", responseBody);
-            root.put("result", result);
-
-            return MAPPER.writeValueAsString(root);
+            return MAPPER.writeValueAsString(this);
         } catch (JsonProcessingException e) {
             log.warn("HolographicRecord toJson failed: {}", e.getMessage());
             return "{}";
         }
+    }
+
+    // ── Jackson 序列化 getter（保持与原手动 LinkedHashMap 相同的嵌套结构） ──
+
+    @JsonProperty("request")
+    Map<String, Object> getRequest() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("client_ip", clientIp);
+        m.put("requested_model", requestedModel);
+        m.put("stream", stream);
+        m.put("body_size", bodySize);
+        m.put("body_preview", bodyPreview);
+        m.put("messages_count", messagesCount);
+        m.put("max_tokens", maxTokens);
+        m.put("temperature", temperature);
+        m.put("auth_type", authType);
+        m.put("full_body", fullRequestBody);
+        return m;
+    }
+
+    @JsonProperty("routing")
+    Map<String, Object> getRouting() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("virtual_model", virtualModel);
+        m.put("match_rule_type", matchRuleType);
+        m.put("match_rule_detail", matchRuleDetail);
+        m.put("routing_model_names", routingModelNames);
+        m.put("capability_required", capabilityRequired);
+        m.put("filter_chain", filterChain);
+        return m;
+    }
+
+    @JsonProperty("candidates")
+    Map<String, Object> getCandidates() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total", totalCandidates);
+        m.put("before_filter", candidatesBefore);
+        m.put("filter_results", filterResults);
+        m.put("after_filter", candidatesAfter);
+        m.put("sort_order", sortOrder);
+        return m;
+    }
+
+    @JsonProperty("attempts")
+    List<AttemptRecord> getAttempts() {
+        for (int i = 0; i < attempts.size(); i++) {
+            attempts.get(i).seqN = i + 1;
+        }
+        return attempts;
+    }
+
+    @JsonProperty("stream_metrics")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    Map<String, Object> getStreamMetrics() {
+        if (!stream) return null;
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("chunk_count", chunkCount);
+        m.put("stream_duration_ms", streamDurationMs);
+        m.put("first_chunk_ms", firstChunkMs);
+        m.put("last_chunk_ms", lastChunkMs);
+        return m;
+    }
+
+    @JsonProperty("result")
+    Map<String, Object> getResult() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("final_status", finalStatus);
+        m.put("final_http_code", finalHttpCode);
+        m.put("total_latency_ms", totalLatencyMs);
+        m.put("total_tokens", totalTokens);
+        m.put("error_stage", errorStage);
+        m.put("error_detail", errorDetail);
+        m.put("retry_count", retryCount);
+        m.put("final_vendor", finalVendor);
+        m.put("final_instance_id", finalInstanceId);
+        m.put("response_body", responseBody);
+        return m;
     }
 
     // ── Getters for DB ──
@@ -382,16 +376,17 @@ public class HolographicRecord {
     // ── 内部类：尝试记录 ──
 
     public static class AttemptRecord {
-        public final String vendorName;
-        public final int instanceId;
-        public final String upstreamModel;
-        public final String upstreamUrl;
-        public final int httpStatus;
-        public final long latencyMs;
-        public final long ttfbMs;
-        public final String errorType;
-        public final String errorBody;
-        public final boolean cooldownTriggered;
+        @JsonProperty("n") int seqN;
+        @JsonProperty("vendor") public final String vendorName;
+        @JsonProperty("instance_id") public final int instanceId;
+        @JsonProperty("upstream_model") public final String upstreamModel;
+        @JsonProperty("upstream_url") public final String upstreamUrl;
+        @JsonProperty("http_status") public final int httpStatus;
+        @JsonProperty("latency_ms") public final long latencyMs;
+        @JsonProperty("ttfb_ms") public final long ttfbMs;
+        @JsonProperty("error_type") public final String errorType;
+        @JsonProperty("error_body") public final String errorBody;
+        @JsonProperty("cooldown_triggered") public final boolean cooldownTriggered;
         public final int promptTokens;
         public final int completionTokens;
 
@@ -411,6 +406,14 @@ public class HolographicRecord {
             this.cooldownTriggered = cooldownTriggered;
             this.promptTokens = promptTokens;
             this.completionTokens = completionTokens;
+        }
+
+        @JsonProperty("tokens")
+        Map<String, Integer> getTokens() {
+            Map<String, Integer> m = new LinkedHashMap<>();
+            m.put("prompt", promptTokens);
+            m.put("completion", completionTokens);
+            return m;
         }
 
         public static AttemptRecord success(String vendorName, int instanceId,

@@ -69,7 +69,7 @@ public class TagFilter implements Filter {
             ctx.addFilterAction("TagFilter", candidates.size(), filtered.size(), removedIds, reason);
         }
 
-        log.debug("TagFilter: {} 鈫?{} candidates", candidates.size(), filtered.size());
+        log.debug("TagFilter: {} → {} candidates", candidates.size(), filtered.size());
         ctx.setCandidates(filtered);
         return ctx;
     }

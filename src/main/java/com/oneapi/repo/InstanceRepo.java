@@ -34,13 +34,6 @@ public class InstanceRepo extends BaseRepo {
         super(ds);
     }
 
-    public static final int STATUS_RAW = 1;
-    public static final int STATUS_TAGGED = 2;
-    public static final int STATUS_DISABLED = 3;
-    public static final int STATUS_DEPRECATED = 4;
-    public static final int STATUS_FAILED = 5;     // 上游持续失败，已标记为不可用
-    public static final int STATUS_UNKNOWN = 0;    // 尚未探测或状态未知
-
     /**
      * Load all instances with vendor preloaded (used by router).
      */
@@ -84,6 +77,26 @@ public class InstanceRepo extends BaseRepo {
         return list;
     }
 
+    public List<Instance> findByVendorId(int vendorId) {
+        List<Instance> list = new ArrayList<>();
+        String sql = "SELECT id, model_name, status, upstream_model, " +
+                     "vendor_id, created_time, meta, pref, layer " +
+                     "FROM instances WHERE vendor_id = ? ORDER BY id";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, vendorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(map(rs));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("findByVendorId {}: {}", vendorId, e.getMessage());
+        }
+        return list;
+    }
+
     public List<Instance> findAll() {
         List<Instance> list = new ArrayList<>();
         String sql = "SELECT id, model_name, status, upstream_model, " +
@@ -92,8 +105,8 @@ public class InstanceRepo extends BaseRepo {
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, STATUS_DISABLED);
-            ps.setInt(2, STATUS_DEPRECATED);
+            ps.setInt(1, Instance.STATUS_DISABLED);
+            ps.setInt(2, Instance.STATUS_DEPRECATED);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(map(rs));
@@ -136,6 +149,7 @@ public class InstanceRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("update instance {}: {}", inst.getId(), e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -151,6 +165,7 @@ public class InstanceRepo extends BaseRepo {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("toggle instance {}: {}", id, e.getMessage());
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -186,6 +201,7 @@ public class InstanceRepo extends BaseRepo {
             }
         } catch (SQLException e) {
             log.error("insert instance: {}", e.getMessage(), e);
+            throw new RuntimeException("DB write failed", e);
         }
     }
 
@@ -212,8 +228,8 @@ public class InstanceRepo extends BaseRepo {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, modelName);
-            ps.setInt(2, STATUS_RAW);
-            ps.setInt(3, STATUS_TAGGED);
+            ps.setInt(2, Instance.STATUS_RAW);
+            ps.setInt(3, Instance.STATUS_TAGGED);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }

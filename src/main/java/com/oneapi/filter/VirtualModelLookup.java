@@ -49,7 +49,7 @@ public class VirtualModelLookup implements Filter {
         }
 
         VirtualModel virtualModel = vmRepo.findByName(lookupName);
-        if (virtualModel == null || virtualModel == VirtualModel.NOT_FOUND) {
+        if (virtualModel == null) {
             log.info("VirtualModelLookup: {} not registered, reject", lookupName);
             ctx.markError(new RelayError.ModelNotFound(lookupName),
                 "model not registered: " + lookupName);

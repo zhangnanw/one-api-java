@@ -1,7 +1,7 @@
 package com.oneapi.filter;
 
+import com.oneapi.model.Instance;
 import com.oneapi.model.RelayContext;
-import com.oneapi.repo.InstanceRepo;
 import com.oneapi.service.RouterService.RoutedVendor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +22,11 @@ public class ActiveStatusFilter implements Filter {
         }
 
         List<RoutedVendor> filtered = candidates.stream()
-            .filter(routedVendor -> routedVendor.instanceStatus() == InstanceRepo.STATUS_RAW
-                       || routedVendor.instanceStatus() == InstanceRepo.STATUS_TAGGED)
+            .filter(routedVendor -> routedVendor.instanceStatus() == Instance.STATUS_RAW
+                       || routedVendor.instanceStatus() == Instance.STATUS_TAGGED)
             .toList();
 
-        log.debug("ActiveStatusFilter: {} 鈫?{} candidates",
+        log.debug("ActiveStatusFilter: {} → {} candidates",
             candidates.size(), filtered.size());
         ctx.setCandidates(filtered);
         return ctx;
