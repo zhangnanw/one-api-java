@@ -34,6 +34,8 @@ import com.oneapi.handler.UpstreamClient;
 import com.oneapi.relay.DefaultRelay;
 import com.oneapi.service.CooldownService;
 import com.oneapi.service.HolographicLogRecorder;
+import com.oneapi.service.HolographicRetentionService;
+import com.oneapi.service.Redactor;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.SessionTracker;
 import com.oneapi.service.VendorRefreshService;
@@ -51,6 +53,8 @@ public class RouterConfig implements Closeable {
     // Shared across builds so /api/status and relay routes see the same cooldown state.
     private CooldownService cooldown;
     private UpstreamClient upstreamClient;
+    private HolographicRetentionService retentionService;
+    private Redactor redactor;
 
     public RouterConfig(Vertx vertx, AppConfig config) {
         this(vertx, config, null);
@@ -75,6 +79,32 @@ public class RouterConfig implements Closeable {
 
         // DataSource init — single source for all repos
         var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
+
+        // Redactor 单例化，注入 HolographicRecord.Builder
+        if (redactor == null) {
+            AppConfig.HolographicConfig holoCfg = config != null ? config.getHolographic() : null;
+            AppConfig.HolographicConfig.RedactorConfig rdCfg = holoCfg != null ? holoCfg.getRedactor() : null;
+            boolean enabled = rdCfg == null || rdCfg.isEnabled();
+            if (rdCfg != null && enabled) {
+                redactor = new Redactor(
+                    rdCfg.isOpenaiKey(),
+                    rdCfg.isBearer(),
+                    rdCfg.isEmail(),
+                    rdCfg.isPhoneCn(),
+                    rdCfg.isCardLike()
+                );
+            } else {
+                redactor = new Redactor(false, false, false, false, false);
+            }
+        }
+
+        // 全息日志 retention service — 每天一次清理；retentionDays <= 0 跳过
+        if (retentionService == null) {
+            int retentionDays = (config != null && config.getHolographic() != null)
+                ? config.getHolographic().getRetentionDays() : 7;
+            retentionService = new HolographicRetentionService(ds, retentionDays);
+        }
+
         var instanceRepo = new InstanceRepo(ds);
         var vendorRepo = new VendorRepo(ds);
         var vmRepo = new VirtualModelRepo(ds);
@@ -94,6 +124,20 @@ public class RouterConfig implements Closeable {
             upstreamClient.close();
             upstreamClient = null;
         }
+        if (retentionService != null) {
+            retentionService.close();
+            retentionService = null;
+        }
+    }
+
+    /** 测试可见性 — 返回共享 redactor。 */
+    public Redactor sharedRedactor() {
+        return redactor;
+    }
+
+    /** 测试可见性 — 返回共享 retention service。 */
+    public HolographicRetentionService sharedRetentionService() {
+        return retentionService;
     }
 
     /** Serve static files from classpath:/static/ */
@@ -189,7 +233,7 @@ public class RouterConfig implements Closeable {
         var coordinator = new RelayCoordinator(
             routerSvc, cooldown, sessions, upstreamClient,
             filters.stage2, filters.stage3, baseRelay, config,
-            holographicRecorder);
+            holographicRecorder, redactor);
         return new RelayControllerV2(coordinator);
     }
 
@@ -198,7 +242,9 @@ public class RouterConfig implements Closeable {
                            InstanceRepo instanceRepo,
                            VirtualModelRepo vmRepo,
                            ModelCatalogRepo catalogRepo) {
-        var nameMatcher = new NameMatcher(instanceRepo);
+        boolean requireVirtualModel = config != null && config.getRelay() != null
+            ? config.getRelay().isRequireVirtualModel() : true;
+        var nameMatcher = new NameMatcher(instanceRepo, requireVirtualModel);
         var vmLookup = new VirtualModelLookup(vmRepo,
             config.getPolicies() != null && config.getPolicies().getReasoning() != null
                 ? config.getPolicies().getReasoning().getTriggerSuffix()

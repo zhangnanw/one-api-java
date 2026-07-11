@@ -51,6 +51,8 @@ public class CooldownService {
      * 原子检查并设置实例冷却。
      * 返回 true 表示已经在冷却中（调用方应跳过该实例），false 表示新设置了冷却（调用方应视为本次失败已处理）。
      * 使用 compute() 保证并发安全：多个线程同时失败时，只有第一个会设置冷却，后续的会看到 old.until > now 而返回 true。
+     *
+     * <p>关键语义：实例已在冷却时保持 n 不变（不会再 +1）——避免反复失败把冷却窗口无限延长。
      */
     public boolean checkAndSetInstanceCooldown(int instanceId, String tags) {
         if (hasNoCoolTag(tags)) return false;
@@ -100,6 +102,18 @@ public class CooldownService {
         return Math.max(0, entry.until - System.currentTimeMillis() / 1000);
     }
 
+    /**
+     * 无条件 +1 冷却 n：不管旧 n 是不是在冷却中，本调用都会让 n 自增并把 until 推到对应位置。
+     *
+     * <p>与 {@link #checkAndSetInstanceCooldown} 的差异：
+     * <ul>
+     *   <li>{@code checkAndSet} 在已冷却时不增加 n（避免窗口过长）；返回 {@code boolean} 供调用方判断</li>
+     *   <li>{@code set} 永远 +1（用于响应"200 但空响应体"或"明确错误信号"这类强制冷却场景）</li>
+     * </ul>
+     *
+     * <p>目前调用点：{@code RelayCoordinator.tryBuffered} 200-empty 路径与 relayStream fallback 路径；
+     * 是有意选择更严厉的语义。
+     */
     public void setInstanceCooldown(int instanceId, String tags) {
         if (hasNoCoolTag(tags)) return;
         applyCooldown(instanceCooldowns, instanceId);

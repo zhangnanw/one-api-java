@@ -73,4 +73,16 @@ class NameMatcherTest {
         assertThat(ctx.matchedPhysical()).isFalse();
         assertThat(ctx.hasError()).isFalse();
     }
+
+    @Test
+    void requireVirtualModel_disabled_skipsPhysicalCheck() {
+        // requireVirtualModel=false 时，物理模型名也透传，不报错；
+        // 注意：零 mock —— 即便 repo 报 NPE 也应被 switch 早 return 拦住
+        var r = new RelayContext(PHYSICAL_MODEL);
+        // 不 stub instanceRepo —— 早 return 应当不调用
+        new NameMatcher(instanceRepo, false).apply(r);
+
+        assertThat(r.matchedPhysical()).isFalse();
+        assertThat(r.hasError()).isFalse();
+    }
 }
