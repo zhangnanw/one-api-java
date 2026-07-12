@@ -53,7 +53,7 @@ public class HolographicRetentionService implements Closeable {
             }
             return deleted;
         } catch (SQLException | NullPointerException e) {
-            log.warn("holographic retention failed: {}", e.getMessage());
+            log.warn("holographic retention failed: {}", e.getMessage(), e);
             return -1;
         }
     }

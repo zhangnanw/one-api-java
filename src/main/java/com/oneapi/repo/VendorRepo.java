@@ -145,7 +145,7 @@ public class VendorRepo extends BaseRepo {
             ps.setString(9, vendor.getMeta());
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("insert vendor: {}", e.getMessage());
+            log.error("insert vendor: {}", e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -166,7 +166,7 @@ public class VendorRepo extends BaseRepo {
             ps.setInt(8, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("update vendor {}: {}", id, e.getMessage());
+            log.error("update vendor {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -179,7 +179,7 @@ public class VendorRepo extends BaseRepo {
             ps.setInt(2, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("updateApiKey vendor {}: {}", id, e.getMessage());
+            log.error("updateApiKey vendor {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -191,7 +191,7 @@ public class VendorRepo extends BaseRepo {
             ps.setInt(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("delete vendor {}: {}", id, e.getMessage());
+            log.error("delete vendor {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }

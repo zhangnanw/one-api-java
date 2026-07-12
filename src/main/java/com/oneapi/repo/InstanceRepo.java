@@ -147,7 +147,7 @@ public class InstanceRepo extends BaseRepo {
             ps.setInt(8, inst.getId());
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("update instance {}: {}", inst.getId(), e.getMessage());
+            log.error("update instance {}: {}", inst.getId(), e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -163,7 +163,7 @@ public class InstanceRepo extends BaseRepo {
             ps.setInt(2, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("toggle instance {}: {}", id, e.getMessage());
+            log.error("toggle instance {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -175,7 +175,7 @@ public class InstanceRepo extends BaseRepo {
             ps.setInt(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("delete instance {}: {}", id, e.getMessage());
+            log.error("delete instance {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -234,7 +234,7 @@ public class InstanceRepo extends BaseRepo {
                 return rs.next();
             }
         } catch (SQLException e) {
-            log.error("existsByModelName {}: {}", modelName, e.getMessage());
+            log.error("existsByModelName {}: {}", modelName, e.getMessage(), e);
             return false;
         }
     }

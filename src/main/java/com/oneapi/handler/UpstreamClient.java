@@ -179,7 +179,7 @@ public class UpstreamClient implements Closeable {
                     onComplete.accept(502, 0);
                 });
         } catch (Exception e) {
-            log.error("stream relay: bad URL {}: {}", url, e.getMessage());
+            log.error("stream relay: bad URL {}: {}", url, e.getMessage(), e);
             if (!sink.ended()) sink.setStatusCode(502)
                 .end("{\"error\":{\"message\":\"bad URL\"}}");
             onComplete.accept(502, 0);

@@ -118,7 +118,7 @@ public class VirtualModelRepo extends BaseRepo {
             ps.setInt(2, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("update virtual_model {}: {}", id, e.getMessage());
+            log.error("update virtual_model {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -130,7 +130,7 @@ public class VirtualModelRepo extends BaseRepo {
             ps.setInt(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.error("delete virtual_model {}: {}", id, e.getMessage());
+            log.error("delete virtual_model {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }

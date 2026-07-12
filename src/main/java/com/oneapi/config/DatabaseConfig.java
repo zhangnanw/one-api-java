@@ -73,7 +73,7 @@ public class DatabaseConfig {
                     dbConfig.getHost(), dbConfig.getPort(), dbConfig.getDatabase());
             }
         } catch (SQLException e) {
-            log.error("PostgreSQL connection failed: {}", e.getMessage());
+            log.error("PostgreSQL connection failed: {}", e.getMessage(), e);
             closeDataSource(dataSource);
             dataSource = null;
             throw new RuntimeException("PostgreSQL connection failed: " + e.getMessage(), e);

@@ -32,7 +32,7 @@ public class RelayLogger {
                 if (rs.next()) return rs.getLong(1);
             }
         } catch (SQLException e) {
-            log.debug("relay log insert failed: {}", e.getMessage());
+            log.debug("relay log insert failed: {}", e.getMessage(), e);
         }
         return -1;
     }
@@ -63,7 +63,7 @@ public class RelayLogger {
             ps.setLong(2, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.debug("relay log updateTokens failed: {}", e.getMessage());
+            log.debug("relay log updateTokens failed: {}", e.getMessage(), e);
         }
     }
 
@@ -85,7 +85,7 @@ public class RelayLogger {
             ps.setLong(5, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            log.debug("relay log updateStreamResult failed: {}", e.getMessage());
+            log.debug("relay log updateStreamResult failed: {}", e.getMessage(), e);
         }
     }
 }

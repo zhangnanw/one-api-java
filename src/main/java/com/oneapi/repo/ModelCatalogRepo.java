@@ -77,7 +77,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
             }
             catalog.put(name, Collections.unmodifiableList(caps));
         } catch (Exception e) {
-            log.warn("Failed to parse capabilities for model {}: {}", name, e.getMessage());
+            log.warn("Failed to parse capabilities for model {}: {}", name, e.getMessage(), e);
         }
     }
 
@@ -136,7 +136,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
                 contextWindows.put(entry.getName(), entry.getContextWindow());
             }
         } catch (SQLException e) {
-            log.error("insert model_catalog {}: {}", entry.getName(), e.getMessage());
+            log.error("insert model_catalog {}: {}", entry.getName(), e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -164,7 +164,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
                 contextWindows.remove(entry.getName());
             }
         } catch (SQLException e) {
-            log.error("update model_catalog {}: {}", name, e.getMessage());
+            log.error("update model_catalog {}: {}", name, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }
@@ -177,7 +177,7 @@ public class ModelCatalogRepo extends BaseRepo implements CapabilityCatalog, Win
             ps.executeUpdate();
             removeFromCache(name);
         } catch (SQLException e) {
-            log.error("delete model_catalog {}: {}", name, e.getMessage());
+            log.error("delete model_catalog {}: {}", name, e.getMessage(), e);
             throw new RuntimeException("DB write failed", e);
         }
     }

@@ -11,7 +11,6 @@ import java.sql.*;
  */
 @Slf4j
 public class HolographicLogger {
-    private static final int MAX_RECORDS = 50;
     private static DataSource ds;
 
     public static void init(DataSource dataSource) {
@@ -24,7 +23,7 @@ public class HolographicLogger {
         try {
             insert(record);
         } catch (Exception e) {
-            log.warn("HolographicLogger write failed: {}", e.getMessage());
+            log.warn("HolographicLogger write failed: {}", e.getMessage(), e);
         }
     }
 
@@ -51,23 +50,6 @@ public class HolographicLogger {
             ps.setInt(7, record.totalTokens());
             ps.setString(8, record.toJson());
             ps.executeUpdate();
-        }
-    }
-
-    private static void enforceRingBuffer() throws SQLException {
-        try (Connection conn = ds.getConnection();
-             Statement stmt = conn.createStatement()) {
-            var rs = stmt.executeQuery("SELECT COUNT(*) FROM holographic_logs");
-            if (rs.next()) {
-                int count = rs.getInt(1);
-                if (count > MAX_RECORDS) {
-                    int toDelete = count - MAX_RECORDS;
-                    stmt.executeUpdate(
-                        "DELETE FROM holographic_logs WHERE request_id IN " +
-                        "(SELECT request_id FROM holographic_logs ORDER BY timestamp_ms ASC LIMIT " + toDelete + ")"
-                    );
-                }
-            }
         }
     }
 

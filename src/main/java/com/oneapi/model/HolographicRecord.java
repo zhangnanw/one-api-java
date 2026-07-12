@@ -290,7 +290,7 @@ public class HolographicRecord {
         try {
             return MAPPER.writeValueAsString(this);
         } catch (JsonProcessingException e) {
-            log.warn("HolographicRecord toJson failed: {}", e.getMessage());
+            log.warn("HolographicRecord toJson failed: {}", e.getMessage(), e);
             return "{}";
         }
     }

@@ -258,7 +258,7 @@ public class SessionTracker {
                 result.add(new Message(role, content));
             }
         } catch (Exception e) {
-            log.debug("parseMessages: {}", e.getMessage());
+            log.debug("parseMessages: {}", e.getMessage(), e);
         }
         return result;
     }
