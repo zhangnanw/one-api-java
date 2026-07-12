@@ -45,7 +45,6 @@ public class RelayCoordinator {
     private final List<Filter> stage3Filters;
     private final Comparator<RoutedVendor> sorter;
     private final DefaultRelay baseRelay;
-    private final AppConfig config;
     private final HolographicLogRecorder holographicRecorder;
     private final Redactor redactor;
 
@@ -65,7 +64,6 @@ public class RelayCoordinator {
         this.stage2Filters = stage2Filters;
         this.stage3Filters = stage3Filters;
         this.baseRelay = baseRelay;
-        this.config = config;
         this.holographicRecorder = holographicRecorder;
         this.redactor = redactor;
         this.sorter = SorterFactory.build(config);
