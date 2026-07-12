@@ -24,6 +24,7 @@ class RelayCoordinatorIntegrationTest {
 
     private static HikariDataSource ds;
     private HttpServer server;
+    private RouterConfig routerConfig;
     private int port;
 
     @BeforeAll
@@ -89,7 +90,7 @@ class RelayCoordinatorIntegrationTest {
         config.setPolicies(new AppConfig.PolicyConfig());
         config.getPolicies().getReasoning().setTriggerSuffix("-max");
 
-        var routerConfig = new RouterConfig(vertx, config, ds);
+        routerConfig = new RouterConfig(vertx, config, ds);
         Router router = routerConfig.build();
 
         vertx.createHttpServer().requestHandler(router).listen(0)
@@ -102,6 +103,7 @@ class RelayCoordinatorIntegrationTest {
 
     @AfterEach
     void stopServer(VertxTestContext tc) {
+        if (routerConfig != null) routerConfig.close();
         if (server != null) {
             server.close().onComplete(tc.succeedingThenComplete());
         } else {

@@ -108,13 +108,13 @@ public class BaseController {
      * Returns the parsed JsonObject, or null (with an error response already sent).
      */
     protected JsonObject requireBody(RoutingContext ctx) {
-        ctx.body(); // force read body buffer
-        if (ctx.getBody() == null) {
+        var bodyBuffer = ctx.body().buffer();
+        if (bodyBuffer == null) {
             badRequest(ctx, "request body is required");
             return null;
         }
         try {
-            var body = ctx.getBody().toJsonObject();
+            var body = bodyBuffer.toJsonObject();
             if (body == null) {
                 badRequest(ctx, "invalid JSON body");
                 return null;
