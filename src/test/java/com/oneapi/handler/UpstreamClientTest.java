@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 
 import java.lang.reflect.Method;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UpstreamClientTest {
@@ -190,9 +191,46 @@ class UpstreamClientTest {
             "data: {\"usage\":{\"total_tokens\":42}}"));
     }
 
-    private int invokeParseTokensFromBody(String body) throws Exception {
-        Method m = UpstreamClient.class.getDeclaredMethod("parseTokensFromBody", String.class);
-        m.setAccessible(true);
-        return (int) m.invoke(null, body);
+    private int invokeParseTokensFromBody(String body) {
+        return UpstreamClient.parseTokensFromBody(body);
+    }
+
+    // ── split-line buffering simulation ──
+
+    @Test
+    @DisplayName("split across two chunks: partial mid-token in chunk1, remainder in chunk2")
+    void parseTokensFromBody_splitAcrossChunks() {
+        // Simulates the line-buffering logic in relayStream:
+        // chunk1 = partial SSE line (no newline), chunk2 = remainder + newline
+        StringBuilder lineBuffer = new StringBuilder();
+        int[] tokensHolder = {0};
+
+        // chunk 1: partial line
+        String chunk1 = "data: {\"usage\":{\"tot";
+        lineBuffer.append(chunk1);
+        int lastNewline = lineBuffer.lastIndexOf("\n");
+        if (lastNewline >= 0) {
+            String completeLines = lineBuffer.substring(0, lastNewline + 1);
+            lineBuffer.delete(0, lastNewline + 1);
+            int t = UpstreamClient.parseTokensFromBody(completeLines);
+            if (t > 0) tokensHolder[0] = t;
+        }
+        // no newline found → lineBuffer retains partial line
+        assertThat(lineBuffer.toString()).isEqualTo("data: {\"usage\":{\"tot");
+        assertThat(tokensHolder[0]).isZero();
+
+        // chunk 2: completes the line
+        String chunk2 = "al_tokens\":42}}\n";
+        lineBuffer.append(chunk2);
+        lastNewline = lineBuffer.lastIndexOf("\n");
+        if (lastNewline >= 0) {
+            String completeLines = lineBuffer.substring(0, lastNewline + 1);
+            lineBuffer.delete(0, lastNewline + 1);
+            int t = UpstreamClient.parseTokensFromBody(completeLines);
+            if (t > 0) tokensHolder[0] = t;
+        }
+        // complete line parsed → 42
+        assertThat(tokensHolder[0]).isEqualTo(42);
+        assertThat(lineBuffer.toString()).isEmpty();
     }
 }

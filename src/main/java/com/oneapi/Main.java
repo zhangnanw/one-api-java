@@ -48,12 +48,16 @@ public class Main {
                 }
             });
 
-        // 优雅关闭
+        // 优雅关闭 — 顺序 await 每一步，确保在途请求 drain 完再进入下一步
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Shutting down...");
-            server.close();
+            // 1. 停止接受新连接，等在途请求完成
+            server.close().toCompletionStage().toCompletableFuture().join();
+            // 2. 关闭内部资源（上游客户端、retention scheduler）
             routerConfig.close();
-            vertx.close();
+            // 3. 最后关 Vert.x（worker pool、event loop）
+            vertx.close().toCompletionStage().toCompletableFuture().join();
+            log.info("Shutdown complete.");
         }));
     }
 }

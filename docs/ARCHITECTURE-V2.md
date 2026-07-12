@@ -1,6 +1,6 @@
 # One-API-Java V2 架构文档
 
-> 描述当前实际实现的 V2 架构。最后更新：2026-06-29。
+> 描述当前实际实现的 V2 架构。最后更新：2026-07-12。
 
 ## 核心约束
 
@@ -246,5 +246,5 @@ vendors:
 | 3 | Filter 接口 + 阶段 2/3 过滤器 + 阶段 4 Comparator | ✅ 已完成（与设计略有差异） |
 | 4 | RelayExecutor 接口 + DefaultRelay | ✅ 已完成（装饰器链未实现） |
 | 5 | 协调器 + 搬迁 doHandle → RelayCoordinator | ✅ 已完成 |
-| 6 | 数据库扁平化迁移（meta JSON → 独立列） | ⏳ 待执行 |
-| 7 | 清理 V1 死代码 | ⏳ 待执行 |
+| 6 | 数据库扁平化迁移（meta JSON → 独立列） | ⏳ 待执行（ROADMAP R4） |
+| 7 | 清理 V1 死代码 | ✅ 已完成（`RelayController`/`doHandle`/`tryRelay`/`getBestVendor` 全部删除） |

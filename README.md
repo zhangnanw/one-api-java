@@ -94,7 +94,9 @@ curl -X POST http://localhost:13000/api/virtual-models \
 | `GET /api/status` | 启动时间 / 版本 / cooldown 缓存指标 |
 | `GET/POST/PUT/DELETE /api/vendors` | 供应商管理 |
 | `GET/POST/PUT/DELETE /api/instances` | 物理实例管理 |
+| `POST /api/instances/:id/toggle` | 启用/禁用物理实例 |
 | `GET/POST/PUT/DELETE /api/virtual-models` | 虚拟模型管理 |
+| `GET/POST/PUT/DELETE /api/model-catalog` | 模型目录（物理+虚拟映射关系） |
 | `POST /api/vendors/refresh-models` | 从上游拉取模型列表 |
 
 ## 架构

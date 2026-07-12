@@ -186,14 +186,8 @@ public class UpstreamClient implements Closeable {
         }
     }
 
-    /** Parse tokens from a single chunk, updating holder with latest non-zero value. */
-    private static void parseTokensFromChunk(Buffer chunk, int[] holder) {
-        int t = parseTokensFromBody(chunk.toString());
-        if (t > 0) holder[0] = t;
-    }
-
     /** Scan body line-by-line for total_tokens (avoids full split into array). */
-    private static int parseTokensFromBody(String body) {
+    static int parseTokensFromBody(String body) {
         int totalTokens = 0;
         int start = 0;
         while (true) {

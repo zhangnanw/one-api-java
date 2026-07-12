@@ -1,6 +1,6 @@
 # One-API-Java Roadmap
 
-> V2 架构重构后的改进路线。最后更新：2026-06-29。
+> V2 架构重构后的改进路线。最后更新：2026-07-12。
 
 ---
 
@@ -35,9 +35,25 @@ relay:
   maxRetries: 2
   cacheTtlSeconds: 10
   layerOrder: [free, subscription, payg]
+  requireVirtualModel: true
+database:
+  host: localhost
+  port: 5432
+  database: oneapi
+  user: oneapi
+  password: CHANGE_ME
 policies:
   reasoning:
     triggerSuffix: "-max"
+holographic:
+  retentionDays: 7
+  redactor:
+    enabled: true
+    openaiKey: true
+    bearer: true
+    email: true
+    phoneCn: true
+    cardLike: true
 ```
 
 ### 数据模型
@@ -63,7 +79,7 @@ policies:
 
 ### 单元测试
 
-- [x] 37 个测试类，216 个用例，全部通过（JUnit 5 + Mockito + AssertJ）
+- [x] 38 个测试类，251+ 个用例，全部通过（JUnit 5 + Mockito + AssertJ）
 
 ---
 
@@ -74,7 +90,7 @@ policies:
 | # | 问题 | 影响 | 方案 |
 |---|------|------|------|
 | R1 | **Streaming 未走完整 decorator 链** | 流式无自动重试；Header/Reasoning 手动重复注入 | `RelayExecutor` 增加 streaming 模式接口：`relayStream(candidate, req, response)` |
-| R2 | **SessionTracker 无界增长** | `ConcurrentHashMap` 只增不减，长时间运行内存泄露 | 加 TTL 驱逐（Caffeine 或 `ScheduledExecutorService`） |
+| R2 | ~~SessionTracker 无界增长~~ | `ConcurrentHashMap` 只增不减，长时间运行内存泄露 | ✅ 已修复：Caffeine TTL 5 分钟自动驱逐 |
 | R3 | **429 backoff 不可配置** | 固定 `1s * (attempt+1)`，某些上游需要更长 | 加入 `config.yaml`：`retry.backoffMs` |
 
 ### P2（规划中）
@@ -83,7 +99,7 @@ policies:
 |---|------|------|------|
 | R4 | **meta JSON → 独立列**（批次 6） | 每次查询都解析 JSON，`LIKE '%tag%'` 扫描 | `ALTER TABLE` 加 `vendor_layer / instance_tags / instance_layer` 列 |
 | R5 | **上游错误信息泄露** | 错误响应中包含上游原始 JSON → 客户端可能看到内部信息 | 错误层截断：只暴露 `provider_error`，不传原始 body |
-| R6 | **parseTags NPE 风险** | `FilterUtils.parseTags(null)` → NPE | 空值守卫 |
+| R6 | ~~parseTags NPE 风险~~ | `FilterUtils.parseTags(null)` → NPE | ✅ 已修复：null/empty 早返回 `List.of()` |
 
 ### P3（将来）
 
@@ -111,6 +127,6 @@ policies:
 
 1. **R1 + R3**：Streaming decorator 链 + backoff 配置化（中等，3-5 spawn）
 2. **R4**：数据库迁移（独立 SQL 脚本，等稳定 1 周后执行）
-3. **R2 + R5 + R6**：SessionTracker TTL + 错误信息截断 + NPE 守卫（简单，1-2 spawn）
+3. ~~**R2 + R5 + R6**~~：R2（SessionTracker TTL）✅ 已修复；R6（parseTags NPE）✅ 已修复；R5（错误信息截断）待处理
 4. **R7**：Prometheus 监控接入（中等，1-2 spawn）
 5. **R9**：`ByModelWeakness` 排序增强（简单，1 spawn）

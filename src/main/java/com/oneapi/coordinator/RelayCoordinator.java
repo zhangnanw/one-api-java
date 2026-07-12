@@ -251,7 +251,7 @@ public class RelayCoordinator {
                     long lat = System.currentTimeMillis() - startMs;
                     holographicRecorder.logAttemptSuccessBuffered(ctx, vendorName, routedVendor.instanceId(),
                         routedVendor.upstreamModel(),
-                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        vendorEndpoint(routedVendor),
                         200, lat,
                         result.promptTokens(), result.completionTokens(),
                         result.responseBody());
@@ -277,7 +277,7 @@ public class RelayCoordinator {
                     updateStreamResultAsync(ctx, logId, status, 0, latency, errMsg);
                     holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
                         routedVendor.upstreamModel(),
-                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        vendorEndpoint(routedVendor),
                         status, latency, errorTypeFromStatus(status), errMsg,
                         routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200));
                     tryBuffered(ctx, req, queue);
@@ -293,7 +293,7 @@ public class RelayCoordinator {
                     long lat = System.currentTimeMillis() - startMs;
                     holographicRecorder.logAttemptSuccessBuffered(ctx, vendorName, routedVendor.instanceId(),
                         routedVendor.upstreamModel(),
-                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        vendorEndpoint(routedVendor),
                         200, lat,
                         result.promptTokens(), result.completionTokens(),
                         result.responseBody());
@@ -318,7 +318,7 @@ public class RelayCoordinator {
                     }
                     holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
                         routedVendor.upstreamModel(),
-                        routedVendor.vendor() != null ? routedVendor.vendor().getBaseUrl() + "/v1/chat/completions" : "",
+                        vendorEndpoint(routedVendor),
                         status, latency, errorTypeFromStatus(status), errMsg,
                         routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200));
                     tryBuffered(ctx, req, queue);
@@ -406,7 +406,7 @@ public class RelayCoordinator {
 
                         holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
                             first.upstreamModel(),
-                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            vendorEndpoint(first),
                             statusCode, System.currentTimeMillis() - startMs, tokens);
                     } else {
                         // 任何非 200 → 冷却 vendor → fallback 下一个
@@ -415,7 +415,7 @@ public class RelayCoordinator {
 
                         holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
                             first.upstreamModel(),
-                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            vendorEndpoint(first),
                             statusCode, System.currentTimeMillis() - startMs,
                             errorTypeFromStatus(statusCode), "stream upstream error", true);
 
@@ -446,13 +446,13 @@ public class RelayCoordinator {
                         }
                         holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
                             first.upstreamModel(),
-                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            vendorEndpoint(first),
                             statusCode, System.currentTimeMillis() - startMs, tokens);
                     } else {
                         cooldown.setVendorCooldown(first.vendor().getId());
                         holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
                             first.upstreamModel(),
-                            first.vendor().getBaseUrl() + "/v1/chat/completions",
+                            vendorEndpoint(first),
                             statusCode, System.currentTimeMillis() - startMs,
                             errorTypeFromStatus(statusCode), "stream upstream error", true);
                         if (!queue.isEmpty()) {
@@ -473,6 +473,12 @@ public class RelayCoordinator {
 
     private static String errorTypeFromStatus(int status) {
         return RelayErrorHelper.errorTypeFromStatus(status);
+    }
+
+    /** 拼接 vendor baseUrl + chat completions 端点；vendor 为 null 时返空串。 */
+    private static String vendorEndpoint(RoutedVendor rv) {
+        if (rv.vendor() == null) return "";
+        return rv.vendor().getBaseUrl() + "/v1/chat/completions";
     }
 
     /** 替换 JSON 请求体中的 "model" 字段为上游模型名称。 */
