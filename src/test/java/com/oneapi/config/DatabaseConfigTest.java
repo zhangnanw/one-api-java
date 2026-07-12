@@ -29,7 +29,6 @@ class DatabaseConfigTest {
     @Test
     void initTwice_overwrites() {
         DatabaseConfig.init("test");
-        DataSource first = DatabaseConfig.getDataSource();
         DatabaseConfig.init("test");
         DataSource second = DatabaseConfig.getDataSource();
         assertNotNull(second);

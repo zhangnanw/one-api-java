@@ -53,7 +53,6 @@ public class MatchRuleParser {
         }
     }
     
-    @SuppressWarnings("unchecked")
     private static Set<String> parseTags(Map<String, Object> m, String key) {
         Object val = m.get(key);
         if (val instanceof List<?> list) {
@@ -64,7 +63,6 @@ public class MatchRuleParser {
         return Set.of();
     }
     
-    @SuppressWarnings("unchecked")
     private static MatchRule.ModelsMatch parseModelsMatch(Map<String, Object> m) {
         // 互斥检测：models 不与旧字段共存
         if (m.containsKey("model_name") || m.containsKey("capability")

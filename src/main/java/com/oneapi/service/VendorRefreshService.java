@@ -157,7 +157,6 @@ public class VendorRefreshService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private String mergeVendorTags(String instMeta, String vendorMeta) {
         try {
             var iMeta = mapper.readTree(instMeta);

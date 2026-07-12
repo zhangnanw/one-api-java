@@ -234,7 +234,6 @@ public class SessionTracker {
     /**
      * Parse messages array from JSON request body.
      */
-    @SuppressWarnings("unchecked")
     public static List<Message> parseMessages(byte[] rawBody) {
         List<Message> result = new ArrayList<>();
         try {
@@ -265,7 +264,6 @@ public class SessionTracker {
 
     // --- Normalization ---
 
-    @SuppressWarnings("unchecked")
     private static String extractContentText(Object content) {
         if (content == null) return "";
         if (content instanceof String s) return s;

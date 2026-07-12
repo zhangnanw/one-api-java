@@ -155,7 +155,7 @@ public class RelayCoordinator {
             return;
         }
 
-        var filtered = relayCtx.<RoutedVendor>candidates();
+        var filtered = relayCtx.candidates();
         if (filtered == null || filtered.isEmpty()) {
             holographicRecorder.logAllFiltered(ctx, req.requestedModel());
             error(ctx, 400, "all instances filtered for " + req.requestedModel());
