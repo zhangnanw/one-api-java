@@ -238,92 +238,60 @@ public class RelayCoordinator {
             MetaView.fromInstanceMeta(routedVendor.instanceMeta()).instanceCaps());
         RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody, false);
 
-        startLogAsync(ctx, req, candidate).onSuccess(logId -> {
-            baseRelay.execute(candidate, finalReq)
-                .onSuccess(result -> {
-                    updateStreamResultAsync(ctx, logId, result.httpStatus(),
-                        result.promptTokens() + result.completionTokens(),
-                        System.currentTimeMillis() - startMs, null);
-                    Object sidObj = ctx.get("sessionId");
-                    if (sidObj instanceof String sid && !sid.isEmpty()) {
-                        sessions.recordInstance(sid, routedVendor.instanceId());
-                    }
-                    long lat = System.currentTimeMillis() - startMs;
-                    holographicRecorder.logAttemptSuccessBuffered(ctx, vendorName, routedVendor.instanceId(),
-                        routedVendor.upstreamModel(),
-                        vendorEndpoint(routedVendor),
-                        200, lat,
-                        result.promptTokens(), result.completionTokens(),
-                        result.responseBody());
-                    ctx.response()
-                        .putHeader("Content-Type", "application/json")
-                        .end(result.responseBody());
-                })
-                .onFailure(err -> {
-                    long latency = System.currentTimeMillis() - startMs;
-                    int status = extractHttpStatus(err);
-                    String errMsg = extractErrorMessage(err);
+        // 日志失败时用哨兵值 -1，统一到 onComplete 回调，消除 4 lambda 重复
+        startLogAsync(ctx, req, candidate)
+            .otherwise(err -> { log.error("relay log start failed: {}", err.getMessage()); return -1L; })
+            .onComplete(ar -> {
+                long logId = ar.result();
 
-                    log.warn("{} from vendor={}, try next ({} left)",
-                        status, vendorName, queue.size());
-                    if (routedVendor.vendor() != null) {
-                        if (status == 429 || status == 403) {
-                            cooldown.setVendorCooldown(routedVendor.vendor().getId());
-                        } else if (status == 200) {
-                            cooldown.setInstanceCooldown(
-                                routedVendor.instanceId(), routedVendor.instanceTags());
+                baseRelay.execute(candidate, finalReq)
+                    .onSuccess(result -> {
+                        if (logId >= 0) {
+                            updateStreamResultAsync(ctx, logId, result.httpStatus(),
+                                result.promptTokens() + result.completionTokens(),
+                                System.currentTimeMillis() - startMs, null);
                         }
-                    }
-                    updateStreamResultAsync(ctx, logId, status, 0, latency, errMsg);
-                    holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
-                        routedVendor.upstreamModel(),
-                        vendorEndpoint(routedVendor),
-                        status, latency, errorTypeFromStatus(status), errMsg,
-                        routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200));
-                    tryBuffered(ctx, req, queue);
-                });
-        }).onFailure(err -> {
-            log.error("relay log start failed: {}", err.getMessage());
-            baseRelay.execute(candidate, finalReq)
-                .onSuccess(result -> {
-                    Object sidObj = ctx.get("sessionId");
-                    if (sidObj instanceof String sid && !sid.isEmpty()) {
-                        sessions.recordInstance(sid, routedVendor.instanceId());
-                    }
-                    long lat = System.currentTimeMillis() - startMs;
-                    holographicRecorder.logAttemptSuccessBuffered(ctx, vendorName, routedVendor.instanceId(),
-                        routedVendor.upstreamModel(),
-                        vendorEndpoint(routedVendor),
-                        200, lat,
-                        result.promptTokens(), result.completionTokens(),
-                        result.responseBody());
-                    ctx.response()
-                        .putHeader("Content-Type", "application/json")
-                        .end(result.responseBody());
-                })
-                .onFailure(err2 -> {
-                    long latency = System.currentTimeMillis() - startMs;
-                    int status = extractHttpStatus(err2);
-                    String errMsg = extractErrorMessage(err2);
+                        Object sidObj = ctx.get("sessionId");
+                        if (sidObj instanceof String sid && !sid.isEmpty()) {
+                            sessions.recordInstance(sid, routedVendor.instanceId());
+                        }
+                        long lat = System.currentTimeMillis() - startMs;
+                        holographicRecorder.logAttemptSuccessBuffered(ctx, vendorName, routedVendor.instanceId(),
+                            routedVendor.upstreamModel(),
+                            vendorEndpoint(routedVendor),
+                            200, lat,
+                            result.promptTokens(), result.completionTokens(),
+                            result.responseBody());
+                        ctx.response()
+                            .putHeader("Content-Type", "application/json")
+                            .end(result.responseBody());
+                    })
+                    .onFailure(err -> {
+                        long latency = System.currentTimeMillis() - startMs;
+                        int status = extractHttpStatus(err);
+                        String errMsg = extractErrorMessage(err);
 
-                    log.warn("{} from vendor={}, try next ({} left)",
-                        status, vendorName, queue.size());
-                    if (routedVendor.vendor() != null) {
-                        if (status == 429 || status == 403) {
-                            cooldown.setVendorCooldown(routedVendor.vendor().getId());
-                        } else if (status == 200) {
-                            cooldown.setInstanceCooldown(
-                                routedVendor.instanceId(), routedVendor.instanceTags());
+                        log.warn("{} from vendor={}, try next ({} left)",
+                            status, vendorName, queue.size());
+                        if (routedVendor.vendor() != null) {
+                            if (status == 429 || status == 403) {
+                                cooldown.setVendorCooldown(routedVendor.vendor().getId());
+                            } else if (status == 200) {
+                                cooldown.setInstanceCooldown(
+                                    routedVendor.instanceId(), routedVendor.instanceTags());
+                            }
                         }
-                    }
-                    holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
-                        routedVendor.upstreamModel(),
-                        vendorEndpoint(routedVendor),
-                        status, latency, errorTypeFromStatus(status), errMsg,
-                        routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200));
-                    tryBuffered(ctx, req, queue);
-                });
-        });
+                        if (logId >= 0) {
+                            updateStreamResultAsync(ctx, logId, status, 0, latency, errMsg);
+                        }
+                        holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
+                            routedVendor.upstreamModel(),
+                            vendorEndpoint(routedVendor),
+                            status, latency, errorTypeFromStatus(status), errMsg,
+                            routedVendor.vendor() != null && (status == 429 || status == 403 || status == 200));
+                        tryBuffered(ctx, req, queue);
+                    });
+            });
     }
 
     /** 流式中继：只试队列中第一个候选，失败不重试（流式重试会导致客户端收到重复数据）。 */
@@ -387,86 +355,51 @@ public class RelayCoordinator {
         log.info("[req={}] stream relay -> {} #{} model={}",
             reqId, first.vendor().getName(), first.instanceId(), first.upstreamModel());
 
-        ctx.response().setChunked(true);
+        startLogAsync(ctx, req, candidate)
+            .otherwise(err -> { log.error("relay log start failed: {}", err.getMessage()); return -1L; })
+            .onComplete(ar -> {
+                long logId = ar.result();
 
-        startLogAsync(ctx, req, candidate).onSuccess(logId -> {
-            // 流式递归 fallback：非 200 → 不 pipe 到客户端 → 切下一个候选
-            upstreamClient.relayStream(relayReq,
-                statusCode -> statusCode == 200,  // 只有 200 才 pipe
-                (statusCode, tokens) -> {
-                    long latency = System.currentTimeMillis() - startMs;
+                upstreamClient.relayStream(relayReq,
+                    statusCode -> statusCode == 200,
+                    (statusCode, tokens) -> {
+                        long latency = System.currentTimeMillis() - startMs;
 
-                    if (statusCode == 200) {
-                        cooldown.clearCooldown(first.instanceId(), first.vendor().getId());
-                        Object sidObj = ctx.get("sessionId");
-                        if (sidObj instanceof String sid && !sid.isEmpty()) {
-                            sessions.recordInstance(sid, first.instanceId());
-                        }
-                        updateStreamResultAsync(ctx, logId, statusCode, tokens, latency, null);
-
-                        holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
-                            first.upstreamModel(),
-                            vendorEndpoint(first),
-                            statusCode, System.currentTimeMillis() - startMs, tokens);
-                    } else {
-                        // 任何非 200 → 冷却 vendor → fallback 下一个
-                        cooldown.setVendorCooldown(first.vendor().getId());
-                        updateStreamResultAsync(ctx, logId, statusCode, 0, latency, "");
-
-                        holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
-                            first.upstreamModel(),
-                            vendorEndpoint(first),
-                            statusCode, System.currentTimeMillis() - startMs,
-                            errorTypeFromStatus(statusCode), "stream upstream error", true);
-
-                        if (!queue.isEmpty()) {
-                            // 递归：试下一个候选（新 conn → 新 sink）
-                            ctx.response().setChunked(false);
-                            ctx.response().headers().clear();
-                            relayStream(ctx, req, queue, relayCtx);
+                        if (statusCode == 200) {
+                            cooldown.clearCooldown(first.instanceId(), first.vendor().getId());
+                            Object sidObj = ctx.get("sessionId");
+                            if (sidObj instanceof String sid && !sid.isEmpty()) {
+                                sessions.recordInstance(sid, first.instanceId());
+                            }
+                            if (logId >= 0) {
+                                updateStreamResultAsync(ctx, logId, statusCode, tokens, latency, null);
+                            }
+                            holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
+                                first.upstreamModel(),
+                                vendorEndpoint(first),
+                                statusCode, System.currentTimeMillis() - startMs, tokens);
                         } else {
-                            holographicRecorder.logAllFailed(ctx, statusCode, "all upstream instances failed");
-                            error(ctx, 502, "all upstream instances failed");
+                            cooldown.setVendorCooldown(first.vendor().getId());
+                            if (logId >= 0) {
+                                updateStreamResultAsync(ctx, logId, statusCode, 0, latency, "");
+                            }
+                            holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
+                                first.upstreamModel(),
+                                vendorEndpoint(first),
+                                statusCode, System.currentTimeMillis() - startMs,
+                                errorTypeFromStatus(statusCode), "stream upstream error", true);
+
+                            if (!queue.isEmpty()) {
+                                relayStream(ctx, req, queue, relayCtx);
+                            } else {
+                                holographicRecorder.logAllFailed(ctx, statusCode, "all upstream instances failed");
+                                error(ctx, 502, "all upstream instances failed");
+                            }
                         }
-                    }
-                },
-                null  // chunkConverter: 不需要
-            );
-        }).onFailure(err -> {
-            log.error("relay log start failed: {}", err.getMessage());
-            // 即使日志启动失败也继续流式转发
-            upstreamClient.relayStream(relayReq,
-                statusCode -> statusCode == 200,
-                (statusCode, tokens) -> {
-                    if (statusCode == 200) {
-                        cooldown.clearCooldown(first.instanceId(), first.vendor().getId());
-                        Object sidObj = ctx.get("sessionId");
-                        if (sidObj instanceof String sid && !sid.isEmpty()) {
-                            sessions.recordInstance(sid, first.instanceId());
-                        }
-                        holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
-                            first.upstreamModel(),
-                            vendorEndpoint(first),
-                            statusCode, System.currentTimeMillis() - startMs, tokens);
-                    } else {
-                        cooldown.setVendorCooldown(first.vendor().getId());
-                        holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
-                            first.upstreamModel(),
-                            vendorEndpoint(first),
-                            statusCode, System.currentTimeMillis() - startMs,
-                            errorTypeFromStatus(statusCode), "stream upstream error", true);
-                        if (!queue.isEmpty()) {
-                            ctx.response().setChunked(false);
-                            ctx.response().headers().clear();
-                            relayStream(ctx, req, queue, relayCtx);
-                        } else {
-                            holographicRecorder.logAllFailed(ctx, statusCode, "all upstream instances failed");
-                            error(ctx, 502, "all upstream instances failed");
-                        }
-                    }
-                },
-                null);
-        });
+                    },
+                    null
+                );
+            });
     }
 
     // --- 辅助方法 ---

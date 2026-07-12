@@ -128,7 +128,7 @@ public class SessionTracker {
             store.invalidate(entry.getKey());
             store.put(finalHash, new SessionTrack(matched.sessionId, finalHash,
                 existing.updateCount() + 1,
-                existing.lastInstanceId(), existing.lastUsedAt()));
+                existing.lastInstanceId(), System.currentTimeMillis()));
             sessionIdIndex.put(matched.sessionId, finalHash);
             return matched.sessionId;
         }
