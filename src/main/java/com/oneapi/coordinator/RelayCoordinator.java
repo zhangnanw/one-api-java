@@ -10,7 +10,6 @@ import com.oneapi.relay.DefaultRelay;
 import com.oneapi.relay.ModelSubstitutor;
 import com.oneapi.service.CooldownService;
 import com.oneapi.service.HolographicLogRecorder;
-import com.oneapi.service.Redactor;
 import com.oneapi.service.RelayLogger;
 import com.oneapi.service.RouterService;
 import com.oneapi.service.RouterService.RoutedVendor;
@@ -46,7 +45,6 @@ public class RelayCoordinator {
     private final Comparator<RoutedVendor> sorter;
     private final DefaultRelay baseRelay;
     private final HolographicLogRecorder holographicRecorder;
-    private final Redactor redactor;
 
     public RelayCoordinator(RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
@@ -55,8 +53,7 @@ public class RelayCoordinator {
                             List<Filter> stage3Filters,
                             DefaultRelay baseRelay,
                             AppConfig config,
-                            HolographicLogRecorder holographicRecorder,
-                            Redactor redactor) {
+                            HolographicLogRecorder holographicRecorder) {
         this.router = router;
         this.cooldown = cooldown;
         this.sessions = sessions;
@@ -65,7 +62,6 @@ public class RelayCoordinator {
         this.stage3Filters = stage3Filters;
         this.baseRelay = baseRelay;
         this.holographicRecorder = holographicRecorder;
-        this.redactor = redactor;
         this.sorter = SorterFactory.build(config);
     }
 
@@ -86,7 +82,6 @@ public class RelayCoordinator {
             .bodySize(rawBody != null ? rawBody.length : 0)
             .clientIp(ctx.request().remoteAddress() != null
                 ? ctx.request().remoteAddress().host() : "unknown")
-            .redactor(redactor)
             .rawBody(rawBody)
             .buildInitial();
         ctx.put("holographicRecord", record);

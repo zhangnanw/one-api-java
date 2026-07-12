@@ -26,9 +26,6 @@ public class AppConfig {
     @JsonProperty("database")
     private DatabaseYamlConfig database;
 
-    @JsonProperty("holographic")
-    private HolographicConfig holographic;
-
     public AppConfig() {}
 
     public int port() { return server != null ? server.getPort() : 13000; }
@@ -82,29 +79,6 @@ public class AppConfig {
         public static class ReasoningPolicyConfig {
             private String triggerSuffix = "-max";
 
-        }
-    }
-
-    /**
-     * 全息日志配置。
-     * <p>{@link #retentionDays} = 0 表示不清理（生产环境不建议）；默认 7 天；
-     * 业务方可通过 {@code holographic.retention_days} 覆盖。
-     */
-    @Setter
-    @Getter
-    public static class HolographicConfig {
-        private int retentionDays = 7;
-        private RedactorConfig redactor = new RedactorConfig();
-
-        @Setter
-        @Getter
-        public static class RedactorConfig {
-            private boolean enabled = true;
-            private boolean openaiKey = true;
-            private boolean bearer = true;
-            private boolean email = true;
-            private boolean phoneCn = true;
-            private boolean cardLike = true;
         }
     }
 }

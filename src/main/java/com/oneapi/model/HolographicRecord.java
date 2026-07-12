@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.coordinator.RelayCoordinator;
-import com.oneapi.service.Redactor;
 import com.oneapi.service.RouterService.RoutedVendor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -93,7 +92,6 @@ public class HolographicRecord {
 
     public static class Builder {
         private final HolographicRecord record;
-        private Redactor redactor;
 
         Builder(String requestId) {
             this.record = new HolographicRecord(requestId);
@@ -105,23 +103,13 @@ public class HolographicRecord {
         public Builder bodySize(int v) { record.bodySize = v; return this; }
         public Builder clientIp(String v) { record.clientIp = v; return this; }
 
-        /**
-         * 注入敏感字段 mask 工具；若未注入则使用默认实例（全部 pattern 开启）。
-         */
-        public Builder redactor(Redactor redactor) {
-            this.redactor = redactor;
-            return this;
-        }
-
         /** 从原始请求体提取预览和元数据 */
         public Builder rawBody(byte[] rawBody) {
             if (rawBody == null || rawBody.length == 0) return this;
-            Redactor r = (this.redactor != null) ? this.redactor : new Redactor();
             try {
                 String body = new String(rawBody, StandardCharsets.UTF_8);
-                String bodyRedacted = r.redact(body);
-                record.fullRequestBody = bodyRedacted;
-                record.bodyPreview = bodyRedacted.length() > 200 ? bodyRedacted.substring(0, 200) + "..." : bodyRedacted;
+                record.fullRequestBody = body;
+                record.bodyPreview = body.length() > 200 ? body.substring(0, 200) + "..." : body;
 
                 var json = new io.vertx.core.json.JsonObject(body);
                 record.messagesCount = json.getJsonArray("messages", new io.vertx.core.json.JsonArray()).size();

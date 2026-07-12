@@ -20,13 +20,3 @@ relay:
 policies:
   reasoning:
     triggerSuffix: "-max"
-
-holographic:
-  retentionDays: 7
-  redactor:
-    enabled: true
-    openaiKey: true
-    bearer: true
-    email: true
-    phoneCn: true
-    cardLike: true

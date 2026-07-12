@@ -58,15 +58,16 @@
 
 `setInstanceCooldown` 用于流式 200 空响应场景（`relayStream` 中 `statusCode == 200` 但 tokens == 0），需要更强的冷却力度。两条都合法，不合并。
 
-### ADR-7: Holographic 敏感数据处理
+### ADR-7: 不做程序内数据安全处理
 
 **背景：** 全息调试日志 (`holographic_logs`) 记录完整请求/响应 body，可能包含 API key 等敏感信息。
 
-**决策：** 
-- **Redactor**：在入库前对 body 进行 mask（API key、Bearer token、密码等 5 类 pattern）
-- **HolographicRetentionService**：每天清理超过 retention_days 的记录（默认 7 天）
+**决策：** 不做程序内的数据安全处理（Redactor、RetentionService 等）。数据安全由部署层面（内网/VPN、数据库访问控制）负责。
 
-**效果：** 敏感数据在存储层被 mask，过期记录自动清理。不改变请求/响应链路行为。
+**理由：** 
+- 部署方式为内网/VPN，只有内部人员能访问
+- 程序内安全措施（mask、自动清理）与"内网即安全"的前提矛盾
+- 数据库访问控制、备份策略等基础设施层面的安全更可靠
 
 ### ADR-8: relay.requireVirtualModel 配置开关
 
@@ -193,7 +194,6 @@ class RelayCoordinator {
     List<Filter> stage3Filters;
     DefaultRelay baseRelay;
     HolographicLogRecorder holographicRecorder;
-    Redactor redactor;
 
     void execute(RoutingContext ctx, byte[] rawBody) {
         // 阶段 1
