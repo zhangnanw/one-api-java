@@ -50,7 +50,7 @@ public class DatabaseConfig {
 
     /** Backward-compatible overload for tests using an in-memory H2 database in PostgreSQL mode. */
     public static void init(String jdbcUrl) {
-        // SQLite is no longer supported; route old test URLs to a fresh H2 PostgreSQL-compatible DB.
+        // Route to a fresh H2 PostgreSQL-compatible DB.
         String dbName = "legacy_test_" + Math.abs((long) (jdbcUrl != null ? jdbcUrl : "memory").hashCode());
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:h2:mem:" + dbName +

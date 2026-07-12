@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 /**
  * 全息调试记录 — Builder 模式逐阶段填充。
  * <p>
- * 记录一次中继请求的完整生命周期数据，序列化为 JSON 存入 SQLite。
+ * 记录一次中继请求的完整生命周期数据，序列化为 JSON 存入 holographic_logs。
  * 通过 {@link RelayCoordinator} 在各阶段节点调用相应的填充方法。
  */
 @Slf4j

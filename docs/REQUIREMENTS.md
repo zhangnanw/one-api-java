@@ -47,7 +47,7 @@
 |------|------|--------|
 | 路由 + 冷却 + 过滤 | ✅ | Caffeine cache (Go: sync.Map) |
 | 模型入口 | ✅ | Vert.x Router |
-| CRUD 管理 API | ✅ | Vert.x Router + HikariCP SQLite |
+| CRUD 管理 API | ✅ | Vert.x Router + HikariCP PostgreSQL |
 | Relay 转发 | ✅ | WebClient (buffered) + HttpClient (pipe) |
 | **VisionFilter (动态 图像检测)** | ❌ | Go→Java 迁移丢失，见 §F |
 | **BodyLimitFilter (>100KB)** | ✅ | 按画像 context_window 动态限流，413 BodyTooLarge |
@@ -114,13 +114,12 @@
 
 ### §J2 数据库复用
 
-**选择：** 直接读写 `~/.one-api/one-api.db`（HikariCP + JDBC SQLite 手写 SQL）。
+**选择：** 使用 PostgreSQL（HikariCP + JDBC 手写 SQL）。
 
-- Go 版使用 GORM，Java 版手写 SQL（`jdbc:sqlite:`）
-- 两版本可**并行运行**（不同端口），共享同一 DB
+- Go 版使用 GORM，Java 版手写 SQL
 - 不引入 jOOQ / MyBatis — 表少（4 张核心表），手写 SQL 最清晰
 
-**§J2-D1：** Repository 层使用 `HikariCP` 连接池（`maximumPoolSize=1`，SQLite 单写）。
+**§J2-D1：** Repository 层使用 `HikariCP` 连接池。
 
 ### §J3 冷却：Caffeine 替代 sync.Map
 
@@ -254,7 +253,7 @@ one-api-java/
     ├── config/
     │   ├── AppConfig.java
     │   ├── ConfigLoader.java
-    │   ├── DatabaseConfig.java   HikariCP + SQLite
+    │   ├── DatabaseConfig.java   HikariCP + PostgreSQL
     │   └── RouterConfig.java     Vert.x Router
     ├── model/
     │   ├── Vendor.java / VendorCaps.java / VendorWithCount.java

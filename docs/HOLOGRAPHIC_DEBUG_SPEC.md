@@ -18,19 +18,19 @@
 ### 1. `com.oneapi.service.HolographicLogger`
 
 ```
-职责：SQLite 表创建 + 插入 + 环形清理
+职责：PostgreSQL 表创建 + 插入 + 环形清理
 ```
 
-- `init()` — 创建 `holographic-debug.db`，建表
+- `init()` — 建表（holographic_logs）
 - `write(HolographicRecord)` — 插入记录，然后 `count > 50 → deleteOldest(count - 50)`
-- 独立 HikariCP（pool=2, WAL, busy_timeout=5000）
+- 使用主 HikariCP 连接池
 
 表结构：
 ```sql
 CREATE TABLE IF NOT EXISTS holographic_logs (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    id              BIGSERIAL PRIMARY KEY,
     request_id      TEXT UNIQUE NOT NULL,
-    timestamp_ms    INTEGER NOT NULL,
+    timestamp_ms    BIGINT NOT NULL,
     requested_model TEXT,
     final_status    TEXT,          -- "success" / "failure"
     final_http_code INTEGER,

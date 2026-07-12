@@ -2,7 +2,7 @@
 
 ## 对象风格
 
-- **DB 实体**（与 SQLite schema 一一对应，可变）→ Lombok `@Getter @Setter`，可空构造器
+- **DB 实体**（与 PostgreSQL schema 一一对应，可变）→ Lombok `@Getter @Setter`，可空构造器
   - 例：`Vendor` / `Instance` / `VirtualModel`
 - **DTO / 值对象 / 不可变** → `record`
   - 例：`Candidate` / `RelayRequest` / `RelayResult` / `MatchRule.*` 子类型
