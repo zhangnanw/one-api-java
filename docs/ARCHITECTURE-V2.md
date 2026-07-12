@@ -1,6 +1,78 @@
 # One-API-Java V2 架构文档
 
-> 描述当前实际实现的 V2 架构。最后更新：2026-07-12。
+> 描述当前实际实现的 V2 架构。最后更新：2026-07-12（补充技术决策记录 ADR-1~8）。
+
+## 技术决策记录
+
+> 以下决策在代码审核期间做出，记录于此以避免将来被误认为 BUG。
+
+### ADR-1: tryBuffered / relayStream lambda 合并
+
+**背景：** `tryBuffered` 中 `startLogAsync` 有两条分支（日志成功/失败），每条分支里 `baseRelay.execute` 又有两条分支（中继成功/失败），形成 2×2 = 4 个几乎完全相同的 lambda。`relayStream` 同理有 2 个重复 lambda。
+
+**决策：** 使用 `Future.otherwise(-1L).onComplete()` 将日志分支合并。日志失败时返回哨兵值 `-1`，在 `onComplete` 回调中用 `if (logId >= 0)` guard 控制 `updateStreamResultAsync` 是否执行。
+
+**效果：** tryBuffered 4→2 lambda，relayStream 2→1 lambda。行为完全一致——`updateStreamResultAsync` 在日志写入失败时仍不被调用。
+
+**风险评估：** 这是每个 API 请求的必经路径。修改是机械性的（`.onSuccess().onFailure()` → `.otherwise(-1L).onComplete()`），内部逻辑不变，仅结构调整。
+
+### ADR-2: SessionTracker match() 刷新 lastUsedAt
+
+**背景：** `SessionTracker.lookupOrCreate()` 复用已有会话时原样复制 `existing.lastUsedAt()`，不刷新时间戳。导致会话间隔 > TTL（5 分钟）后首次 `match()` 不刷新时间，下一次 `getPreferredInstance()` 必定返回空（粘性丢失）。
+
+**决策：** `lookupOrCreate()` 中复用会话时将 `lastUsedAt` 设为 `System.currentTimeMillis()`。
+
+**效果：** `match()` 找到会话即视为"活跃"，刷新 TTL。会话间隔 > TTL 后首次请求不再丢失软粘性。
+
+### ADR-3: 流式 fallback 不需要手动 setChunked
+
+**背景：** `relayStream` 在上游请求前调用 `ctx.response().setChunked(true)`，上游返回非 200 时 fallback 需要 `setChunked(false)` + `headers().clear()`。
+
+**决策：** 删除 `setChunked(true)` 的预调用和 fallback 中的 `setChunked(false)` + `headers().clear()`。`UpstreamClient` 在 `statusCode == 200` 路径内已正确调用 `sink.setChunked(true)`。
+
+**效果：** fallback 时 response 从未进入 chunked 模式，无需回退。行为不变，消除了 Vert.x 中途切换 chunked 模式的脆弱性。
+
+### ADR-4: /api/* 管理端点不加认证
+
+**背景：** `/api/vendors`、`/api/instances`、`/api/virtual-models` 等管理端点无应用层认证。
+
+**决策：** 不加认证。部署方式为内网/VPN，靠网络隔离保护。
+
+**理由：** 这些端点仅用于运维管理（增删供应商/实例/虚拟模型），不面向终端用户。内网部署下应用层认证是多余的安全层。
+
+### ADR-5: 装饰器链（R1）暂不实现
+
+**背景：** ROADMAP R1 提出将 `RelayCoordinator` 中的 Header 注入、参数限制、重试等逻辑提取为装饰器链。
+
+**决策：** 暂不实现。当前内联方式工作正常，重复代码量小（3 行准备步骤），提取后增加 5-6 个新类 + 1 个新接口，收益有限但风险高。
+
+**触发条件：** 当需要流式自动重试（R1 核心诉求）时再做。
+
+### ADR-6: CooldownService 两条入口语义不同（by design）
+
+**背景：** `checkAndSetInstanceCooldown` 和 `setInstanceCooldown` 都会增加冷却计数器 `n`，但行为不同。
+
+**决策：** 保留两条入口，语义差异如下：
+- `checkAndSetInstanceCooldown`: 检查是否冷却中 → 已冷却则 **不增加 n**（避免窗口过长） → 设置冷却
+- `setInstanceCooldown`: **无条件 n = old.n + 1**（强制把窗口推远）
+
+`setInstanceCooldown` 用于流式 200 空响应场景（`relayStream` 中 `statusCode == 200` 但 tokens == 0），需要更强的冷却力度。两条都合法，不合并。
+
+### ADR-7: Holographic 敏感数据处理
+
+**背景：** 全息调试日志 (`holographic_logs`) 记录完整请求/响应 body，可能包含 API key 等敏感信息。
+
+**决策：** 
+- **Redactor**：在入库前对 body 进行 mask（API key、Bearer token、密码等 5 类 pattern）
+- **HolographicRetentionService**：每天清理超过 retention_days 的记录（默认 7 天）
+
+**效果：** 敏感数据在存储层被 mask，过期记录自动清理。不改变请求/响应链路行为。
+
+### ADR-8: relay.requireVirtualModel 配置开关
+
+**背景：** `NameMatcher` 在匹配失败时是否报错（无虚拟模型 → 503）需要可配置。
+
+**决策：** 新增 `relay.requireVirtualModel` 配置项（默认 true）。设为 false 时 NameMatcher 匹配失败不报错，允许物理模型名直通。
 
 ## 核心约束
 
@@ -120,8 +192,8 @@ class RelayCoordinator {
     List<Filter> stage2Filters;
     List<Filter> stage3Filters;
     DefaultRelay baseRelay;
-    AppConfig config;
-    RelayRecorder recorder;
+    HolographicLogRecorder holographicRecorder;
+    Redactor redactor;
 
     void execute(RoutingContext ctx, byte[] rawBody) {
         // 阶段 1
