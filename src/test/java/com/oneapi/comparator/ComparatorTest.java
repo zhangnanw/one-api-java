@@ -1,6 +1,5 @@
 package com.oneapi.comparator;
 
-import com.oneapi.model.Vendor;
 import com.oneapi.service.RouterService.RoutedVendor;
 import org.junit.jupiter.api.Test;
 

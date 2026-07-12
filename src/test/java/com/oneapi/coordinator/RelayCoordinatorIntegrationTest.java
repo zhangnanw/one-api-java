@@ -5,7 +5,6 @@ import com.oneapi.config.RouterConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.vertx.core.http.HttpServer;
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Statement;
 
