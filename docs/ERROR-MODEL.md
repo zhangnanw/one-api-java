@@ -24,7 +24,7 @@ public sealed interface RelayError
 | `NoInstance` | 阶段 3 | 所有实例被过滤后无可用候选 |
 | `AllVendorsBusy` | 阶段 5 | 所有候选实例均失败（缓冲式遍历完队列） |
 | `UpstreamFailure` | 阶段 5 | 上游返回非 2xx 或空响应 |
-| `BodyTooLarge` | 阶段 3 | [`BodyLimitFilter`](file:///c:/SourceCode/one-api-java/src/main/java/com/oneapi/filter/BodyLimitFilter.java) 判定请求体超过模型上下文窗口 |
+| `BodyTooLarge` | 阶段 3 | [`BodyLimitFilter.java`](src/main/java/com/oneapi/filter/BodyLimitFilter.java) 判定请求体超过模型上下文窗口 |
 
 ## HTTP 状态码映射
 
@@ -80,13 +80,13 @@ default int httpStatus() {
 
 | 阶段 | 文件 | 触发条件 | 返回错误 |
 |------|------|----------|----------|
-| 阶段 1 | [`RequestParser`](file:///c:/SourceCode/one-api-java/src/main/java/com/oneapi/coordinator/RequestParser.java) | body 为空或缺少 model 字段 | 直接返回 400（不走 RelayError） |
-| 阶段 2 | [`VirtualModelLookup`](file:///c:/SourceCode/one-api-java/src/main/java/com/oneapi/filter/VirtualModelLookup.java) | 虚拟模型未找到 | `ModelNotFound` → 404 |
-| 阶段 3 | [`RelayCoordinator`](file:///c:/SourceCode/one-api-java/src/main/java/com/oneapi/coordinator/RelayCoordinator.java) | 无候选实例（`loadCandidates` 返回空） | 直接返回 503（不走 RelayError） |
-| 阶段 3 | [`BodyLimitFilter`](file:///c:/SourceCode/one-api-java/src/main/java/com/oneapi/filter/BodyLimitFilter.java) | 所有候选被体长过滤 | `BodyTooLarge` → 413 |
+| 阶段 1 | [`RequestParser.java`](src/main/java/com/oneapi/coordinator/RequestParser.java) | body 为空或缺少 model 字段 | 直接返回 400（不走 RelayError） |
+| 阶段 2 | [`VirtualModelLookup.java`](src/main/java/com/oneapi/filter/VirtualModelLookup.java) | 虚拟模型未找到 | `ModelNotFound` → 404 |
+| 阶段 3 | [`RelayCoordinator.java`](src/main/java/com/oneapi/coordinator/RelayCoordinator.java) | 无候选实例（`loadCandidates` 返回空） | 直接返回 503（不走 RelayError） |
+| 阶段 3 | [`BodyLimitFilter.java`](src/main/java/com/oneapi/filter/BodyLimitFilter.java) | 所有候选被体长过滤 | `BodyTooLarge` → 413 |
 | 阶段 3 | 多个 filter | 过滤后候选为空 | `NoInstance` 或 直接 400 |
-| 阶段 5 | [`DefaultRelay`](file:///c:/SourceCode/one-api-java/src/main/java/com/oneapi/relay/DefaultRelay.java) | 上游非 2xx 或空响应 | `UpstreamFailure` → 上游码 |
-| 阶段 5 | [`RelayCoordinator`](file:///c:/SourceCode/one-api-java/src/main/java/com/oneapi/coordinator/RelayCoordinator.java) | 所有候选耗尽 | 直接返回 503 |
+| 阶段 5 | [`DefaultRelay.java`](src/main/java/com/oneapi/relay/DefaultRelay.java) | 上游非 2xx 或空响应 | `UpstreamFailure` → 上游码 |
+| 阶段 5 | [`RelayCoordinator.java`](src/main/java/com/oneapi/coordinator/RelayCoordinator.java) | 所有候选耗尽 | 直接返回 503 |
 
 ## 旁路日志
 
