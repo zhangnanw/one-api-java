@@ -9,15 +9,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 濞撴碍绋戠花鏌ュ疮閸℃洜娉㈤幖瀛樻尪閳?
+ * Vendor 数据仓库。
  * <p>
- * 闁哄被鍎叉竟妯兼嫚椤撴繄鐤呴柨娑欑婢у秹寮?find 闁哄倽顫夌涵鍫曞锤閸ャ劌鐦?id 闁告娲ょ花顓熸交閺傛寧绀€闁挎稑濂旂粭澶愬绩椤栨稑鐦俊顖ょ磿绾箓寮婚妷锕€顥濋柕?
- * - {@link #findAll}闁靛棔绨濦link #findAllActive}闁挎稒鑹惧畷鐔烘偘閵婏妇鍙€閻犲浂婢佺槐婕stance_count = 0
- * - {@link #findAllWithCounts}闁挎稒鐭粭?instances 閻?LEFT JOIN闁挎稑濂旂划搴ｇ磼閻旀椿鍚€ status=1 闁汇劌瀚璺ㄦ崉閸愩劎鏉藉〒?
+ * 所有方法均使用 try-with-resources 管理 Connection/Statement，SQL 异常统一包装为 RuntimeException。
+ * - {@link #findAll} 分页查询全部供应商（含禁用），按 id ASC 排序，支持 offset/limit。
+ * - {@link #findAllActive} 仅查询 status=1 的启用供应商。
+ * - {@link #findAllWithCounts} 关联 instances 表 LEFT JOIN，统计每个供应商的活跃实例数（status NOT IN 0,3,4,5）。
  * <p>
- * 闁圭儤甯掔花顓犳喆閸曨偄鐏熼柨娑欑婢у秹寮垫径濠傜仚閻炴稏鍔嶉弻鐔封枖?ORDER BY id ASC闁挎稒绋戦崹搴亜闂堟稑妫橀柡?offset/limit 闁汇垼绮鹃惃鐔兼偨閵婏附鐓欓柛鎰暱閻ｉ箖濡?
- * <p>
- * 闂佹寧鐟ㄩ銈嗗緞閸曨厽鍊為柨娑欑摂QLException 濞戞挴鍋撶€?log 闁告艾姘︾换鎴﹀炊閻愮鏁勯梻鍡楁閹酣鏁嶉崸妾宻t 闁哄倽顫夌涵鍫曟晬婢跺鐏?null闁挎稑娼歩ndById闁挎稑顦埀?
+ * 所有查询返回空 list 而非 null；{@link #findById} 未找到时返回 null。
  */
 @Slf4j
 public class VendorRepo extends BaseRepo {
@@ -32,10 +31,10 @@ public class VendorRepo extends BaseRepo {
     }
 
     /**
-     * 闁告帒妫濋妴澶愬礆濡も偓閸ゎ參骞嶉埀顒勫嫉婢跺杩旈幖瀛樻煥閺呫垽鏁嶉崼婵囧創鐎规瓕灏欓々锕傛偨椤帞绀嗛柨娑樻湰鐎?id 闁告娲ょ花顓㈠Υ?
-     * @param offset 閻犙冨槻椤劗鎮板畝瀣0-based
-     * @param limit  闁哄牃鍋撳鍫嗗棭鏀介柡?
-     * @return 闁告帗顨夐妴鍐晬濞戞埃鏁勯柡鍐╂构鐠愮喖姊归崹顔碱唺濞?0 闁?list
+     * 分页查询全部供应商，按 id ASC 排序。
+     * @param offset 跳过条数（0-based）
+     * @param limit  最大返回条数
+     * @return 匹配的供应商列表，不会返回 null（无结果时返回空 list）
      */
     public List<Vendor> findAll(int offset, int limit) {
         List<Vendor> list = new ArrayList<>();
@@ -104,9 +103,9 @@ public class VendorRepo extends BaseRepo {
     }
 
     /**
-     * 
-     * @param id 濞撴碍绋戠花鏌ュ疮閸℃洖鐦滈梺?
-     * @return 闁瑰灚鍎抽崺灞炬交閺傛寧绀€ Vendor闁挎稑鏈竟妯荤▔瀹ュ懎鐓傞柟?SQL 濠㈡儼绮剧憴锔芥交閺傛寧绀€ null
+     * 按 ID 查询单个供应商。
+     * @param id 供应商 ID
+     * @return 匹配的 Vendor，未找到时返回 null
      */
     public Vendor findById(int id) {
         String sql = "SELECT id, name, description, status, " +
