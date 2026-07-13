@@ -2,7 +2,7 @@ package com.oneapi.controller;
 
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import com.oneapi.service.CooldownService;
+import com.oneapi.core.CooldownService;
 
 public class MiscController extends BaseController {
 

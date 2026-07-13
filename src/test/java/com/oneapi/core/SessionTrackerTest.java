@@ -1,6 +1,6 @@
-package com.oneapi.service;
+package com.oneapi.core;
 
-import com.oneapi.service.SessionTracker.Message;
+import com.oneapi.core.SessionTracker.Message;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

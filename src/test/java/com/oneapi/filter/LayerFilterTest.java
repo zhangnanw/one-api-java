@@ -2,7 +2,7 @@ package com.oneapi.filter;
 
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.RelayContext;
-import com.oneapi.service.RouterService.RoutedVendor;
+import com.oneapi.core.RouterService.RoutedVendor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

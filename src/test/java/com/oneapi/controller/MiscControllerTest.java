@@ -1,6 +1,6 @@
 package com.oneapi.controller;
 
-import com.oneapi.service.CooldownService;
+import com.oneapi.core.CooldownService;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;

@@ -9,8 +9,8 @@ import com.oneapi.config.ConfigLoader;
 import com.oneapi.config.DatabaseConfig;
 import com.oneapi.config.RouterConfig;
 import com.oneapi.config.SchemaManager;
-import com.oneapi.service.HolographicLogger;
-import com.oneapi.service.RelayLogger;
+import com.oneapi.background.HolographicLogger;
+import com.oneapi.core.RelayLogger;
 
 @Slf4j
 public class Main {

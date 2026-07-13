@@ -1,6 +1,7 @@
-package com.oneapi.service;
+package com.oneapi.core;
 
 import com.oneapi.model.HolographicRecord;
+import com.oneapi.background.HolographicLogger;
 import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
 

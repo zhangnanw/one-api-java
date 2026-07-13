@@ -1,6 +1,6 @@
 package com.oneapi.model;
 
-import com.oneapi.service.RouterService.RoutedVendor;
+import com.oneapi.core.RouterService.RoutedVendor;
 
 import java.util.ArrayList;
 import java.util.List;

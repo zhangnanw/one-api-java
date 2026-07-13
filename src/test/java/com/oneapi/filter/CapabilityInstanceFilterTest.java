@@ -2,8 +2,8 @@ package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
 import com.oneapi.repo.CapabilityCatalog;
-import com.oneapi.service.RouterService;
-import com.oneapi.service.RouterService.RoutedVendor;
+import com.oneapi.core.RouterService;
+import com.oneapi.core.RouterService.RoutedVendor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

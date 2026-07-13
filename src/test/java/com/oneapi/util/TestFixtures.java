@@ -4,7 +4,7 @@ import com.oneapi.model.MatchRule;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.Vendor;
 import com.oneapi.model.Instance;
-import com.oneapi.service.RouterService.RoutedVendor;
+import com.oneapi.core.RouterService.RoutedVendor;
 
 import java.util.List;
 

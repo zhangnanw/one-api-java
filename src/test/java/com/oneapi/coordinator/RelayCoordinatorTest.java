@@ -3,7 +3,7 @@ package com.oneapi.coordinator;
 import com.oneapi.comparator.SorterFactory;
 import com.oneapi.config.AppConfig;
 import com.oneapi.model.Instance;
-import com.oneapi.service.RouterService.RoutedVendor;
+import com.oneapi.core.RouterService.RoutedVendor;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package com.oneapi.service;
+package com.oneapi.core;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

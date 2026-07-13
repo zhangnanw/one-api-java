@@ -32,11 +32,11 @@ import com.oneapi.filter.VisionFilter;
 import com.oneapi.filter.BodyLimitFilter;
 import com.oneapi.handler.UpstreamClient;
 import com.oneapi.relay.DefaultRelay;
-import com.oneapi.service.CooldownService;
-import com.oneapi.service.HolographicLogRecorder;
-import com.oneapi.service.RouterService;
-import com.oneapi.service.SessionTracker;
-import com.oneapi.service.VendorRefreshService;
+import com.oneapi.core.CooldownService;
+import com.oneapi.core.HolographicLogRecorder;
+import com.oneapi.core.RouterService;
+import com.oneapi.core.SessionTracker;
+import com.oneapi.background.VendorRefreshService;
 
 import javax.sql.DataSource;
 import java.io.Closeable;

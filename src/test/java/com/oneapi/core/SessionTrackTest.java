@@ -1,4 +1,4 @@
-package com.oneapi.service;
+package com.oneapi.core;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import org.junit.jupiter.api.BeforeEach;

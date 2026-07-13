@@ -1,4 +1,4 @@
-package com.oneapi.service;
+package com.oneapi.background;
 
 import com.oneapi.model.Vendor;
 import com.oneapi.model.Instance;

@@ -1,6 +1,6 @@
 package com.oneapi.comparator;
 
-import com.oneapi.service.RouterService.RoutedVendor;
+import com.oneapi.core.RouterService.RoutedVendor;
 
 import java.util.Comparator;
 import java.util.List;

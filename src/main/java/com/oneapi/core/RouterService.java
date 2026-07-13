@@ -1,4 +1,4 @@
-package com.oneapi.service;
+package com.oneapi.core;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

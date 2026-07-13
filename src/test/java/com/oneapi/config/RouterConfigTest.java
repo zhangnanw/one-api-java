@@ -7,7 +7,7 @@ import com.oneapi.filter.*;
 import com.oneapi.repo.InstanceRepo;
 import com.oneapi.repo.ModelCatalogRepo;
 import com.oneapi.repo.VirtualModelRepo;
-import com.oneapi.service.CooldownService;
+import com.oneapi.core.CooldownService;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

@@ -3,7 +3,7 @@ package com.oneapi.filter;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
 import com.oneapi.repo.WindowCatalog;
-import com.oneapi.service.RouterService.RoutedVendor;
+import com.oneapi.core.RouterService.RoutedVendor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

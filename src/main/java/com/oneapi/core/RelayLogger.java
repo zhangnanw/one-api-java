@@ -1,4 +1,4 @@
-package com.oneapi.service;
+package com.oneapi.core;
 
 import com.oneapi.model.RelayLog;
 import lombok.extern.slf4j.Slf4j;

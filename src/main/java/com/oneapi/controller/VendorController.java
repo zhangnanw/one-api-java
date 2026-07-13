@@ -2,7 +2,7 @@ package com.oneapi.controller;
 
 import com.oneapi.model.Vendor;
 import com.oneapi.repo.VendorRepo;
-import com.oneapi.service.VendorRefreshService;
+import com.oneapi.background.VendorRefreshService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
