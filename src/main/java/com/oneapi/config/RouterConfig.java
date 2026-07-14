@@ -84,21 +84,6 @@ public class RouterConfig implements Closeable {
         var vendorRefreshSvc = new VendorRefreshService(instanceRepo, vendorRepo);
         var balanceQuerySvc = new BalanceQueryService(vendorRepo);
 
-        // 定时轮询供应商余额（每 5 分钟）
-        vertx.setPeriodic(5 * 60 * 1000, id -> {
-            vertx.executeBlocking(() -> {
-                balanceQuerySvc.queryAll();
-                return null;
-            }).onFailure(err -> {});
-        });
-        // 启动后 3 秒执行一次
-        vertx.setTimer(3000, id -> {
-            vertx.executeBlocking(() -> {
-                balanceQuerySvc.queryAll();
-                return null;
-            }).onFailure(err -> {});
-        });
-
         registerStaticRoutes();
         registerApiRoutes(cooldown, vendorRepo, instanceRepo, vmRepo, catalogRepo, vendorRefreshSvc, balanceQuerySvc);
         registerRelayRoutes(cooldown, vmRepo, instanceRepo, vendorRepo, catalogRepo);

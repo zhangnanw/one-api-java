@@ -148,21 +148,42 @@ public class VendorController extends BaseController {
             return;
         }
         BalanceInfo info = balanceService.getBalance(id);
-        if (info == null) {
+        if (info != null) {
+            ok(ctx, new JsonObject()
+                .put("vendor_id", info.vendorId())
+                .put("vendor_name", info.vendorName())
+                .put("available", info.available())
+                .put("total_balance", info.totalBalance())
+                .put("currency", info.currency()));
+            return;
+        }
+        // 缓存未命中，按需查询
+        Vendor vendor = repo.findById(id);
+        if (vendor == null || vendor.getStatus() != 1) {
             ctx.response().setStatusCode(404)
                 .putHeader("Content-Type", "application/json")
                 .end(new JsonObject()
                     .put("success", false)
-                    .put("message", "no balance data for vendor " + id)
+                    .put("message", "vendor " + id + " not found or disabled")
+                    .toString());
+            return;
+        }
+        BalanceInfo queried = balanceService.queryOne(vendor);
+        if (queried == null) {
+            ctx.response().setStatusCode(404)
+                .putHeader("Content-Type", "application/json")
+                .end(new JsonObject()
+                    .put("success", false)
+                    .put("message", "no balance provider for vendor " + vendor.getName())
                     .toString());
             return;
         }
         ok(ctx, new JsonObject()
-            .put("vendor_id", info.vendorId())
-            .put("vendor_name", info.vendorName())
-            .put("available", info.available())
-            .put("total_balance", info.totalBalance())
-            .put("currency", info.currency()));
+            .put("vendor_id", queried.vendorId())
+            .put("vendor_name", queried.vendorName())
+            .put("available", queried.available())
+            .put("total_balance", queried.totalBalance())
+            .put("currency", queried.currency()));
     }
 
     // --- helpers ---
