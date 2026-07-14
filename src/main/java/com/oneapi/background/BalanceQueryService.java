@@ -44,24 +44,6 @@ public class BalanceQueryService {
     }
 
     /**
-     * 查询单个供应商的余额（按需调用）。
-     * 查到后缓存结果。
-     */
-    public BalanceInfo queryOne(Vendor vendor) {
-        BalanceProvider provider = findProvider(vendor);
-        if (provider == null) return null;
-        try {
-            BalanceInfo info = provider.queryBalance(vendor);
-            cache.put(vendor.getId(), info);
-            latestResults.put(vendor.getId(), info);
-            return info;
-        } catch (Exception ex) {
-            log.warn("balance query failed for vendor {}: {}", vendor.getName(), ex.getMessage());
-            return null;
-        }
-    }
-
-    /**
      * 查询所有启用供应商的余额。
      * 单个失败不影响其他。
      */

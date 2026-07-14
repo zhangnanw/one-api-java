@@ -164,6 +164,7 @@
       <div class="section-toolbar">
         <button onclick="openVendor()">+ 添加供应商</button>
         <button onclick="refreshUpstream()">更新上游列表</button>
+        <button onclick="queryBalances()">查询余额</button>
       </div>
       <div id="vendors-body"><div class="empty">加载中...</div></div>
     </div>
@@ -370,6 +371,15 @@ async function refreshUpstream() {
   if (!confirm('确定要更新所有供应商的上游模型列表吗？')) return;
   await fetchText('/api/vendors/refresh-models', { method: 'POST' });
   toast('上游列表更新中...'); refresh();
+}
+
+async function queryBalances() {
+  if (!confirm('确定要查询所有供应商余额吗？')) return;
+  try {
+    const data = await fetchJSON('/api/vendors/balance-query', { method: 'POST' });
+    const n = data.queried || 0;
+    toast('余额查询完成，' + n + ' 个供应商');
+  } catch (e) { toast('余额查询失败: ' + e.message, 'error'); }
 }
 
 // ---------- Virtual Models ----------

@@ -129,6 +129,7 @@ public class RouterConfig implements Closeable {
         router.get("/api/vendors").blockingHandler(vendorCtrl::getAll);
         router.get("/api/vendors/:id").blockingHandler(vendorCtrl::getOne);
         router.get("/api/vendors/:id/balance").blockingHandler(vendorCtrl::getBalance);
+        router.post("/api/vendors/balance-query").blockingHandler(vendorCtrl::queryAllBalances);
         router.post("/api/vendors").blockingHandler(vendorCtrl::create);
         router.put("/api/vendors/:id").blockingHandler(vendorCtrl::update);
         router.delete("/api/vendors/:id").blockingHandler(vendorCtrl::delete);
