@@ -34,6 +34,8 @@ public class SchemaManager {
             resetPostgresSequence(stmt, "virtual_models", "id");
             resetPostgresSequence(stmt, "vendors", "id");
 
+            ensureColumn(stmt, "vendors", "balance_credential", "TEXT");
+
             log.info("PostgreSQL schema migration completed");
         } catch (SQLException e) {
             log.error("Schema migration failed", e);
@@ -66,5 +68,15 @@ public class SchemaManager {
         stmt.execute("CREATE SEQUENCE IF NOT EXISTS " + seqName);
         stmt.execute("ALTER TABLE " + table + " ALTER COLUMN " + column + " SET DEFAULT nextval('" + seqName + "')");
         log.warn("Set serial default for {}.{}", table, column);
+    }
+
+    private void ensureColumn(Statement stmt, String table, String column, String type) throws SQLException {
+        String check = "SELECT 1 FROM information_schema.columns " +
+                       "WHERE table_name = '" + table + "' AND column_name = '" + column + "'";
+        try (ResultSet rs = stmt.executeQuery(check)) {
+            if (rs.next()) return;
+        }
+        stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+        log.info("Added column {}.{} ({})", table, column, type);
     }
 }

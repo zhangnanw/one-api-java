@@ -37,6 +37,7 @@ import com.oneapi.core.HolographicLogRecorder;
 import com.oneapi.core.RouterService;
 import com.oneapi.core.SessionTracker;
 import com.oneapi.background.VendorRefreshService;
+import com.oneapi.background.BalanceQueryService;
 
 import javax.sql.DataSource;
 import java.io.Closeable;
@@ -81,9 +82,25 @@ public class RouterConfig implements Closeable {
         var vmRepo = new VirtualModelRepo(ds);
         var catalogRepo = new ModelCatalogRepo(ds);
         var vendorRefreshSvc = new VendorRefreshService(instanceRepo, vendorRepo);
+        var balanceQuerySvc = new BalanceQueryService(vendorRepo);
+
+        // 定时轮询供应商余额（每 5 分钟）
+        vertx.setPeriodic(5 * 60 * 1000, id -> {
+            vertx.executeBlocking(() -> {
+                balanceQuerySvc.queryAll();
+                return null;
+            }).onFailure(err -> {});
+        });
+        // 启动后 3 秒执行一次
+        vertx.setTimer(3000, id -> {
+            vertx.executeBlocking(() -> {
+                balanceQuerySvc.queryAll();
+                return null;
+            }).onFailure(err -> {});
+        });
 
         registerStaticRoutes();
-        registerApiRoutes(cooldown, vendorRepo, instanceRepo, vmRepo, catalogRepo, vendorRefreshSvc);
+        registerApiRoutes(cooldown, vendorRepo, instanceRepo, vmRepo, catalogRepo, vendorRefreshSvc, balanceQuerySvc);
         registerRelayRoutes(cooldown, vmRepo, instanceRepo, vendorRepo, catalogRepo);
         registerFallback();
         return router;
@@ -115,16 +132,18 @@ public class RouterConfig implements Closeable {
     /** API routes — DB-backed CRUD, run on worker pool. */
     private void registerApiRoutes(CooldownService cooldown, VendorRepo vendorRepo,
                                     InstanceRepo instanceRepo, VirtualModelRepo vmRepo,
-                                    ModelCatalogRepo catalogRepo, VendorRefreshService vendorRefreshSvc) {
+                                    ModelCatalogRepo catalogRepo, VendorRefreshService vendorRefreshSvc,
+                                    BalanceQueryService balanceQuerySvc) {
         // BodyHandler for all /api/* routes so controllers can use ctx.body().
         router.route("/api/*").handler(BodyHandler.create());
 
         var misc = new MiscController(cooldown);
         router.get("/api/status").blockingHandler(misc::status);
 
-        var vendorCtrl = new VendorController(vendorRepo, vendorRefreshSvc);
+        var vendorCtrl = new VendorController(vendorRepo, vendorRefreshSvc, balanceQuerySvc);
         router.get("/api/vendors").blockingHandler(vendorCtrl::getAll);
         router.get("/api/vendors/:id").blockingHandler(vendorCtrl::getOne);
+        router.get("/api/vendors/:id/balance").blockingHandler(vendorCtrl::getBalance);
         router.post("/api/vendors").blockingHandler(vendorCtrl::create);
         router.put("/api/vendors/:id").blockingHandler(vendorCtrl::update);
         router.delete("/api/vendors/:id").blockingHandler(vendorCtrl::delete);

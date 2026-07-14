@@ -23,6 +23,8 @@ public class Vendor {
     private String baseUrl;
     @JsonProperty("api_key")
     private String apiKey;
+    @JsonProperty("balance_credential")
+    private String balanceCredential;
     private String meta;
 
     public Vendor() {}

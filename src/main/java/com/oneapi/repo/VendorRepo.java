@@ -39,7 +39,7 @@ public class VendorRepo extends BaseRepo {
     public List<Vendor> findAll(int offset, int limit) {
         List<Vendor> list = new ArrayList<>();
         String sql = "SELECT id, name, description, status, " +
-                     "\"group\", priority, created_time, base_url, api_key, meta " +
+                     "\"group\", priority, created_time, base_url, api_key, balance_credential, meta " +
                      "FROM vendors ORDER BY id LIMIT ? OFFSET ?";
 
         try (Connection conn = getConnection();
@@ -60,11 +60,11 @@ public class VendorRepo extends BaseRepo {
     public List<VendorWithCount> findAllWithCounts(int offset, int limit) {
         List<VendorWithCount> list = new ArrayList<>();
         String sql = "SELECT v.id, v.name, v.description, v.status, " +
-                     "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.meta, " +
+                     "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.balance_credential, v.meta, " +
                      "COUNT(i.id) AS instance_count " +
                      "FROM vendors v LEFT JOIN instances i ON v.id = i.vendor_id AND i.status NOT IN (0, 3, 4, 5) " +
                      "GROUP BY v.id, v.name, v.description, v.status, " +
-                     "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.meta " +
+                     "v.\"group\", v.priority, v.created_time, v.base_url, v.api_key, v.balance_credential, v.meta " +
                      "ORDER BY v.id LIMIT ? OFFSET ?";
 
         try (Connection conn = getConnection();
@@ -87,7 +87,7 @@ public class VendorRepo extends BaseRepo {
     public List<Vendor> findAllActive() {
         List<Vendor> list = new ArrayList<>();
         String sql = "SELECT id, name, description, status, " +
-                     "\"group\", priority, created_time, base_url, api_key, meta " +
+                     "\"group\", priority, created_time, base_url, api_key, balance_credential, meta " +
                      "FROM vendors WHERE status = 1 ORDER BY id";
 
         try (Connection conn = getConnection();
@@ -109,7 +109,7 @@ public class VendorRepo extends BaseRepo {
      */
     public Vendor findById(int id) {
         String sql = "SELECT id, name, description, status, " +
-                     "\"group\", priority, created_time, base_url, api_key, meta " +
+                     "\"group\", priority, created_time, base_url, api_key, balance_credential, meta " +
                      "FROM vendors WHERE id = ?";
 
         try (Connection conn = getConnection();
@@ -128,8 +128,8 @@ public class VendorRepo extends BaseRepo {
 
     public void insert(Vendor vendor) {
         String sql = "INSERT INTO vendors (name, description, status, \"group\", " +
-                     "priority, created_time, base_url, api_key, meta) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                     "priority, created_time, base_url, api_key, balance_credential, meta) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -141,7 +141,8 @@ public class VendorRepo extends BaseRepo {
             ps.setLong(6, System.currentTimeMillis() / 1000);
             ps.setString(7, vendor.getBaseUrl());
             ps.setString(8, vendor.getApiKey());
-            ps.setString(9, vendor.getMeta());
+            ps.setString(9, vendor.getBalanceCredential());
+            ps.setString(10, vendor.getMeta());
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("insert vendor: {}", e.getMessage(), e);
@@ -151,7 +152,7 @@ public class VendorRepo extends BaseRepo {
 
     public void update(int id, Vendor vendor) {
         String sql = "UPDATE vendors SET name=?, description=?, status=?, \"group\"=?, " +
-                     "priority=?, base_url=?, meta=? WHERE id=?";
+                     "priority=?, base_url=?, balance_credential=?, meta=? WHERE id=?";
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -161,8 +162,9 @@ public class VendorRepo extends BaseRepo {
             ps.setString(4, vendor.getGroup());
             ps.setInt(5, vendor.getPriority());
             ps.setString(6, vendor.getBaseUrl());
-            ps.setString(7, vendor.getMeta());
-            ps.setInt(8, id);
+            ps.setString(7, vendor.getBalanceCredential());
+            ps.setString(8, vendor.getMeta());
+            ps.setInt(9, id);
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("update vendor {}: {}", id, e.getMessage(), e);
@@ -220,6 +222,7 @@ public class VendorRepo extends BaseRepo {
         vendor.setCreatedTime(rs.getLong("created_time"));
         vendor.setBaseUrl(rs.getString("base_url"));
         vendor.setApiKey(rs.getString("api_key"));
+        vendor.setBalanceCredential(rs.getString("balance_credential"));
         vendor.setMeta(rs.getString("meta"));
         return vendor;
     }
