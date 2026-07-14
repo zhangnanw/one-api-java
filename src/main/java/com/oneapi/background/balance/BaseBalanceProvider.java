@@ -24,6 +24,14 @@ public abstract class BaseBalanceProvider implements BalanceProvider {
     protected abstract BalanceInfo parseResponse(Vendor vendor, JsonNode root) throws Exception;
 
     /**
+     * 子类可覆盖以注入自定义 User-Agent（如 Kimi Code 要求 KimiCLI/1.6）。
+     * 返回 null 表示不注入。
+     */
+    protected String getExtraUserAgent() {
+        return null;
+    }
+
+    /**
      * 构建完整 URL。子类可覆盖以使用不同于 vendor.base_url 的域名。
      */
     protected String buildUrl(Vendor vendor) {
@@ -49,12 +57,18 @@ public abstract class BaseBalanceProvider implements BalanceProvider {
         }
 
         String url = buildUrl(vendor);
-        HttpRequest req = HttpRequest.newBuilder()
+        HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
             .uri(URI.create(url))
             .header("Authorization", "Bearer " + token)
             .timeout(Duration.ofSeconds(10))
-            .GET()
-            .build();
+            .GET();
+
+        String extraUA = getExtraUserAgent();
+        if (extraUA != null) {
+            reqBuilder.header("User-Agent", extraUA);
+        }
+
+        HttpRequest req = reqBuilder.build();
 
         HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) {
