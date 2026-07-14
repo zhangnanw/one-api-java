@@ -35,7 +35,9 @@ public class BalanceQueryService {
             new DeepSeekBalanceProvider(),
             new MoonshotBalanceProvider(),
             new SiliconFlowBalanceProvider(),
-            new OpenRouterBalanceProvider()
+            new OpenRouterBalanceProvider(),
+            new MiniMaxBalanceProvider(),
+            new MimoBalanceProvider()
         ));
         this.cache = Caffeine.newBuilder()
             .expireAfterWrite(cacheTtl)

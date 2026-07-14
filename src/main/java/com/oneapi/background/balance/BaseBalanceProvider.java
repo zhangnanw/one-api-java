@@ -23,6 +23,13 @@ public abstract class BaseBalanceProvider implements BalanceProvider {
     protected abstract String getEndpoint();
     protected abstract BalanceInfo parseResponse(Vendor vendor, JsonNode root) throws Exception;
 
+    /**
+     * 构建完整 URL。子类可覆盖以使用不同于 vendor.base_url 的域名。
+     */
+    protected String buildUrl(Vendor vendor) {
+        return vendor.getBaseUrl().replaceAll("/+$", "") + getEndpoint();
+    }
+
     protected String getAuthToken(Vendor vendor) {
         String cred = vendor.getBalanceCredential();
         if (cred != null && !cred.isEmpty()) return cred;
@@ -36,7 +43,7 @@ public abstract class BaseBalanceProvider implements BalanceProvider {
             throw new IllegalStateException("no credential for vendor " + vendor.getName());
         }
 
-        String url = vendor.getBaseUrl().replaceAll("/+$", "") + getEndpoint();
+        String url = buildUrl(vendor);
         HttpRequest req = HttpRequest.newBuilder()
             .uri(URI.create(url))
             .header("Authorization", "Bearer " + token)
