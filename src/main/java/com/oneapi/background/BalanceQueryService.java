@@ -57,8 +57,12 @@ public class BalanceQueryService {
             if (provider == null) continue; // no provider for this vendor
             try {
                 BalanceInfo info = provider.queryBalance(vendor);
-                cache.put(vendor.getId(), info);
-                latestResults.put(vendor.getId(), info);
+                if (info != null) {
+                    cache.put(vendor.getId(), info);
+                    latestResults.put(vendor.getId(), info);
+                } else {
+                    log.debug("balance query skipped for vendor {} (no credential)", vendor.getName());
+                }
             } catch (Exception ex) {
                 errors.add("vendor " + vendor.getName() + ": " + ex.getMessage());
                 log.warn("balance query failed for vendor {}: {}", vendor.getName(), ex.getMessage());

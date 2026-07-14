@@ -24,7 +24,8 @@ public class MiniMaxBalanceProvider extends BaseBalanceProvider {
     protected String getAuthToken(Vendor vendor) {
         String cred = vendor.getBalanceCredential();
         if (cred != null && !cred.isEmpty()) return cred;
-        return vendor.getApiKey();
+        // Token Plan 专用 Key，api_key（按量付费）不能用
+        return null;
     }
 
     @Override

@@ -30,17 +30,22 @@ public abstract class BaseBalanceProvider implements BalanceProvider {
         return vendor.getBaseUrl().replaceAll("/+$", "") + getEndpoint();
     }
 
+    /**
+     * 获取认证 token。返回 null 表示无法查询，跳过。
+     * 子类可覆盖：使用 api_key 的供应商直接返回 api_key，
+     * 需要专用凭证的供应商返回 balance_credential（无则返回 null）。
+     */
     protected String getAuthToken(Vendor vendor) {
         String cred = vendor.getBalanceCredential();
         if (cred != null && !cred.isEmpty()) return cred;
-        return vendor.getApiKey();
+        return null;
     }
 
     @Override
     public BalanceInfo queryBalance(Vendor vendor) throws Exception {
         String token = getAuthToken(vendor);
         if (token == null || token.isEmpty()) {
-            throw new IllegalStateException("no credential for vendor " + vendor.getName());
+            return null;
         }
 
         String url = buildUrl(vendor);

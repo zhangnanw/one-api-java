@@ -15,6 +15,11 @@ public class OpenRouterBalanceProvider extends BaseBalanceProvider {
     }
 
     @Override
+    protected String getAuthToken(Vendor vendor) {
+        return vendor.getApiKey();
+    }
+
+    @Override
     protected String getEndpoint() {
         return "/api/v1/credits";
     }

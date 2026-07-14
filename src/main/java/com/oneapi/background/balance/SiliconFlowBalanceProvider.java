@@ -15,6 +15,11 @@ public class SiliconFlowBalanceProvider extends BaseBalanceProvider {
     }
 
     @Override
+    protected String getAuthToken(Vendor vendor) {
+        return vendor.getApiKey();
+    }
+
+    @Override
     protected String getEndpoint() {
         return "/v1/user/info";
     }
