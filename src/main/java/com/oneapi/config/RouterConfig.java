@@ -6,10 +6,14 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.client.WebClient;
 
-import com.oneapi.repo.InstanceRepo;
-import com.oneapi.repo.VendorRepo;
-import com.oneapi.repo.VirtualModelRepo;
-import com.oneapi.repo.ModelCatalogRepo;
+import com.oneapi.jpa.InstanceJpaRepository;
+import com.oneapi.jpa.ModelCatalogJpaRepository;
+import com.oneapi.jpa.VendorJpaRepository;
+import com.oneapi.jpa.VirtualModelJpaRepository;
+import com.oneapi.service.InstanceService;
+import com.oneapi.service.VendorService;
+import com.oneapi.service.VirtualModelService;
+import com.oneapi.service.ModelCatalogService;
 import com.oneapi.controller.MiscController;
 import com.oneapi.controller.VendorController;
 import com.oneapi.controller.InstanceController;
@@ -39,29 +43,30 @@ import com.oneapi.core.SessionTracker;
 import com.oneapi.background.VendorRefreshService;
 import com.oneapi.background.BalanceQueryService;
 
-import javax.sql.DataSource;
+import org.springframework.context.ApplicationContext;
+
 import java.io.Closeable;
 import java.util.List;
 
+/**
+ * Vert.x 路由配置。
+ * <p>
+ * 所有数据访问现在统一通过 Spring 注入的 JPA Repository/Service。
+ */
 public class RouterConfig implements Closeable {
     private final Vertx vertx;
     private final Router router;
     private final AppConfig config;
-    private final DataSource dataSource;
+    private final ApplicationContext applicationContext;
 
     // Shared across builds so /api/status and relay routes see the same cooldown state.
     private CooldownService cooldown;
     private UpstreamClient upstreamClient;
 
-    public RouterConfig(Vertx vertx, AppConfig config) {
-        this(vertx, config, null);
-    }
-
-    /** For testing — inject an in-memory DataSource. */
-    public RouterConfig(Vertx vertx, AppConfig config, DataSource dataSource) {
+    public RouterConfig(Vertx vertx, AppConfig config, ApplicationContext applicationContext) {
         this.vertx = vertx;
         this.config = config;
-        this.dataSource = dataSource;
+        this.applicationContext = applicationContext;
         this.router = Router.router(vertx);
     }
 
@@ -74,19 +79,23 @@ public class RouterConfig implements Closeable {
             cooldown = new CooldownService();
         }
 
-        // DataSource init — single source for all repos
-        var ds = dataSource != null ? dataSource : DatabaseConfig.getDataSource();
+        // 从 Spring 上下文获取 JPA Repository
+        InstanceJpaRepository instanceJpaRepo = applicationContext.getBean(InstanceJpaRepository.class);
+        VendorJpaRepository vendorJpaRepo = applicationContext.getBean(VendorJpaRepository.class);
+        VirtualModelJpaRepository virtualModelJpaRepo = applicationContext.getBean(VirtualModelJpaRepository.class);
+        ModelCatalogJpaRepository modelCatalogJpaRepo = applicationContext.getBean(ModelCatalogJpaRepository.class);
 
-        var instanceRepo = new InstanceRepo(ds);
-        var vendorRepo = new VendorRepo(ds);
-        var vmRepo = new VirtualModelRepo(ds);
-        var catalogRepo = new ModelCatalogRepo(ds);
-        var vendorRefreshSvc = new VendorRefreshService(instanceRepo, vendorRepo);
-        var balanceQuerySvc = new BalanceQueryService(vendorRepo);
+        // 从 Spring 上下文获取 Service
+        InstanceService instanceService = applicationContext.getBean(InstanceService.class);
+        VendorService vendorService = applicationContext.getBean(VendorService.class);
+        VirtualModelService virtualModelService = applicationContext.getBean(VirtualModelService.class);
+        ModelCatalogService modelCatalogService = applicationContext.getBean(ModelCatalogService.class);
+        VendorRefreshService vendorRefreshService = applicationContext.getBean(VendorRefreshService.class);
+        BalanceQueryService balanceQueryService = applicationContext.getBean(BalanceQueryService.class);
 
         registerStaticRoutes();
-        registerApiRoutes(cooldown, vendorRepo, instanceRepo, vmRepo, catalogRepo, vendorRefreshSvc, balanceQuerySvc);
-        registerRelayRoutes(cooldown, vmRepo, instanceRepo, vendorRepo, catalogRepo);
+        registerApiRoutes(cooldown, vendorService, instanceService, virtualModelService, modelCatalogService, vendorRefreshService, balanceQueryService);
+        registerRelayRoutes(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService);
         registerFallback();
         return router;
     }
@@ -115,17 +124,17 @@ public class RouterConfig implements Closeable {
     }
 
     /** API routes — DB-backed CRUD, run on worker pool. */
-    private void registerApiRoutes(CooldownService cooldown, VendorRepo vendorRepo,
-                                    InstanceRepo instanceRepo, VirtualModelRepo vmRepo,
-                                    ModelCatalogRepo catalogRepo, VendorRefreshService vendorRefreshSvc,
-                                    BalanceQueryService balanceQuerySvc) {
+    private void registerApiRoutes(CooldownService cooldown, VendorService vendorService,
+                                    InstanceService instanceService, VirtualModelService virtualModelService,
+                                    ModelCatalogService modelCatalogService,
+                                    VendorRefreshService vendorRefreshService, BalanceQueryService balanceQueryService) {
         // BodyHandler for all /api/* routes so controllers can use ctx.body().
         router.route("/api/*").handler(BodyHandler.create());
 
         var misc = new MiscController(cooldown);
         router.get("/api/status").blockingHandler(misc::status);
 
-        var vendorCtrl = new VendorController(vendorRepo, vendorRefreshSvc, balanceQuerySvc);
+        var vendorCtrl = new VendorController(vendorService, vendorRefreshService, balanceQueryService);
         router.get("/api/vendors").blockingHandler(vendorCtrl::getAll);
         router.get("/api/vendors/:id").blockingHandler(vendorCtrl::getOne);
         router.get("/api/vendors/:id/balance").blockingHandler(vendorCtrl::getBalance);
@@ -135,7 +144,7 @@ public class RouterConfig implements Closeable {
         router.delete("/api/vendors/:id").blockingHandler(vendorCtrl::delete);
         router.post("/api/vendors/:id/refresh-models").blockingHandler(vendorCtrl::refreshModels);
 
-        var instanceCtrl = new InstanceController(instanceRepo, vendorRepo);
+        var instanceCtrl = new InstanceController(instanceService, vendorService);
         router.get("/api/instances").blockingHandler(instanceCtrl::getAll);
         router.get("/api/instances/:id").blockingHandler(instanceCtrl::getOne);
         router.post("/api/instances").blockingHandler(instanceCtrl::create);
@@ -143,14 +152,14 @@ public class RouterConfig implements Closeable {
         router.post("/api/instances/:id/toggle").blockingHandler(instanceCtrl::toggle);
         router.delete("/api/instances/:id").blockingHandler(instanceCtrl::delete);
 
-        var vmCtrl = new VirtualModelController(vmRepo);
+        var vmCtrl = new VirtualModelController(virtualModelService);
         router.get("/api/virtual-models").blockingHandler(vmCtrl::getAll);
         router.get("/api/virtual-models/:id").blockingHandler(vmCtrl::getOne);
         router.post("/api/virtual-models").blockingHandler(vmCtrl::create);
         router.put("/api/virtual-models/:id").blockingHandler(vmCtrl::update);
         router.delete("/api/virtual-models/:id").blockingHandler(vmCtrl::delete);
 
-        var mcCtrl = new ModelCatalogController(catalogRepo);
+        var mcCtrl = new ModelCatalogController(modelCatalogService);
         router.get("/api/model-catalog").blockingHandler(mcCtrl::getAll);
         router.get("/api/model-catalog/:name").blockingHandler(mcCtrl::getOne);
         router.post("/api/model-catalog").blockingHandler(mcCtrl::create);
@@ -159,29 +168,28 @@ public class RouterConfig implements Closeable {
     }
 
     /** Relay routes — event-loop based async pipeline. */
-    private void registerRelayRoutes(CooldownService cooldown, VirtualModelRepo vmRepo,
-                                    InstanceRepo instanceRepo, VendorRepo vendorRepo,
-                                    ModelCatalogRepo catalogRepo) {
+    private void registerRelayRoutes(CooldownService cooldown, InstanceJpaRepository instanceJpaRepo,
+                                    VirtualModelJpaRepository virtualModelJpaRepo,
+                                    ModelCatalogService modelCatalogService) {
         // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
         router.post("/v1/chat/completions")
             .handler(new RequestSetup())
-            .handler(buildV2Controller(cooldown, vmRepo, instanceRepo, vendorRepo, catalogRepo)::handle);
+            .handler(buildV2Controller(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService)::handle);
 
-        var modelsCtrl = new com.oneapi.controller.ModelsController(vmRepo);
+        var modelsCtrl = new com.oneapi.controller.ModelsController(virtualModelJpaRepo);
         router.get("/v1/models")
             .handler(modelsCtrl::list);
     }
 
-    private RelayControllerV2 buildV2Controller(CooldownService cooldown, VirtualModelRepo vmRepo,
-                                               InstanceRepo instanceRepo, VendorRepo vendorRepo,
-                                               ModelCatalogRepo catalogRepo) {
-        var routerSvc = new RouterService(instanceRepo);
-        routerSvc.setCooldownService(cooldown); // 冷却预过滤（排序前生效）
+    private RelayControllerV2 buildV2Controller(CooldownService cooldown, InstanceJpaRepository instanceJpaRepo,
+                                               VirtualModelJpaRepository virtualModelJpaRepo,
+                                               ModelCatalogService modelCatalogService) {
+        var routerSvc = new RouterService(instanceJpaRepo);
+        routerSvc.setCooldownService(cooldown);
         var sessions = new SessionTracker();
 
-        FilterSets filters = buildFilters(cooldown, instanceRepo, vmRepo, catalogRepo);
+        FilterSets filters = buildFilters(instanceJpaRepo, virtualModelJpaRepo, modelCatalogService);
 
-        // 第五阶段：上游客户端
         var upstreamClient = new UpstreamClient(
             WebClient.create(vertx, new io.vertx.ext.web.client.WebClientOptions()
                 .setConnectTimeout(30000)
@@ -190,7 +198,6 @@ public class RouterConfig implements Closeable {
         this.upstreamClient = upstreamClient;
         var baseRelay = new DefaultRelay(upstreamClient);
 
-        // 协调器
         var holographicRecorder = new HolographicLogRecorder();
         var coordinator = new RelayCoordinator(
             routerSvc, cooldown, sessions, upstreamClient,
@@ -199,15 +206,13 @@ public class RouterConfig implements Closeable {
         return new RelayControllerV2(coordinator);
     }
 
-    /** Exposed for testing — assembles filter chain without Vert.x dependency. */
-    FilterSets buildFilters(CooldownService cooldown,
-                           InstanceRepo instanceRepo,
-                           VirtualModelRepo vmRepo,
-                           ModelCatalogRepo catalogRepo) {
+    private FilterSets buildFilters(InstanceJpaRepository instanceJpaRepo,
+                                   VirtualModelJpaRepository virtualModelJpaRepo,
+                                   ModelCatalogService modelCatalogService) {
         boolean requireVirtualModel = config != null && config.getRelay() != null
             ? config.getRelay().isRequireVirtualModel() : true;
-        var nameMatcher = new NameMatcher(instanceRepo, requireVirtualModel);
-        var vmLookup = new VirtualModelLookup(vmRepo,
+        var nameMatcher = new NameMatcher(instanceJpaRepo, requireVirtualModel);
+        var vmLookup = new VirtualModelLookup(virtualModelJpaRepo,
             config.getPolicies() != null && config.getPolicies().getReasoning() != null
                 ? config.getPolicies().getReasoning().getTriggerSuffix()
                 : "-max");
@@ -222,8 +227,8 @@ public class RouterConfig implements Closeable {
         );
 
         var cooldownFilter = new CooldownFilter(cooldown);
-        var capInstanceFilter = new CapabilityInstanceFilter(catalogRepo);
-        var bodyLimitFilter = new BodyLimitFilter(catalogRepo);
+        var capInstanceFilter = new CapabilityInstanceFilter(modelCatalogService);
+        var bodyLimitFilter = new BodyLimitFilter(modelCatalogService);
         var tagFilter = new TagFilter();
         var layerFilter = new LayerFilter();
         var activeStatusFilter = new ActiveStatusFilter();

@@ -1,8 +1,8 @@
 package com.oneapi.controller;
 
 import com.oneapi.model.Instance;
-import com.oneapi.repo.InstanceRepo;
-import com.oneapi.repo.VendorRepo;
+import com.oneapi.service.InstanceService;
+import com.oneapi.service.VendorService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -10,16 +10,16 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class InstanceController extends BaseController {
-    private final InstanceRepo repo;
-    private final VendorRepo vendorRepo;
+    private final InstanceService instanceService;
+    private final VendorService vendorService;
 
-    public InstanceController(InstanceRepo instanceRepo, VendorRepo vendorRepo) {
-        this.repo = instanceRepo;
-        this.vendorRepo = vendorRepo;
+    public InstanceController(InstanceService instanceService, VendorService vendorService) {
+        this.instanceService = instanceService;
+        this.vendorService = vendorService;
     }
 
     public void getAll(RoutingContext ctx) {
-        var instances = repo.findAll();
+        var instances = instanceService.findAll();
         var arr = new JsonArray();
         for (Instance instance : instances) {
             arr.add(toJson(instance));
@@ -30,7 +30,7 @@ public class InstanceController extends BaseController {
     public void getOne(RoutingContext ctx) {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
-        Instance instance = repo.findById(id);
+        Instance instance = instanceService.findById(id);
         if (instance == null) {
             notFound(ctx, "instance");
             return;
@@ -51,7 +51,7 @@ public class InstanceController extends BaseController {
             badRequest(ctx, "vendor_id is required");
             return;
         }
-        if (vendorRepo.findById(vendorId) == null) {
+        if (vendorService.findById(vendorId) == null) {
             notFound(ctx, "vendor");
             return;
         }
@@ -64,7 +64,7 @@ public class InstanceController extends BaseController {
         inst.setPref(body.getFloat("pref", 0.5f));
         inst.setLayer(body.getString("layer", "payg"));
         try {
-            repo.insert(inst);
+            instanceService.insert(inst);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "instance create");
@@ -74,7 +74,7 @@ public class InstanceController extends BaseController {
     public void update(RoutingContext ctx) {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
-        Instance existing = repo.findById(id);
+        Instance existing = instanceService.findById(id);
         if (existing == null) {
             notFound(ctx, "instance");
             return;
@@ -89,7 +89,7 @@ public class InstanceController extends BaseController {
                 badRequest(ctx, "vendor_id must be an integer");
                 return;
             }
-            if (vendorRepo.findById(vendorId) == null) {
+            if (vendorService.findById(vendorId) == null) {
                 notFound(ctx, "vendor");
                 return;
             }
@@ -114,7 +114,7 @@ public class InstanceController extends BaseController {
         }
         if (body.containsKey("layer")) existing.setLayer(body.getString("layer"));
         try {
-            repo.update(existing);
+            instanceService.update(existing);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "instance update");
@@ -125,7 +125,7 @@ public class InstanceController extends BaseController {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
         try {
-            repo.toggleStatus(id);
+            instanceService.toggleStatus(id);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "instance toggle");
@@ -136,7 +136,7 @@ public class InstanceController extends BaseController {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
         try {
-            repo.delete(id);
+            instanceService.delete(id);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "instance delete");

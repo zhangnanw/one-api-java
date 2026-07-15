@@ -1,5 +1,7 @@
 package com.oneapi.core;
 
+import org.springframework.stereotype.Service;
+
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
@@ -13,6 +15,7 @@ import java.util.Arrays;
  * Restart clears all cooldowns.
  */
 @Slf4j
+@Service
 public class CooldownService {
 
     // Cooldown entries — Caffeine auto-expires after cap

@@ -1,6 +1,6 @@
 package com.oneapi.controller;
 
-import com.oneapi.repo.VirtualModelRepo;
+import com.oneapi.jpa.VirtualModelJpaRepository;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -10,9 +10,9 @@ import io.vertx.ext.web.RoutingContext;
  */
 public class ModelsController {
 
-    private final VirtualModelRepo repo;
+    private final VirtualModelJpaRepository repo;
 
-    public ModelsController(VirtualModelRepo repo) {
+    public ModelsController(VirtualModelJpaRepository repo) {
         this.repo = repo;
     }
 

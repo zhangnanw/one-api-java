@@ -2,9 +2,10 @@ package com.oneapi.background;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.stereotype.Service;
 import com.oneapi.background.balance.*;
+import com.oneapi.jpa.VendorJpaRepository;
 import com.oneapi.model.Vendor;
-import com.oneapi.repo.VendorRepo;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -19,17 +20,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * 低可靠性要求：单个供应商失败不影响其他，只 log.warn。
  */
 @Slf4j
+@Service
 public class BalanceQueryService {
-    private final VendorRepo vendorRepo;
+    private final VendorJpaRepository vendorRepo;
     private final List<BalanceProvider> providers;
     private final Cache<Integer, BalanceInfo> cache;
     private final Map<Integer, BalanceInfo> latestResults = new ConcurrentHashMap<>();
 
-    public BalanceQueryService(VendorRepo vendorRepo) {
+    public BalanceQueryService(VendorJpaRepository vendorRepo) {
         this(vendorRepo, Duration.ofMinutes(5));
     }
 
-    public BalanceQueryService(VendorRepo vendorRepo, Duration cacheTtl) {
+    public BalanceQueryService(VendorJpaRepository vendorRepo, Duration cacheTtl) {
         this.vendorRepo = vendorRepo;
         this.providers = new ArrayList<>(List.of(
             new DeepSeekBalanceProvider(),
@@ -53,50 +55,51 @@ public class BalanceQueryService {
     public Map<Integer, BalanceInfo> queryAll() {
         List<String> errors = new ArrayList<>();
 
-        for (Vendor vendor : vendorRepo.findAllActive()) {
+        for (Vendor vendor : vendorRepo.findByStatus(1)) {
             BalanceProvider provider = findProvider(vendor);
-            if (provider == null) continue; // no provider for this vendor
+            if (provider == null) {
+                log.warn("No balance provider for vendor {}", vendor.getName());
+                continue;
+            }
             try {
                 BalanceInfo info = provider.queryBalance(vendor);
                 if (info != null) {
                     cache.put(vendor.getId(), info);
                     latestResults.put(vendor.getId(), info);
-                } else {
-                    log.debug("balance query skipped for vendor {} (no credential)", vendor.getName());
                 }
-            } catch (Exception ex) {
-                errors.add("vendor " + vendor.getName() + ": " + ex.getMessage());
-                log.warn("balance query failed for vendor {}: {}", vendor.getName(), ex.getMessage());
+            } catch (Exception e) {
+                errors.add(vendor.getName() + ": " + e.getMessage());
+                log.warn("Balance query failed for vendor {}: {}", vendor.getName(), e.getMessage());
             }
-        }
-
-        if (!errors.isEmpty()) {
-            log.warn("balance query completed with {} errors: {}", errors.size(), errors);
         }
         return Map.copyOf(latestResults);
     }
 
-    /**
-     * 获取缓存的余额（按供应商 ID）。
-     * 返回 null 表示缓存过期或未查询过。
-     */
     public BalanceInfo getBalance(int vendorId) {
         BalanceInfo cached = cache.getIfPresent(vendorId);
         if (cached != null) return cached;
-        return latestResults.get(vendorId);
-    }
 
-    /**
-     * 获取所有缓存的余额。
-     */
-    public Map<Integer, BalanceInfo> getAllBalances() {
-        return Map.copyOf(latestResults);
+        Vendor vendor = vendorRepo.findById(vendorId).orElse(null);
+        if (vendor == null) return null;
+        BalanceProvider provider = findProvider(vendor);
+        if (provider == null) return null;
+        try {
+            BalanceInfo info = provider.queryBalance(vendor);
+            if (info != null) {
+                cache.put(vendorId, info);
+                latestResults.put(vendorId, info);
+            }
+            return info;
+        } catch (Exception e) {
+            log.warn("Balance query failed for vendor {}: {}", vendor.getName(), e.getMessage());
+            return null;
+        }
     }
 
     private BalanceProvider findProvider(Vendor vendor) {
-        for (BalanceProvider provider : providers) {
-            if (provider.supports(vendor)) return provider;
-        }
-        return null;
+        return providers.stream()
+            .filter(p -> p.supports(vendor))
+            .findFirst()
+            .orElse(null);
     }
 }

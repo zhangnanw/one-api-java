@@ -8,9 +8,16 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+/**
+ * 数据库连接配置。
+ * <p>
+ * Step 5 起：DataSource 优先由 Spring Boot 自动配置创建，再通过
+ * {@link #setDataSource(DataSource)} 注入。旧的 {@link #init} 方法在检测到
+ * 已存在 DataSource 时会跳过，保证启动流程可以平滑过渡到 Spring 管理。
+ */
 @Slf4j
 public class DatabaseConfig {
-    private static HikariDataSource dataSource;
+    private static DataSource dataSource;
 
     // ── helpers ────────────────────────────────────────────────
 
@@ -24,24 +31,26 @@ public class DatabaseConfig {
         config.setConnectionTimeout(10000);   // 10s
         config.setIdleTimeout(600000);       // 10min
         config.setMaxLifetime(1800000);      // 30min
-        // 连接检测：取连接时测一次 + 后台每 30s 测一次
         config.setConnectionTestQuery("SELECT 1");
-        config.setKeepaliveTime(30000);       // 30s keepalive（空闲连接保活）
-        // 连接断开后快速重连，不累积死连接
+        config.setKeepaliveTime(30000);       // 30s keepalive
         config.setValidationTimeout(5000);
 
         return new HikariDataSource(config);
     }
 
-    private static void closeDataSource(HikariDataSource ds) {
-        if (ds != null && !ds.isClosed()) {
-            try { ds.close(); } catch (Exception ignored) { }
+    private static void closeDataSource(DataSource ds) {
+        if (ds instanceof HikariDataSource hds && !hds.isClosed()) {
+            try { hds.close(); } catch (Exception ignored) { }
         }
     }
 
     // ── init ──────────────────────────────────────────────
 
     public static void init(AppConfig.DatabaseYamlConfig dbConfig) {
+        if (dataSource != null) {
+            log.info("DataSource already provided by Spring, skip legacy DatabaseConfig.init");
+            return;
+        }
         if (dbConfig == null) {
             dbConfig = new AppConfig.DatabaseYamlConfig();
         }
@@ -50,7 +59,10 @@ public class DatabaseConfig {
 
     /** Backward-compatible overload for tests using an in-memory H2 database in PostgreSQL mode. */
     public static void init(String jdbcUrl) {
-        // Route to a fresh H2 PostgreSQL-compatible DB.
+        if (dataSource != null) {
+            log.info("DataSource already provided by Spring, skip legacy test DatabaseConfig.init");
+            return;
+        }
         String dbName = "legacy_test_" + Math.abs((long) (jdbcUrl != null ? jdbcUrl : "memory").hashCode());
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:h2:mem:" + dbName +
@@ -80,6 +92,15 @@ public class DatabaseConfig {
         }
     }
 
+    /**
+     * Step 5 新增：由 Spring Boot 注入已自动配置的 DataSource。
+     */
+    public static void setDataSource(DataSource ds) {
+        if (ds != null) {
+            log.info("DataSource provided by Spring: {}", ds.getClass().getName());
+            dataSource = ds;
+        }
+    }
 
     public static DataSource getDataSource() {
         return dataSource;

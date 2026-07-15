@@ -2,27 +2,24 @@ package com.oneapi.core;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.oneapi.jpa.InstanceJpaRepository;
 import com.oneapi.model.Candidate;
 import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
-import com.oneapi.repo.InstanceRepo;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@Service
 public class RouterService {
-    private final InstanceRepo instanceRepo;
-    private CooldownService cooldownService; // 可选，由协调器注入
+    private final InstanceJpaRepository instanceRepo;
+    private CooldownService cooldownService;
 
-    public RouterService(InstanceRepo instanceRepo) {
+    public RouterService(InstanceJpaRepository instanceRepo) {
         this.instanceRepo = instanceRepo;
     }
 
-    /**
-     * 注入 CooldownService（由 RelayCoordinator 在构造时调用）。
-     * 用于在 loadCandidates 层预过滤冷却中的实例/供应商，
-     * 避免它们参与后续的排序，节省无效计算。
-     */
     public void setCooldownService(CooldownService cooldownService) {
         this.cooldownService = cooldownService;
     }
@@ -30,8 +27,6 @@ public class RouterService {
     // 60 秒 TTL 缓存（避免频繁查库）
     private final Cache<String, List<Instance>> instanceCache = Caffeine.newBuilder()
         .expireAfterWrite(60, TimeUnit.SECONDS).build();
-
-    // --- RoutedVendor ---
 
     public record RoutedVendor(
         Vendor vendor,
@@ -44,11 +39,6 @@ public class RouterService {
         float instancePref,
         String instanceLayer
     ) {
-        /**
-         * 从路由后中间表示转换为中继候选。
-         * 重建 Instance 壳（包含 modelName/upstreamModel/vendor/status/meta），
-         * 供 RelayCoordinator 选路使用。
-         */
         public Candidate toCandidate() {
             Instance instance = new Instance();
             instance.setId(instanceId);
@@ -61,16 +51,6 @@ public class RouterService {
         }
     }
 
-    /**
-     * 为给定模型加载候选实例。
-     *
-     * 过滤层级：
-     * 1. 基础状态过滤 — 排除 DISABLED / DEPRECATED / FAILED / UNKNOWN
-     * 2. 冷却预过滤（若 cooldownService 已注入）— 在排序前排除冷却中的实例/供应商
-     *
-     * 注意：冷却中的实例不会参与排序，但 CooldownFilter（stage-3）仍保留
-     * 作为安全网，捕获 loadCandidates 之后、新冷却的实例。
-     */
     public List<RoutedVendor> loadCandidates(String modelName) {
         List<Instance> all = getCachedInstances();
         if (all.isEmpty()) return List.of();
@@ -95,7 +75,6 @@ public class RouterService {
             ))
             .toList();
 
-        // 冷却预过滤：避免冷却实例参与后续排序
         if (cooldownService != null) {
             candidates = candidates.stream()
                 .filter(rv -> {
@@ -109,9 +88,8 @@ public class RouterService {
         return candidates;
     }
 
-    // --- 缓存 ---
-
     private List<Instance> getCachedInstances() {
-        return instanceCache.get("all", k -> instanceRepo.findAllWithVendor());
+        return instanceCache.get("all", k -> instanceRepo.findAllWithVendor(
+            List.of(Instance.STATUS_DISABLED, Instance.STATUS_DEPRECATED, Instance.STATUS_FAILED, Instance.STATUS_UNKNOWN)));
     }
 }

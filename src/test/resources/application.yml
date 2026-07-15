@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: one-api-java-test
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;NON_KEYWORDS=MATCH
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  cache:
+    type: simple
+
+logging:
+  level:
+    root: WARN
+    com.oneapi: INFO
+    org.hibernate: WARN

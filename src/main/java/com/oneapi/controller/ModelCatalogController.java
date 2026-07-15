@@ -1,7 +1,7 @@
 package com.oneapi.controller;
 
 import com.oneapi.model.ModelCatalogEntry;
-import com.oneapi.repo.ModelCatalogRepo;
+import com.oneapi.service.ModelCatalogService;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
@@ -14,15 +14,15 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ModelCatalogController extends BaseController {
-    private final ModelCatalogRepo repo;
+    private final ModelCatalogService modelCatalogService;
 
-    public ModelCatalogController(ModelCatalogRepo repo) {
-        this.repo = repo;
+    public ModelCatalogController(ModelCatalogService modelCatalogService) {
+        this.modelCatalogService = modelCatalogService;
     }
 
     /** GET /api/model-catalog — list all entries. */
     public void getAll(RoutingContext ctx) {
-        var list = repo.findAll();
+        var list = modelCatalogService.findAll();
         var arr = new io.vertx.core.json.JsonArray();
         for (ModelCatalogEntry e : list) {
             arr.add(toJson(e));
@@ -33,7 +33,7 @@ public class ModelCatalogController extends BaseController {
     /** GET /api/model-catalog/:name — get one entry. */
     public void getOne(RoutingContext ctx) {
         String name = ctx.pathParam("name");
-        ModelCatalogEntry entry = repo.findByName(name);
+        ModelCatalogEntry entry = modelCatalogService.findByName(name);
         if (entry == null) {
             notFound(ctx, "model_catalog");
             return;
@@ -50,7 +50,7 @@ public class ModelCatalogController extends BaseController {
             badRequest(ctx, "name is required");
             return;
         }
-        if (repo.findByName(name) != null) {
+        if (modelCatalogService.findByName(name) != null) {
             badRequest(ctx, "model_catalog entry already exists: " + name);
             return;
         }
@@ -62,7 +62,7 @@ public class ModelCatalogController extends BaseController {
         entry.setOutputPrice(body.getDouble("output_price"));
         entry.setReferenceNotes(body.getString("reference_notes"));
         try {
-            repo.insert(entry);
+            modelCatalogService.insert(entry);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "model_catalog create");
@@ -72,7 +72,7 @@ public class ModelCatalogController extends BaseController {
     /** PUT /api/model-catalog/:name — update an existing entry. */
     public void update(RoutingContext ctx) {
         String name = ctx.pathParam("name");
-        if (repo.findByName(name) == null) {
+        if (modelCatalogService.findByName(name) == null) {
             notFound(ctx, "model_catalog");
             return;
         }
@@ -86,7 +86,7 @@ public class ModelCatalogController extends BaseController {
         entry.setOutputPrice(body.getDouble("output_price"));
         entry.setReferenceNotes(body.getString("reference_notes"));
         try {
-            repo.update(name, entry);
+            modelCatalogService.update(name, entry);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "model_catalog update");
@@ -96,12 +96,12 @@ public class ModelCatalogController extends BaseController {
     /** DELETE /api/model-catalog/:name — delete an entry. */
     public void delete(RoutingContext ctx) {
         String name = ctx.pathParam("name");
-        if (repo.findByName(name) == null) {
+        if (modelCatalogService.findByName(name) == null) {
             notFound(ctx, "model_catalog");
             return;
         }
         try {
-            repo.delete(name);
+            modelCatalogService.delete(name);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "model_catalog delete");

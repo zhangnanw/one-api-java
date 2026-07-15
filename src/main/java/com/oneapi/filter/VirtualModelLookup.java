@@ -1,11 +1,11 @@
 package com.oneapi.filter;
 
+import com.oneapi.jpa.VirtualModelJpaRepository;
+import com.oneapi.model.MatchRule;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
-import com.oneapi.model.MatchRule;
 import com.oneapi.model.MatchRuleParser;
 import com.oneapi.model.VirtualModel;
-import com.oneapi.repo.VirtualModelRepo;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -17,17 +17,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class VirtualModelLookup implements Filter {
 
-    private final VirtualModelRepo vmRepo;
+    private final VirtualModelJpaRepository vmRepo;
     private final String triggerSuffix;
 
-    public VirtualModelLookup(VirtualModelRepo vmRepo, String triggerSuffix) {
+    public VirtualModelLookup(VirtualModelJpaRepository vmRepo, String triggerSuffix) {
         this.vmRepo = vmRepo;
         this.triggerSuffix = triggerSuffix;
     }
 
     @Override
     public RelayContext apply(RelayContext ctx) {
-        // 已匹配为物理模型 — 跳过
         if (ctx.matchedPhysical()) {
             return ctx;
         }
@@ -37,7 +36,6 @@ public class VirtualModelLookup implements Filter {
             return ctx;
         }
 
-        // 去除 -max 后缀用于虚拟模型查找
         boolean reasoning = false;
         String lookupName = model;
         if (triggerSuffix != null && !triggerSuffix.isEmpty() && model.endsWith(triggerSuffix)) {
@@ -47,7 +45,7 @@ public class VirtualModelLookup implements Filter {
                 triggerSuffix, lookupName);
         }
 
-        VirtualModel virtualModel = vmRepo.findByName(lookupName);
+        VirtualModel virtualModel = vmRepo.findByName(lookupName).orElse(null);
         if (virtualModel == null) {
             log.info("VirtualModelLookup: {} not registered, reject", lookupName);
             ctx.markError(new RelayError.ModelNotFound(lookupName),
@@ -55,31 +53,14 @@ public class VirtualModelLookup implements Filter {
             return ctx;
         }
 
-        // 将匹配 JSON 解析为类型化的 MatchRule
         MatchRule rule = MatchRuleParser.parse(virtualModel.getMatch());
         ctx.setMatchRule(rule);
-
-        // 设置路由模型名称
-        // ModelsMatch：设 modelNames，不设路由模型名（RelayCoordinator 以此为准）
         if (rule instanceof MatchRule.ModelsMatch mm) {
             ctx.setModelNames(mm.modelNames());
         } else if (rule instanceof MatchRule.NameMatch nm) {
             ctx.setRoutingModelName(nm.modelName());
-        } else {
-            ctx.setRoutingModelName(lookupName);
         }
-
-        if (reasoning) {
-            ctx.setReasoning(true);
-        }
-
-        if (rule instanceof MatchRule.ModelsMatch mm) {
-            log.debug("VirtualModelLookup: {} → {} (rule=ModelsMatch, {} models)",
-                model, lookupName, mm.modelNames().size());
-        } else {
-            log.debug("VirtualModelLookup: {} → {} (rule={})", model, ctx.routingModelName(),
-                rule.getClass().getSimpleName());
-        }
+        ctx.setReasoning(reasoning);
         return ctx;
     }
 }

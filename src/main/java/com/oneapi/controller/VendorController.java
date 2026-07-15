@@ -1,10 +1,10 @@
 package com.oneapi.controller;
 
-import com.oneapi.model.Vendor;
-import com.oneapi.repo.VendorRepo;
-import com.oneapi.background.VendorRefreshService;
-import com.oneapi.background.BalanceQueryService;
 import com.oneapi.background.balance.BalanceInfo;
+import com.oneapi.background.BalanceQueryService;
+import com.oneapi.background.VendorRefreshService;
+import com.oneapi.model.Vendor;
+import com.oneapi.service.VendorService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -12,16 +12,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class VendorController extends BaseController {
-    private final VendorRepo repo;
+    private final VendorService vendorService;
     private final VendorRefreshService refreshService;
     private final BalanceQueryService balanceService;
 
-    public VendorController(VendorRepo repo, VendorRefreshService refreshService) {
-        this(repo, refreshService, null);
-    }
-
-    public VendorController(VendorRepo repo, VendorRefreshService refreshService, BalanceQueryService balanceService) {
-        this.repo = repo;
+    public VendorController(VendorService vendorService, VendorRefreshService refreshService,
+                            BalanceQueryService balanceService) {
+        this.vendorService = vendorService;
         this.refreshService = refreshService;
         this.balanceService = balanceService;
     }
@@ -31,7 +28,7 @@ public class VendorController extends BaseController {
         int pageSize = parseInt(ctx.request().getParam("page_size"), 50);
         int offset = page * pageSize;
 
-        var results = repo.findAllWithCounts(offset, pageSize);
+        var results = vendorService.findAllWithCounts(offset, pageSize);
         var arr = new JsonArray();
         for (var routedVendor : results) {
             JsonObject obj = toJson(routedVendor.vendor());
@@ -45,7 +42,7 @@ public class VendorController extends BaseController {
     public void getOne(RoutingContext ctx) {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
-        Vendor vendor = repo.findById(id);
+        Vendor vendor = vendorService.findById(id);
         if (vendor == null) {
             notFound(ctx, "vendor");
             return;
@@ -57,7 +54,7 @@ public class VendorController extends BaseController {
         var body = requireBody(ctx);
         if (body == null) return;
         Vendor vendor = parseBody(ctx, body);
-        if (vendor == null) return; // parseBody already sent error
+        if (vendor == null) return;
         if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
             return;
@@ -66,10 +63,9 @@ public class VendorController extends BaseController {
             badRequest(ctx, "base_url is required");
             return;
         }
-        // Default status
         if (vendor.getStatus() == 0) vendor.setStatus(1);
         try {
-            repo.insert(vendor);
+            vendorService.insert(vendor);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "vendor create");
@@ -79,24 +75,20 @@ public class VendorController extends BaseController {
     public void update(RoutingContext ctx) {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
-        if (repo.findById(id) == null) {
+        if (vendorService.findById(id) == null) {
             notFound(ctx, "vendor");
             return;
         }
         var body = requireBody(ctx);
         if (body == null) return;
         Vendor vendor = parseBody(ctx, body);
-        if (vendor == null) return; // parseBody already sent error
+        if (vendor == null) return;
         if (vendor.getName() == null || vendor.getName().isEmpty()) {
             badRequest(ctx, "vendor name is required");
             return;
         }
-        vendor.setId(id);
         try {
-            repo.update(id, vendor);
-            if (vendor.getApiKey() != null && !vendor.getApiKey().isEmpty()) {
-                repo.updateApiKey(id, vendor.getApiKey());
-            }
+            vendorService.update(id, vendor);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "vendor update");
@@ -107,7 +99,7 @@ public class VendorController extends BaseController {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
         try {
-            repo.delete(id);
+            vendorService.delete(id);
             ok(ctx);
         } catch (RuntimeException e) {
             dbError(ctx, e, "vendor delete");
@@ -138,15 +130,6 @@ public class VendorController extends BaseController {
     public void getBalance(RoutingContext ctx) {
         Integer id = parseIntParam(ctx, "id");
         if (id == null) return;
-        if (balanceService == null) {
-            ctx.response().setStatusCode(503)
-                .putHeader("Content-Type", "application/json")
-                .end(new JsonObject()
-                    .put("success", false)
-                    .put("message", "balance service not available")
-                    .toString());
-            return;
-        }
         BalanceInfo info = balanceService.getBalance(id);
         if (info == null) {
             ctx.response().setStatusCode(404)
@@ -166,15 +149,6 @@ public class VendorController extends BaseController {
     }
 
     public void queryAllBalances(RoutingContext ctx) {
-        if (balanceService == null) {
-            ctx.response().setStatusCode(503)
-                .putHeader("Content-Type", "application/json")
-                .end(new JsonObject()
-                    .put("success", false)
-                    .put("message", "balance service not available")
-                    .toString());
-            return;
-        }
         ctx.vertx().executeBlocking(balanceService::queryAll).onSuccess(result -> {
             JsonArray results = new JsonArray();
             for (BalanceInfo info : result.values()) {
@@ -198,8 +172,6 @@ public class VendorController extends BaseController {
                     .toString());
         });
     }
-
-    // --- helpers ---
 
     private JsonObject toJson(Vendor vendor) {
         return new JsonObject()
