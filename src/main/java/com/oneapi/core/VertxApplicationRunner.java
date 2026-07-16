@@ -13,6 +13,8 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import com.oneapi.service.RelayLogService;
+
 import javax.sql.DataSource;
 
 /**
@@ -33,9 +35,10 @@ public class VertxApplicationRunner implements ApplicationRunner, DisposableBean
     private final RouterConfig routerConfig;
     private final AppConfig appConfig;
 
-    public VertxApplicationRunner(ApplicationContext applicationContext, AppConfig appConfig, DataSource dataSource) {
+    public VertxApplicationRunner(ApplicationContext applicationContext, AppConfig appConfig, DataSource dataSource, RelayLogService relayLogService) {
         this.appConfig = appConfig;
         DatabaseConfig.setDataSource(dataSource);
+        RelayLogger.init(relayLogService);
 
         this.vertx = Vertx.vertx();
         this.routerConfig = new RouterConfig(vertx, appConfig, applicationContext);
@@ -45,9 +48,8 @@ public class VertxApplicationRunner implements ApplicationRunner, DisposableBean
 
     @Override
     public void run(ApplicationArguments args) {
-        // 初始化数据库与日志表
+        // 初始化数据库与全息日志表
         DatabaseConfig.init(appConfig.getDatabase());
-        RelayLogger.init(DatabaseConfig.getDataSource());
         HolographicLogger.init(DatabaseConfig.getDataSource());
 
         server.listen(appConfig.port(), ar -> {

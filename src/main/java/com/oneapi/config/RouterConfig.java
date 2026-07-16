@@ -14,6 +14,7 @@ import com.oneapi.service.InstanceService;
 import com.oneapi.service.VendorService;
 import com.oneapi.service.VirtualModelService;
 import com.oneapi.service.ModelCatalogService;
+import com.oneapi.service.RelayLogService;
 import com.oneapi.controller.MiscController;
 import com.oneapi.controller.VendorController;
 import com.oneapi.controller.InstanceController;
@@ -92,10 +93,11 @@ public class RouterConfig implements Closeable {
         ModelCatalogService modelCatalogService = applicationContext.getBean(ModelCatalogService.class);
         VendorRefreshService vendorRefreshService = applicationContext.getBean(VendorRefreshService.class);
         BalanceQueryService balanceQueryService = applicationContext.getBean(BalanceQueryService.class);
+        RelayLogService relayLogService = applicationContext.getBean(RelayLogService.class);
 
         registerStaticRoutes();
         registerApiRoutes(cooldown, vendorService, instanceService, virtualModelService, modelCatalogService, vendorRefreshService, balanceQueryService);
-        registerRelayRoutes(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService);
+        registerRelayRoutes(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService, relayLogService);
         registerFallback();
         return router;
     }
@@ -170,11 +172,12 @@ public class RouterConfig implements Closeable {
     /** Relay routes — event-loop based async pipeline. */
     private void registerRelayRoutes(CooldownService cooldown, InstanceJpaRepository instanceJpaRepo,
                                     VirtualModelJpaRepository virtualModelJpaRepo,
-                                    ModelCatalogService modelCatalogService) {
+                                    ModelCatalogService modelCatalogService,
+                                    RelayLogService relayLogService) {
         // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
         router.post("/v1/chat/completions")
             .handler(new RequestSetup())
-            .handler(buildV2Controller(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService)::handle);
+            .handler(buildV2Controller(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService, relayLogService)::handle);
 
         var modelsCtrl = new com.oneapi.controller.ModelsController(virtualModelJpaRepo);
         router.get("/v1/models")
@@ -183,7 +186,8 @@ public class RouterConfig implements Closeable {
 
     private RelayControllerV2 buildV2Controller(CooldownService cooldown, InstanceJpaRepository instanceJpaRepo,
                                                VirtualModelJpaRepository virtualModelJpaRepo,
-                                               ModelCatalogService modelCatalogService) {
+                                               ModelCatalogService modelCatalogService,
+                                               RelayLogService relayLogService) {
         var routerSvc = new RouterService(instanceJpaRepo);
         routerSvc.setCooldownService(cooldown);
         var sessions = new SessionTracker();
@@ -202,7 +206,7 @@ public class RouterConfig implements Closeable {
         var coordinator = new RelayCoordinator(
             routerSvc, cooldown, sessions, upstreamClient,
             filters.stage2, filters.stage3, baseRelay, config,
-            holographicRecorder);
+            holographicRecorder, relayLogService);
         return new RelayControllerV2(coordinator);
     }
 

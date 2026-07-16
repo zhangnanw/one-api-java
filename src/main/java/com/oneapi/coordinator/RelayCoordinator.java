@@ -8,9 +8,9 @@ import com.oneapi.handler.UpstreamClient;
 import com.oneapi.model.*;
 import com.oneapi.relay.DefaultRelay;
 import com.oneapi.relay.ModelSubstitutor;
+import com.oneapi.service.RelayLogService;
 import com.oneapi.core.CooldownService;
 import com.oneapi.core.HolographicLogRecorder;
-import com.oneapi.core.RelayLogger;
 import com.oneapi.core.RouterService;
 import com.oneapi.core.RouterService.RoutedVendor;
 import com.oneapi.core.SessionTracker;
@@ -45,6 +45,7 @@ public class RelayCoordinator {
     private final Comparator<RoutedVendor> sorter;
     private final DefaultRelay baseRelay;
     private final HolographicLogRecorder holographicRecorder;
+    private final RelayLogService relayLogService;
 
     public RelayCoordinator(RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
@@ -53,7 +54,8 @@ public class RelayCoordinator {
                             List<Filter> stage3Filters,
                             DefaultRelay baseRelay,
                             AppConfig config,
-                            HolographicLogRecorder holographicRecorder) {
+                            HolographicLogRecorder holographicRecorder,
+                            RelayLogService relayLogService) {
         this.router = router;
         this.cooldown = cooldown;
         this.sessions = sessions;
@@ -62,6 +64,7 @@ public class RelayCoordinator {
         this.stage3Filters = stage3Filters;
         this.baseRelay = baseRelay;
         this.holographicRecorder = holographicRecorder;
+        this.relayLogService = relayLogService;
         this.sorter = SorterFactory.build(config);
     }
 
@@ -230,7 +233,7 @@ public class RelayCoordinator {
         RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody, false);
 
         // 日志失败时用哨兵值 -1，统一到 onComplete 回调，消除 4 lambda 重复
-        startLogAsync(ctx, req, candidate)
+        startLogAsync(ctx, req, candidate, relayLogService)
             .otherwise(err -> { log.error("relay log start failed: {}", err.getMessage()); return -1L; })
             .onComplete(ar -> {
                 long logId = ar.result();
@@ -240,7 +243,7 @@ public class RelayCoordinator {
                         if (logId >= 0) {
                             updateStreamResultAsync(ctx, logId, result.httpStatus(),
                                 result.promptTokens() + result.completionTokens(),
-                                System.currentTimeMillis() - startMs, null);
+                                System.currentTimeMillis() - startMs, null, relayLogService);
                         }
                         Object sidObj = ctx.get("sessionId");
                         if (sidObj instanceof String sid && !sid.isEmpty()) {
@@ -273,7 +276,7 @@ public class RelayCoordinator {
                             }
                         }
                         if (logId >= 0) {
-                            updateStreamResultAsync(ctx, logId, status, 0, latency, errMsg);
+                            updateStreamResultAsync(ctx, logId, status, 0, latency, errMsg, relayLogService);
                         }
                         holographicRecorder.logAttemptFailure(ctx, vendorName, routedVendor.instanceId(),
                             routedVendor.upstreamModel(),
@@ -346,7 +349,7 @@ public class RelayCoordinator {
         log.info("[req={}] stream relay -> {} #{} model={}",
             reqId, first.vendor().getName(), first.instanceId(), first.upstreamModel());
 
-        startLogAsync(ctx, req, candidate)
+        startLogAsync(ctx, req, candidate, relayLogService)
             .otherwise(err -> { log.error("relay log start failed: {}", err.getMessage()); return -1L; })
             .onComplete(ar -> {
                 long logId = ar.result();
@@ -363,7 +366,7 @@ public class RelayCoordinator {
                                 sessions.recordInstance(sid, first.instanceId());
                             }
                             if (logId >= 0) {
-                                updateStreamResultAsync(ctx, logId, statusCode, tokens, latency, null);
+                                updateStreamResultAsync(ctx, logId, statusCode, tokens, latency, null, relayLogService);
                             }
                             holographicRecorder.logAttemptSuccess(ctx, first.vendor().getName(), first.instanceId(),
                                 first.upstreamModel(),
@@ -372,7 +375,7 @@ public class RelayCoordinator {
                         } else {
                             cooldown.setVendorCooldown(first.vendor().getId());
                             if (logId >= 0) {
-                                updateStreamResultAsync(ctx, logId, statusCode, 0, latency, "");
+                                updateStreamResultAsync(ctx, logId, statusCode, 0, latency, "", relayLogService);
                             }
                             holographicRecorder.logAttemptFailure(ctx, first.vendor().getName(), first.instanceId(),
                                 first.upstreamModel(),
@@ -419,27 +422,23 @@ public class RelayCoordinator {
 
     // --- 异步 Relay 日志辅助方法 ---
 
-    private static Future<Long> startLogAsync(RoutingContext ctx, RelayRequest req, Candidate candidate) {
-        return ctx.vertx().executeBlocking(() -> {
-            RelayLog relayLog = new RelayLog();
-            relayLog.setTimestamp(System.currentTimeMillis() / 1000);
-            relayLog.setModelOrig(req.requestedModel());
-            relayLog.setUpstreamModel(candidate.upstreamModel());
-            relayLog.setBaseUrl(candidate.vendor() != null ? candidate.vendor().getBaseUrl() : "");
-            if (candidate.instance() != null) {
-                relayLog.setInstanceId(candidate.instance().getId());
-            }
-            relayLog.setStream(req.streaming());
-            relayLog.setBodySize(req.rawBody() != null ? req.rawBody().length : 0);
-            return RelayLogger.insert(relayLog);
-        });
+    private static Future<Long> startLogAsync(RoutingContext ctx, RelayRequest req, Candidate candidate, RelayLogService relayLogService) {
+        RelayLog relayLog = new RelayLog();
+        relayLog.setTimestamp(System.currentTimeMillis() / 1000);
+        relayLog.setModelOrig(req.requestedModel());
+        relayLog.setUpstreamModel(candidate.upstreamModel());
+        relayLog.setBaseUrl(candidate.vendor() != null ? candidate.vendor().getBaseUrl() : "");
+        if (candidate.instance() != null) {
+            relayLog.setInstanceId(candidate.instance().getId());
+        }
+        relayLog.setStream(req.streaming());
+        relayLog.setBodySize(req.rawBody() != null ? req.rawBody().length : 0);
+        return Future.fromCompletionStage(relayLogService.insertAsync(relayLog));
     }
 
-    private static void updateStreamResultAsync(RoutingContext ctx, long logId, int code, int tokens, long latencyMs, String err) {
-        ctx.vertx().executeBlocking(() -> {
-            RelayLogger.updateStreamResult(logId, code, tokens, latencyMs, err);
-            return null;
-        }).onFailure(e -> log.error("relay log update failed: {}", e.getMessage()));
+    private static void updateStreamResultAsync(RoutingContext ctx, long logId, int code, int tokens, long latencyMs, String err, RelayLogService relayLogService) {
+        Future.fromCompletionStage(relayLogService.updateStreamResultAsync(logId, code, tokens, latencyMs, err))
+            .onFailure(e -> log.error("relay log update failed: {}", e.getMessage()));
     }
 
     private static void error(RoutingContext ctx, int code, String msg) {
