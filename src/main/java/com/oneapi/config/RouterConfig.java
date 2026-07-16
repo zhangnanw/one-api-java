@@ -39,7 +39,7 @@ import com.oneapi.filter.BodyLimitFilter;
 import com.oneapi.handler.UpstreamClient;
 import com.oneapi.relay.DefaultRelay;
 import com.oneapi.core.CooldownService;
-import com.oneapi.core.FilterUtils;
+
 import com.oneapi.core.HolographicLogRecorder;
 import com.oneapi.core.RouterService;
 import com.oneapi.core.SessionTracker;
@@ -80,9 +80,9 @@ public class RouterConfig implements Closeable {
     private final VendorRefreshService vendorRefreshService;
     private final BalanceQueryService balanceQueryService;
     private final ObjectMapper objectMapper;
-    private final FilterUtils filterUtils;
     private final MatchRuleParser matchRuleParser;
     private final SessionTracker sessionTracker;
+    private final RouterService routerService;
 
     private UpstreamClient upstreamClient;
 
@@ -101,9 +101,9 @@ public class RouterConfig implements Closeable {
                         VendorRefreshService vendorRefreshService,
                         BalanceQueryService balanceQueryService,
                         ObjectMapper objectMapper,
-                        FilterUtils filterUtils,
                         MatchRuleParser matchRuleParser,
-                        SessionTracker sessionTracker) {
+                        SessionTracker sessionTracker,
+                        RouterService routerService) {
         this.vertx = vertx;
         this.config = config;
         this.cooldown = cooldown;
@@ -120,9 +120,9 @@ public class RouterConfig implements Closeable {
         this.vendorRefreshService = vendorRefreshService;
         this.balanceQueryService = balanceQueryService;
         this.objectMapper = objectMapper;
-        this.filterUtils = filterUtils;
         this.matchRuleParser = matchRuleParser;
         this.sessionTracker = sessionTracker;
+        this.routerService = routerService;
         this.router = Router.router(vertx);
     }
 
@@ -224,11 +224,8 @@ public class RouterConfig implements Closeable {
         this.upstreamClient = upstreamClient;
         var baseRelay = new DefaultRelay(upstreamClient);
 
-        // RouterService and SessionTracker are now Spring-managed beans
-        var routerSvc = new RouterService(instanceJpaRepo, cooldown, filterUtils, objectMapper);
-
         var coordinator = new RelayCoordinator(
-            routerSvc, cooldown, sessionTracker, upstreamClient,
+            routerService, cooldown, sessionTracker, upstreamClient,
             filters.stage2, filters.stage3, baseRelay, config,
             holographicRecorder, relayLogService, objectMapper);
         return new RelayControllerV2(coordinator);
