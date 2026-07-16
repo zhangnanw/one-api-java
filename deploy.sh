@@ -246,19 +246,29 @@ cp target/one-api-java-1.0.0.jar "$DEPLOY_DIR/one-api-java.jar"
 if [ ! -f "$DEPLOY_DIR/config.yaml" ]; then
     warn "未找到 config.yaml，生成默认模板..."
     cat > "$DEPLOY_DIR/config.yaml" << 'YAML'
-# one-api-java 部署配置
-# 数据库密码不写在这里！通过环境变量传入：
-#   export DB_PASSWORD=你的密码
-# 或者在 systemd / Windows 服务里设置环境变量。
 server:
   port: 13000
+
 database:
   host: bj.xiaoceng.space
   port: 5432
   database: oneapi
   user: oneapi
+  password: "CHANGE_ME"
+
+relay:
+  maxRetries: 2
+  cacheTtlSeconds: 10
+  layerOrder:
+    - subscription
+    - free
+    - payg
+
+policies:
+  reasoning:
+    triggerSuffix: "-max"
 YAML
-    warn "请通过环境变量 DB_PASSWORD 填入数据库密码（不要写入 config.yaml）"
+    warn "请编辑 $DEPLOY_DIR/config.yaml 填入正确的数据库密码"
 fi
 
 # 停止旧服务（通过端口找进程）
@@ -277,9 +287,9 @@ fi
 log "启动 one-api-java..."
 cd "$DEPLOY_DIR"
 
-if [ -z "$DB_PASSWORD" ]; then
-    warn "未设置环境变量 DB_PASSWORD，将使用空密码（启动可能失败）"
-    warn "建议: export DB_PASSWORD=你的密码后再运行 deploy.sh"
+if [ ! -f "$DEPLOY_DIR/config.yaml" ]; then
+    err "config.yaml 不存在，无法启动。请先运行 init 步骤。"
+    exit 1
 fi
 
 "$JAVA_EXE" -Dfile.encoding=UTF-8 -jar one-api-java.jar > server.log 2>&1 &

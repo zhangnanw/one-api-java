@@ -2,11 +2,12 @@ spring:
   application:
     name: one-api-java
 
-  # 数据源：密码通过 SPRING_DATASOURCE_PASSWORD 环境变量传入，不提交到 Git
+  # 数据源：实际配置由 AppConfigConfiguration 根据 ~/.one-api/config.yaml 提供。
+  # 这里只留默认值，运行时会覆盖。
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:oneapi}
-    username: ${DB_USER:oneapi}
-    password: ${DB_PASSWORD:}
+    url: jdbc:postgresql://localhost:5432/oneapi
+    username: oneapi
+    password: ""
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
