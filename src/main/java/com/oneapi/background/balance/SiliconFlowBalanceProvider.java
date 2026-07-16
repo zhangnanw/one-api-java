@@ -1,6 +1,7 @@
 package com.oneapi.background.balance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.Vendor;
 
 /**
@@ -9,6 +10,10 @@ import com.oneapi.model.Vendor;
  * balance=赠送余额, chargeBalance=充值余额, totalBalance=总余额
  */
 public class SiliconFlowBalanceProvider extends BaseBalanceProvider {
+
+    public SiliconFlowBalanceProvider(ObjectMapper mapper) {
+        super(mapper);
+    }
 
     @Override
     public boolean supports(Vendor vendor) {

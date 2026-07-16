@@ -1,6 +1,7 @@
 package com.oneapi.background.balance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.Vendor;
 
 /**
@@ -15,6 +16,10 @@ import com.oneapi.model.Vendor;
  * 注意：这与 Moonshot 开放平台（按量付费，/v1/users/me/balance）是不同的产品。
  */
 public class MoonshotBalanceProvider extends BaseBalanceProvider {
+
+    public MoonshotBalanceProvider(ObjectMapper mapper) {
+        super(mapper);
+    }
 
     @Override
     public boolean supports(Vendor vendor) {

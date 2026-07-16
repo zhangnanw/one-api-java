@@ -29,7 +29,6 @@ import java.util.HexFormat;
  * 2. GetCodingPlanUsage - 查询用量百分比
  */
 public class VolcengineBalanceProvider implements BalanceProvider {
-    private static final ObjectMapper mapper = new ObjectMapper();
     private static final HttpClient http = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
         .build();
@@ -38,6 +37,12 @@ public class VolcengineBalanceProvider implements BalanceProvider {
     private static final String REGION = "cn-beijing";
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
     private static final DateTimeFormatter DATE_ONLY_FMT = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC);
+
+    private final ObjectMapper mapper;
+
+    public VolcengineBalanceProvider(ObjectMapper mapper) {
+        this.mapper = mapper;
+    }
 
     @Override
     public boolean supports(Vendor vendor) {

@@ -1,5 +1,6 @@
 package com.oneapi.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.RelayContext;
 import com.oneapi.core.RouterService.RoutedVendor;
@@ -18,7 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TagFilterTest {
 
-    TagFilter filter = new TagFilter();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    TagFilter filter = new TagFilter(MAPPER);
 
     @Test
     void noTagRule_passesThrough() {

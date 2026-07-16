@@ -1,5 +1,6 @@
 package com.oneapi.core;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,11 +13,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SessionTrackTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private SessionTracker sessions;
 
     @BeforeEach
     void init() {
-        sessions = new SessionTracker();
+        sessions = new SessionTracker(MAPPER);
     }
 
     @Test

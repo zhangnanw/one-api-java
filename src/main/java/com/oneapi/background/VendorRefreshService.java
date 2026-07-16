@@ -23,7 +23,6 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 @Service
 public class VendorRefreshService {
-    private static final ObjectMapper mapper = new ObjectMapper();
     private static final ReentrantLock lock = new ReentrantLock();
     private static final HttpClient http = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(15))
@@ -31,10 +30,13 @@ public class VendorRefreshService {
 
     private final VendorJpaRepository vendorRepo;
     private final InstanceJpaRepository instanceRepo;
+    private final ObjectMapper mapper;
 
-    public VendorRefreshService(InstanceJpaRepository instanceRepo, VendorJpaRepository vendorRepo) {
+    public VendorRefreshService(InstanceJpaRepository instanceRepo, VendorJpaRepository vendorRepo,
+                                ObjectMapper mapper) {
         this.instanceRepo = instanceRepo;
         this.vendorRepo = vendorRepo;
+        this.mapper = mapper;
     }
 
     public record RefreshResult(int created, int deprecated, List<String> errors) {}

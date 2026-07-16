@@ -1,6 +1,8 @@
 package com.oneapi.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.jpa.VirtualModelJpaRepository;
+import com.oneapi.model.MatchRuleParser;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
 import com.oneapi.model.VirtualModel;
@@ -18,6 +20,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class VirtualModelLookupTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     @Mock
     VirtualModelJpaRepository vmRepo;
 
@@ -25,7 +29,7 @@ class VirtualModelLookupTest {
 
     @BeforeEach
     void setUp() {
-        lookup = new VirtualModelLookup(vmRepo, "-max");
+        lookup = new VirtualModelLookup(vmRepo, "-max", new MatchRuleParser(MAPPER));
     }
 
     @Test

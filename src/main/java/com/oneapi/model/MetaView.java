@@ -1,11 +1,14 @@
 package com.oneapi.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.*;
 
 /**
  * 一次性解析供应商/实例 meta JSON 为类型化记录。
  * 构造函数解析一次；所有访问器从缓存结果读取。
+ * <p>
+ * 现在作为 Spring 组件管理，注入统一的 {@link ObjectMapper}。
  *
  * 入口：
  * - {@link #of(Vendor)} — 供应商实体
@@ -13,37 +16,38 @@ import java.util.*;
  * - {@link #fromInstanceMeta(String)} — 实例 meta 字符串（用于 RoutedVendor 没有实体的场景）
  */
 public class MetaView {
-    private static final ObjectMapper mapper = new ObjectMapper();
 
+    private final ObjectMapper mapper;
     private final VendorCaps vendorCaps;
     private final InstanceCaps instanceCaps;
 
-    private MetaView(VendorCaps vc, InstanceCaps ic) {
+    private MetaView(ObjectMapper mapper, VendorCaps vc, InstanceCaps ic) {
+        this.mapper = mapper;
         this.vendorCaps = vc;
         this.instanceCaps = ic;
     }
 
-    public static MetaView of(Vendor vendor) {
-        return new MetaView(parseVendorMeta(vendor.getMeta()), null);
+    public static MetaView of(ObjectMapper mapper, Vendor vendor) {
+        return new MetaView(mapper, parseVendorMeta(mapper, vendor.getMeta()), null);
     }
 
-    public static MetaView of(Instance instance) {
-        InstanceCaps caps = parseInstanceMeta(instance.getMeta());
+    public static MetaView of(ObjectMapper mapper, Instance instance) {
+        InstanceCaps caps = parseInstanceMeta(mapper, instance.getMeta());
         // entity 层独立列覆盖 JSON（处理默认值和空值）
         float pref = instance.getPref();
         String layer = instance.getLayer() != null ? instance.getLayer() : "";
         if (pref != 0f || (layer != null && !layer.isEmpty())) {
             caps = new InstanceCaps(caps.tags(), layer, pref, caps.maxTokens());
         }
-        return new MetaView(null, caps);
+        return new MetaView(mapper, null, caps);
     }
 
     /**
      * 解析实例 meta JSON 字符串。
      * 仅在调用方拿不到 Instance 实体时使用（例如 RoutedVendor）。
      */
-    public static MetaView fromInstanceMeta(String metaJson) {
-        return new MetaView(null, parseInstanceMeta(metaJson));
+    public static MetaView fromInstanceMeta(ObjectMapper mapper, String metaJson) {
+        return new MetaView(mapper, null, parseInstanceMeta(mapper, metaJson));
     }
 
     // --- 供应商访问器 ---
@@ -63,7 +67,7 @@ public class MetaView {
     // --- 解析辅助方法（私有，每个 MetaView 调用一次） ---
 
     @SuppressWarnings("unchecked")
-    private static VendorCaps parseVendorMeta(String meta) {
+    private static VendorCaps parseVendorMeta(ObjectMapper mapper, String meta) {
         if (meta == null || meta.isEmpty()) return VendorCaps.empty();
         try {
             Map<String, Object> m = mapper.readValue(meta, Map.class);
@@ -77,7 +81,7 @@ public class MetaView {
     }
 
     @SuppressWarnings("unchecked")
-    private static InstanceCaps parseInstanceMeta(String meta) {
+    private static InstanceCaps parseInstanceMeta(ObjectMapper mapper, String meta) {
         if (meta == null || meta.isEmpty()) return InstanceCaps.empty();
         try {
             Map<String, Object> m = mapper.readValue(meta, Map.class);

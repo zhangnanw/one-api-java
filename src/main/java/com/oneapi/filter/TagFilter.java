@@ -1,5 +1,6 @@
 package com.oneapi.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.RelayContext;
 
 import java.util.ArrayList;
@@ -18,6 +19,12 @@ import java.util.Set;
 @Slf4j
 public class TagFilter implements Filter {
 
+    private final ObjectMapper objectMapper;
+
+    public TagFilter(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     @Override
     public RelayContext apply(RelayContext ctx) {
         MatchRule rule = ctx.matchRule();
@@ -35,7 +42,7 @@ public class TagFilter implements Filter {
         List<Integer> removedIds = new ArrayList<>();
         List<RoutedVendor> filtered = candidates.stream()
             .filter(routedVendor -> {
-                MetaView mv = MetaView.fromInstanceMeta(routedVendor.instanceMeta());
+                MetaView mv = MetaView.fromInstanceMeta(objectMapper, routedVendor.instanceMeta());
                 // ALL 鏉′欢锛氬疄渚嬪繀椤诲寘鍚墍鏈夎姹傜殑鏍囩
                 if (allTags != null && !allTags.isEmpty()) {
                     for (String tag : allTags) {

@@ -1,5 +1,6 @@
 package com.oneapi.core;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.core.SessionTracker.Message;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,11 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SessionTrackerTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     SessionTracker tracker;
 
     @BeforeEach
     void setUp() {
-        tracker = new SessionTracker();
+        tracker = new SessionTracker(MAPPER);
     }
 
     @Test
@@ -83,7 +85,7 @@ class SessionTrackerTest {
                 .add(new JsonObject().put("role", "assistant").put("content", "hi")))
             .encode();
 
-        List<Message> parsed = SessionTracker.parseMessages(json.getBytes());
+        List<Message> parsed = tracker.parseMessages(json.getBytes());
         assertThat(parsed).hasSize(2);
         assertThat(parsed.get(0).role()).isEqualTo("user");
         assertThat(parsed.get(0).content()).isEqualTo("hello");
@@ -91,7 +93,7 @@ class SessionTrackerTest {
 
     @Test
     void parseMessages_emptyBody_returnsEmpty() {
-        List<Message> parsed = SessionTracker.parseMessages(new byte[0]);
+        List<Message> parsed = tracker.parseMessages(new byte[0]);
         assertThat(parsed).isEmpty();
     }
 

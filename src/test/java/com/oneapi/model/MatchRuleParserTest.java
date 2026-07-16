@@ -1,5 +1,6 @@
 package com.oneapi.model;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -9,9 +10,12 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class MatchRuleParserTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private final MatchRuleParser parser = new MatchRuleParser(MAPPER);
+
     @Test
     void modelsMatch_happyPath() {
-        MatchRule rule = MatchRuleParser.parse("{\"models\":[\"a\",\"b\",\"c\"]}");
+        MatchRule rule = parser.parse("{\"models\":[\"a\",\"b\",\"c\"]}");
         assertInstanceOf(MatchRule.ModelsMatch.class, rule);
         var mm = (MatchRule.ModelsMatch) rule;
         assertEquals(3, mm.modelNames().size());
@@ -23,38 +27,38 @@ class MatchRuleParserTest {
     @Test
     void modelsMatch_emptyList_throws() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[]}"));
+            () -> parser.parse("{\"models\":[]}"));
     }
 
     @Test
     void modelsMatch_mutualExclusion_throws() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[\"a\"],\"model_name\":\"x\"}"));
+            () -> parser.parse("{\"models\":[\"a\"],\"model_name\":\"x\"}"));
     }
 
     @Test
     void modelsMatch_invalidElement_throws() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[123]}"));
+            () -> parser.parse("{\"models\":[123]}"));
     }
 
     @Test
     void modelsMatch_nullElement_throws() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[null]}"));
+            () -> parser.parse("{\"models\":[null]}"));
     }
 
     @Test
     void modelsMatch_emptyStringElement_throws() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[\"\"]}"));
+            () -> parser.parse("{\"models\":[\"\"]}"));
     }
 
     // ── edge cases (previously untested) ──
 
     @Test
     void modelsMatch_mixedCasePreserved() {
-        MatchRule rule = MatchRuleParser.parse("{\"models\":[\"DeepSeek-V4-Flash\",\"kimi-K2.6\",\"C\"]}");
+        MatchRule rule = parser.parse("{\"models\":[\"DeepSeek-V4-Flash\",\"kimi-K2.6\",\"C\"]}");
         var mm = (MatchRule.ModelsMatch) rule;
         assertEquals("DeepSeek-V4-Flash", mm.modelNames().get(0));
         assertEquals("kimi-K2.6", mm.modelNames().get(1));
@@ -63,7 +67,7 @@ class MatchRuleParserTest {
 
     @Test
     void modelsMatch_singleElement() {
-        MatchRule rule = MatchRuleParser.parse("{\"models\":[\"solo\"]}");
+        MatchRule rule = parser.parse("{\"models\":[\"solo\"]}");
         var mm = (MatchRule.ModelsMatch) rule;
         assertEquals(1, mm.modelNames().size());
         assertEquals("solo", mm.modelNames().get(0));
@@ -71,56 +75,56 @@ class MatchRuleParserTest {
 
     @Test
     void allMatch_nullInput() {
-        assertInstanceOf(MatchRule.AllMatch.class, MatchRuleParser.parse(null));
+        assertInstanceOf(MatchRule.AllMatch.class, parser.parse(null));
     }
 
     @Test
     void allMatch_emptyString() {
-        assertInstanceOf(MatchRule.AllMatch.class, MatchRuleParser.parse(""));
+        assertInstanceOf(MatchRule.AllMatch.class, parser.parse(""));
     }
 
     @Test
     void allMatch_emptyObject() {
-        assertInstanceOf(MatchRule.AllMatch.class, MatchRuleParser.parse("{}"));
+        assertInstanceOf(MatchRule.AllMatch.class, parser.parse("{}"));
     }
 
     @Test
     void allMatch_malformedJson() {
         // malformed JSON should throw, not silently fall back
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{bad"));
+            () -> parser.parse("{bad"));
     }
 
     @Test
     void allMatch_unknownField() {
         // unknown top-level field not in known set → AllMatch
-        assertInstanceOf(MatchRule.AllMatch.class, MatchRuleParser.parse("{\"foo\":\"bar\"}"));
+        assertInstanceOf(MatchRule.AllMatch.class, parser.parse("{\"foo\":\"bar\"}"));
     }
 
     @Test
     void nameMatch() {
-        MatchRule rule = MatchRuleParser.parse("{\"model_name\":\"deepseek-v4-pro\"}");
+        MatchRule rule = parser.parse("{\"model_name\":\"deepseek-v4-pro\"}");
         assertInstanceOf(MatchRule.NameMatch.class, rule);
         assertEquals("deepseek-v4-pro", ((MatchRule.NameMatch) rule).modelName());
     }
 
     @Test
     void capabilityMatch() {
-        MatchRule rule = MatchRuleParser.parse("{\"capability\":\"vision\"}");
+        MatchRule rule = parser.parse("{\"capability\":\"vision\"}");
         assertInstanceOf(MatchRule.CapabilityMatch.class, rule);
         assertEquals("vision", ((MatchRule.CapabilityMatch) rule).capability());
     }
 
     @Test
     void layerMatch() {
-        MatchRule rule = MatchRuleParser.parse("{\"layer\":\"payg\"}");
+        MatchRule rule = parser.parse("{\"layer\":\"payg\"}");
         assertInstanceOf(MatchRule.LayerMatch.class, rule);
         assertEquals("payg", ((MatchRule.LayerMatch) rule).layer());
     }
 
     @Test
     void tagMatch_allTags() {
-        MatchRule rule = MatchRuleParser.parse("{\"all\":[\"production\",\"gpu\"]}");
+        MatchRule rule = parser.parse("{\"all\":[\"production\",\"gpu\"]}");
         assertInstanceOf(MatchRule.TagMatch.class, rule);
         var tm = (MatchRule.TagMatch) rule;
         assertEquals(2, tm.allTags().size());
@@ -130,7 +134,7 @@ class MatchRuleParserTest {
 
     @Test
     void tagMatch_anyTags() {
-        MatchRule rule = MatchRuleParser.parse("{\"any\":[\"vision\",\"reasoning\"]}");
+        MatchRule rule = parser.parse("{\"any\":[\"vision\",\"reasoning\"]}");
         assertInstanceOf(MatchRule.TagMatch.class, rule);
         var tm = (MatchRule.TagMatch) rule;
         assertTrue(tm.allTags().isEmpty());
@@ -141,12 +145,12 @@ class MatchRuleParserTest {
     void tagMatch_emptyArrays_isAllMatch() {
         // empty all + empty any → semantically AllMatch (no filter)
         assertInstanceOf(MatchRule.AllMatch.class,
-            MatchRuleParser.parse("{\"all\":[],\"any\":[]}"));
+            parser.parse("{\"all\":[],\"any\":[]}"));
     }
 
     @Test
     void tagMatch_allAndAnyCombined() {
-        MatchRule rule = MatchRuleParser.parse("{\"all\":[\"production\"],\"any\":[\"vision\",\"code\"]}");
+        MatchRule rule = parser.parse("{\"all\":[\"production\"],\"any\":[\"vision\",\"code\"]}");
         assertInstanceOf(MatchRule.TagMatch.class, rule);
         var tm = (MatchRule.TagMatch) rule;
         assertEquals(1, tm.allTags().size());
@@ -156,18 +160,18 @@ class MatchRuleParserTest {
     @Test
     void modelsMatch_mutualExclusionWithTags() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[\"a\"],\"all\":[\"t\"]}"));
+            () -> parser.parse("{\"models\":[\"a\"],\"all\":[\"t\"]}"));
     }
 
     @Test
     void modelsMatch_mutualExclusionWithCapability() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[\"a\"],\"capability\":\"vision\"}"));
+            () -> parser.parse("{\"models\":[\"a\"],\"capability\":\"vision\"}"));
     }
 
     @Test
     void modelsMatch_mutualExclusionWithLayer() {
         assertThrows(IllegalArgumentException.class,
-            () -> MatchRuleParser.parse("{\"models\":[\"a\"],\"layer\":\"payg\"}"));
+            () -> parser.parse("{\"models\":[\"a\"],\"layer\":\"payg\"}"));
     }
 }

@@ -1,5 +1,6 @@
 package com.oneapi.background;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,20 +30,20 @@ public class BalanceQueryService {
     private final Map<Integer, BalanceInfo> latestResults = new ConcurrentHashMap<>();
 
     @Autowired
-    public BalanceQueryService(VendorJpaRepository vendorRepo) {
-        this(vendorRepo, Duration.ofMinutes(5));
+    public BalanceQueryService(VendorJpaRepository vendorRepo, ObjectMapper objectMapper) {
+        this(vendorRepo, objectMapper, Duration.ofMinutes(5));
     }
 
-    public BalanceQueryService(VendorJpaRepository vendorRepo, Duration cacheTtl) {
+    public BalanceQueryService(VendorJpaRepository vendorRepo, ObjectMapper objectMapper, Duration cacheTtl) {
         this.vendorRepo = vendorRepo;
         this.providers = new ArrayList<>(List.of(
-            new DeepSeekBalanceProvider(),
-            new MoonshotBalanceProvider(),
-            new SiliconFlowBalanceProvider(),
-            new OpenRouterBalanceProvider(),
-            new MiniMaxBalanceProvider(),
-            new MimoBalanceProvider(),
-            new VolcengineBalanceProvider()
+            new DeepSeekBalanceProvider(objectMapper),
+            new MoonshotBalanceProvider(objectMapper),
+            new SiliconFlowBalanceProvider(objectMapper),
+            new OpenRouterBalanceProvider(objectMapper),
+            new MiniMaxBalanceProvider(objectMapper),
+            new MimoBalanceProvider(objectMapper),
+            new VolcengineBalanceProvider(objectMapper)
         ));
         this.cache = Caffeine.newBuilder()
             .expireAfterWrite(cacheTtl)

@@ -1,6 +1,7 @@
 package com.oneapi.background.balance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.Vendor;
 
 /**
@@ -9,6 +10,10 @@ import com.oneapi.model.Vendor;
  * Response: {"data": {"label":"...", "limit":50.0, "limit_remaining":30.0, "usage":20.0, ...}}
  */
 public class OpenRouterBalanceProvider extends BaseBalanceProvider {
+
+    public OpenRouterBalanceProvider(ObjectMapper mapper) {
+        super(mapper);
+    }
 
     @Override
     public boolean supports(Vendor vendor) {

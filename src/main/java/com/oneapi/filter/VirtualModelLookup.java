@@ -19,10 +19,13 @@ public class VirtualModelLookup implements Filter {
 
     private final VirtualModelJpaRepository vmRepo;
     private final String triggerSuffix;
+    private final MatchRuleParser matchRuleParser;
 
-    public VirtualModelLookup(VirtualModelJpaRepository vmRepo, String triggerSuffix) {
+    public VirtualModelLookup(VirtualModelJpaRepository vmRepo, String triggerSuffix,
+                              MatchRuleParser matchRuleParser) {
         this.vmRepo = vmRepo;
         this.triggerSuffix = triggerSuffix;
+        this.matchRuleParser = matchRuleParser;
     }
 
     @Override
@@ -53,7 +56,7 @@ public class VirtualModelLookup implements Filter {
             return ctx;
         }
 
-        MatchRule rule = MatchRuleParser.parse(virtualModel.getMatch());
+        MatchRule rule = matchRuleParser.parse(virtualModel.getMatch());
         ctx.setMatchRule(rule);
         if (rule instanceof MatchRule.ModelsMatch mm) {
             ctx.setModelNames(mm.modelNames());

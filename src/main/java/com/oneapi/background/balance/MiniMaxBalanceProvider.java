@@ -1,6 +1,7 @@
 package com.oneapi.background.balance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.Vendor;
 
 /**
@@ -12,6 +13,10 @@ import com.oneapi.model.Vendor;
  *   <subscription-key>             — 默认查 Token Plan
  */
 public class MiniMaxBalanceProvider extends BaseBalanceProvider {
+
+    public MiniMaxBalanceProvider(ObjectMapper mapper) {
+        super(mapper);
+    }
 
     @Override
     public boolean supports(Vendor vendor) {

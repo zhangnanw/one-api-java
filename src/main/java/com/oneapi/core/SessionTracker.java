@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -25,8 +26,10 @@ import java.util.OptionalLong;
  * - On miss → creates new UUID sessionID
  */
 @Slf4j
+@Component
 public class SessionTracker {
-    private static final ObjectMapper mapper = new ObjectMapper();
+
+    private final ObjectMapper mapper;
 
     private static final int MIN_MATCH_LINES = 3;
     private static final long STICKY_TTL_MS = 300_000; // 5 minutes
@@ -39,6 +42,10 @@ public class SessionTracker {
 
     // sessionId → hash index for O(1) lookup (replaces full scan)
     private final ConcurrentHashMap<String, String> sessionIdIndex = new ConcurrentHashMap<>();
+
+    public SessionTracker(ObjectMapper mapper) {
+        this.mapper = mapper;
+    }
 
     public record SessionTrack(String sessionId, String hash, int updateCount,
                                 Long lastInstanceId, long lastUsedAt) {
@@ -234,7 +241,7 @@ public class SessionTracker {
     /**
      * Parse messages array from JSON request body.
      */
-    public static List<Message> parseMessages(byte[] rawBody) {
+    public List<Message> parseMessages(byte[] rawBody) {
         List<Message> result = new ArrayList<>();
         try {
             var root = mapper.readTree(rawBody);

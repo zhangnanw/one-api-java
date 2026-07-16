@@ -1,17 +1,29 @@
 package com.oneapi.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 从 meta JSON 中解析实例标签。
+ * <p>
+ * 现在作为 Spring 组件管理，注入统一的 {@link ObjectMapper}。
+ */
+@Component
 public class FilterUtils {
-    private static final ObjectMapper mapper = new ObjectMapper();
+
+    private final ObjectMapper mapper;
+
+    public FilterUtils(ObjectMapper mapper) {
+        this.mapper = mapper;
+    }
 
     /**
      * 从 meta JSON 中解析实例标签。
      */
-    public static List<String> parseTags(String meta) {
+    public List<String> parseTags(String meta) {
         if (meta == null || meta.isEmpty()) return List.of();
         try {
             var node = mapper.readTree(meta);

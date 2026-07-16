@@ -1,6 +1,7 @@
 package com.oneapi.background.balance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.Vendor;
 
 /**
@@ -9,6 +10,10 @@ import com.oneapi.model.Vendor;
  * 该端点来自第三方 CLI 工具逆向，非官方文档化，可能随时变更。
  */
 public class MimoBalanceProvider extends BaseBalanceProvider {
+
+    public MimoBalanceProvider(ObjectMapper mapper) {
+        super(mapper);
+    }
 
     @Override
     public boolean supports(Vendor vendor) {

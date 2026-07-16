@@ -1,6 +1,7 @@
 package com.oneapi.background.balance;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.model.Vendor;
 
 /**
@@ -8,6 +9,10 @@ import com.oneapi.model.Vendor;
  * GET /user/balance → {"is_available": true, "balance_infos": [{"total_balance": "100.00"}]}
  */
 public class DeepSeekBalanceProvider extends BaseBalanceProvider {
+
+    public DeepSeekBalanceProvider(ObjectMapper mapper) {
+        super(mapper);
+    }
 
     @Override
     public boolean supports(Vendor vendor) {

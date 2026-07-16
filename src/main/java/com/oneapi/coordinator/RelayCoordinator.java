@@ -1,5 +1,6 @@
 package com.oneapi.coordinator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.config.AppConfig;
 import com.oneapi.filter.Filter;
 import com.oneapi.filter.ParamClamp;
@@ -46,6 +47,7 @@ public class RelayCoordinator {
     private final DefaultRelay baseRelay;
     private final HolographicLogRecorder holographicRecorder;
     private final RelayLogService relayLogService;
+    private final ObjectMapper objectMapper;
 
     public RelayCoordinator(RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
@@ -55,7 +57,8 @@ public class RelayCoordinator {
                             DefaultRelay baseRelay,
                             AppConfig config,
                             HolographicLogRecorder holographicRecorder,
-                            RelayLogService relayLogService) {
+                            RelayLogService relayLogService,
+                            ObjectMapper objectMapper) {
         this.router = router;
         this.cooldown = cooldown;
         this.sessions = sessions;
@@ -65,6 +68,7 @@ public class RelayCoordinator {
         this.baseRelay = baseRelay;
         this.holographicRecorder = holographicRecorder;
         this.relayLogService = relayLogService;
+        this.objectMapper = objectMapper;
         this.sorter = SorterFactory.build(config);
     }
 
@@ -90,7 +94,7 @@ public class RelayCoordinator {
         ctx.put("holographicRecord", record);
 
         // 会话跟踪
-        var messages = SessionTracker.parseMessages(req.rawBody());
+        var messages = sessions.parseMessages(req.rawBody());
         if (!messages.isEmpty()) {
             String sessionId = sessions.match(messages);
             ctx.put("sessionId", sessionId);
@@ -229,7 +233,7 @@ public class RelayCoordinator {
 
         byte[] finalBody = ParamClamp.clamp(
             substituteModel(req.rawBody(), routedVendor.upstreamModel(), req.requestedModel()),
-            MetaView.fromInstanceMeta(routedVendor.instanceMeta()).instanceCaps());
+            MetaView.fromInstanceMeta(objectMapper, routedVendor.instanceMeta()).instanceCaps());
         RelayRequest finalReq = new RelayRequest(req.requestedModel(), finalBody, false);
 
         // 日志失败时用哨兵值 -1，统一到 onComplete 回调，消除 4 lambda 重复
@@ -334,7 +338,7 @@ public class RelayCoordinator {
         long startMs = System.currentTimeMillis();
         byte[] finalBody = ParamClamp.clamp(
             substituteModel(req.rawBody(), first.upstreamModel(), req.requestedModel()),
-            MetaView.fromInstanceMeta(first.instanceMeta()).instanceCaps());
+            MetaView.fromInstanceMeta(objectMapper, first.instanceMeta()).instanceCaps());
 
         var relayReq = new UpstreamClient.OutboundRequest(
             first.vendor().getBaseUrl(),

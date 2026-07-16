@@ -15,10 +15,15 @@ import java.time.Duration;
  * 封装 HTTP 调用逻辑，子类只需实现 supports() 和 parseResponse()。
  */
 public abstract class BaseBalanceProvider implements BalanceProvider {
-    protected static final ObjectMapper mapper = new ObjectMapper();
     private static final HttpClient http = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
         .build();
+
+    protected final ObjectMapper mapper;
+
+    protected BaseBalanceProvider(ObjectMapper mapper) {
+        this.mapper = mapper;
+    }
 
     protected abstract String getEndpoint();
     protected abstract BalanceInfo parseResponse(Vendor vendor, JsonNode root) throws Exception;
