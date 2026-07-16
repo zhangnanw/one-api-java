@@ -13,8 +13,6 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
-import com.oneapi.service.RelayLogService;
-
 import javax.sql.DataSource;
 
 /**
@@ -22,7 +20,7 @@ import javax.sql.DataSource;
  * <p>
  * 负责：
  * 1. 将 Spring 管理的 {@link DataSource} 桥接给旧版 {@link DatabaseConfig}。
- * 2. 初始化 Vert.x 日志数据库（RelayLogger / HolographicLogger）。
+ * 2. 初始化全息日志表（HolographicLogger）。
  * 3. 构建 Vert.x Router 并启动 HTTP server。
  * 4. 应用关闭时优雅停止 Vert.x。
  */
@@ -35,10 +33,9 @@ public class VertxApplicationRunner implements ApplicationRunner, DisposableBean
     private final RouterConfig routerConfig;
     private final AppConfig appConfig;
 
-    public VertxApplicationRunner(ApplicationContext applicationContext, AppConfig appConfig, DataSource dataSource, RelayLogService relayLogService) {
+    public VertxApplicationRunner(ApplicationContext applicationContext, AppConfig appConfig, DataSource dataSource) {
         this.appConfig = appConfig;
         DatabaseConfig.setDataSource(dataSource);
-        RelayLogger.init(relayLogService);
 
         this.vertx = Vertx.vertx();
         this.routerConfig = new RouterConfig(vertx, appConfig, applicationContext);
