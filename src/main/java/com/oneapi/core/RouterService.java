@@ -24,7 +24,7 @@ public class RouterService {
         this.filterUtils = filterUtils;
     }
 
-    // 60 �?TTL 缓存（避免频繁查库）
+    // 60 秒 TTL 缓存（避免频繁查库）
     private final Cache<String, List<Instance>> instanceCache = Caffeine.newBuilder()
         .expireAfterWrite(60, TimeUnit.SECONDS).build();
 
