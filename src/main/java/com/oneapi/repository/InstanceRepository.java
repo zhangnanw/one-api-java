@@ -1,4 +1,4 @@
-package com.oneapi.jpa;
+package com.oneapi.repository;
 
 import com.oneapi.model.Instance;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface InstanceJpaRepository extends JpaRepository<Instance, Integer> {
+public interface InstanceRepository extends JpaRepository<Instance, Integer> {
 
     List<Instance> findByModelName(String modelName);
 

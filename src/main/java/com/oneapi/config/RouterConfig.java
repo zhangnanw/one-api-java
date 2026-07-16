@@ -7,10 +7,10 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.client.WebClient;
 
-import com.oneapi.jpa.InstanceJpaRepository;
-import com.oneapi.jpa.ModelCatalogJpaRepository;
-import com.oneapi.jpa.VendorJpaRepository;
-import com.oneapi.jpa.VirtualModelJpaRepository;
+import com.oneapi.repository.InstanceRepository;
+import com.oneapi.repository.ModelCatalogRepository;
+import com.oneapi.repository.VendorRepository;
+import com.oneapi.repository.VirtualModelRepository;
 import com.oneapi.service.InstanceService;
 import com.oneapi.service.VendorService;
 import com.oneapi.service.VirtualModelService;
@@ -53,10 +53,10 @@ import java.io.Closeable;
 import java.util.List;
 
 /**
- * Vert.x 路由配置。
+ * Vert.x 路由配置�?
  * <p>
- * 所有数据访问统一通过 Spring 注入的 JPA Repository/Service 获取，
- * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}。
+ * 所有数据访问统一通过 Spring 注入�?JPA Repository/Service 获取�?
+ * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}�?
  */
 @Configuration
 public class RouterConfig implements Closeable {
@@ -68,10 +68,10 @@ public class RouterConfig implements Closeable {
     private final HolographicLogRecorder holographicRecorder;
     private final RelayLogService relayLogService;
 
-    private final InstanceJpaRepository instanceJpaRepo;
-    private final VendorJpaRepository vendorJpaRepo;
-    private final VirtualModelJpaRepository virtualModelJpaRepo;
-    private final ModelCatalogJpaRepository modelCatalogJpaRepo;
+    private final InstanceRepository instanceJpaRepo;
+    private final VendorRepository vendorJpaRepo;
+    private final VirtualModelRepository virtualModelJpaRepo;
+    private final ModelCatalogRepository modelCatalogJpaRepo;
 
     private final InstanceService instanceService;
     private final VendorService vendorService;
@@ -90,10 +90,10 @@ public class RouterConfig implements Closeable {
                         CooldownService cooldown,
                         HolographicLogRecorder holographicRecorder,
                         RelayLogService relayLogService,
-                        InstanceJpaRepository instanceJpaRepo,
-                        VendorJpaRepository vendorJpaRepo,
-                        VirtualModelJpaRepository virtualModelJpaRepo,
-                        ModelCatalogJpaRepository modelCatalogJpaRepo,
+                        InstanceRepository instanceJpaRepo,
+                        VendorRepository vendorJpaRepo,
+                        VirtualModelRepository virtualModelJpaRepo,
+                        ModelCatalogRepository modelCatalogJpaRepo,
                         InstanceService instanceService,
                         VendorService vendorService,
                         VirtualModelService virtualModelService,
@@ -127,7 +127,7 @@ public class RouterConfig implements Closeable {
     }
 
     public Router build() {
-        // 全局中间件
+        // 全局中间�?
         router.route().handler(new CORS());
 
         registerStaticRoutes();
@@ -160,7 +160,7 @@ public class RouterConfig implements Closeable {
         });
     }
 
-    /** API routes — DB-backed CRUD, run on worker pool. */
+    /** API routes �?DB-backed CRUD, run on worker pool. */
     private void registerApiRoutes() {
         // BodyHandler for all /api/* routes so controllers can use ctx.body().
         router.route("/api/*").handler(BodyHandler.create());
@@ -201,7 +201,7 @@ public class RouterConfig implements Closeable {
         router.delete("/api/model-catalog/:name").blockingHandler(mcCtrl::delete);
     }
 
-    /** Relay routes — event-loop based async pipeline. */
+    /** Relay routes �?event-loop based async pipeline. */
     private void registerRelayRoutes() {
         // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
         router.post("/v1/chat/completions")

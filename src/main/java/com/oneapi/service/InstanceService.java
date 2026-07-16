@@ -1,7 +1,7 @@
 package com.oneapi.service;
 
-import com.oneapi.jpa.InstanceJpaRepository;
-import com.oneapi.jpa.VendorJpaRepository;
+import com.oneapi.repository.InstanceRepository;
+import com.oneapi.repository.VendorRepository;
 import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -16,10 +16,10 @@ public class InstanceService {
 
     private static final String CACHE = "instances";
 
-    private final InstanceJpaRepository jpaRepository;
-    private final VendorJpaRepository vendorJpaRepository;
+    private final InstanceRepository jpaRepository;
+    private final VendorRepository vendorJpaRepository;
 
-    public InstanceService(InstanceJpaRepository jpaRepository, VendorJpaRepository vendorJpaRepository) {
+    public InstanceService(InstanceRepository jpaRepository, VendorRepository vendorJpaRepository) {
         this.jpaRepository = jpaRepository;
         this.vendorJpaRepository = vendorJpaRepository;
     }

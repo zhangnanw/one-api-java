@@ -1,7 +1,7 @@
 package com.oneapi.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.oneapi.jpa.VirtualModelJpaRepository;
+import com.oneapi.repository.VirtualModelRepository;
 import com.oneapi.model.MatchRuleParser;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
@@ -23,7 +23,7 @@ class VirtualModelLookupTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Mock
-    VirtualModelJpaRepository vmRepo;
+    VirtualModelRepository vmRepo;
 
     VirtualModelLookup lookup;
 

@@ -1,6 +1,6 @@
 package com.oneapi.service;
 
-import com.oneapi.jpa.ModelCatalogJpaRepository;
+import com.oneapi.repository.ModelCatalogRepository;
 import com.oneapi.model.ModelCatalogEntry;
 import com.oneapi.repo.CapabilityCatalog;
 import com.oneapi.repo.WindowCatalog;
@@ -19,9 +19,9 @@ public class ModelCatalogService implements CapabilityCatalog, WindowCatalog {
 
     private static final String CACHE = "modelCatalog";
 
-    private final ModelCatalogJpaRepository jpaRepository;
+    private final ModelCatalogRepository jpaRepository;
 
-    public ModelCatalogService(ModelCatalogJpaRepository jpaRepository) {
+    public ModelCatalogService(ModelCatalogRepository jpaRepository) {
         this.jpaRepository = jpaRepository;
     }
 

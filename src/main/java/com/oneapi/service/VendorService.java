@@ -1,6 +1,6 @@
 package com.oneapi.service;
 
-import com.oneapi.jpa.VendorJpaRepository;
+import com.oneapi.repository.VendorRepository;
 import com.oneapi.model.Vendor;
 import com.oneapi.model.VendorWithCount;
 import org.springframework.cache.annotation.CacheEvict;
@@ -16,9 +16,9 @@ public class VendorService {
 
     private static final String CACHE = "vendors";
 
-    private final VendorJpaRepository jpaRepository;
+    private final VendorRepository jpaRepository;
 
-    public VendorService(VendorJpaRepository jpaRepository) {
+    public VendorService(VendorRepository jpaRepository) {
         this.jpaRepository = jpaRepository;
     }
 

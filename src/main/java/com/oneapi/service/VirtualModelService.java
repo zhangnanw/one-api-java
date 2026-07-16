@@ -1,6 +1,6 @@
 package com.oneapi.service;
 
-import com.oneapi.jpa.VirtualModelJpaRepository;
+import com.oneapi.repository.VirtualModelRepository;
 import com.oneapi.model.VirtualModel;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -14,9 +14,9 @@ public class VirtualModelService {
 
     private static final String CACHE = "virtualModels";
 
-    private final VirtualModelJpaRepository jpaRepository;
+    private final VirtualModelRepository jpaRepository;
 
-    public VirtualModelService(VirtualModelJpaRepository jpaRepository) {
+    public VirtualModelService(VirtualModelRepository jpaRepository) {
         this.jpaRepository = jpaRepository;
     }
 

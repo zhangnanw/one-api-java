@@ -1,4 +1,4 @@
-package com.oneapi.jpa;
+package com.oneapi.repository;
 
 import com.oneapi.model.Vendor;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface VendorJpaRepository extends JpaRepository<Vendor, Integer> {
+public interface VendorRepository extends JpaRepository<Vendor, Integer> {
 
     List<Vendor> findByStatus(int status);
 

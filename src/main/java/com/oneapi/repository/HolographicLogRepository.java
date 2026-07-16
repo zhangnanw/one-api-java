@@ -1,4 +1,4 @@
-package com.oneapi.jpa;
+package com.oneapi.repository;
 
 import com.oneapi.model.HolographicLogEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

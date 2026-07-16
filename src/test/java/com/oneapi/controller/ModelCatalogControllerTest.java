@@ -1,6 +1,6 @@
 package com.oneapi.controller;
 
-import com.oneapi.jpa.ModelCatalogJpaRepository;
+import com.oneapi.repository.ModelCatalogRepository;
 import com.oneapi.model.ModelCatalogEntry;
 import com.oneapi.service.ModelCatalogService;
 import io.vertx.core.Future;
@@ -28,7 +28,7 @@ import static org.mockito.Mockito.*;
 class ModelCatalogControllerTest {
 
     @Mock
-    ModelCatalogJpaRepository repo;
+    ModelCatalogRepository repo;
 
     ModelCatalogController controller;
 

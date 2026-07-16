@@ -1,9 +1,9 @@
-package com.oneapi.jpa;
+package com.oneapi.repository;
 
 import com.oneapi.model.ModelCatalogEntry;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ModelCatalogJpaRepository extends JpaRepository<ModelCatalogEntry, String> {
+public interface ModelCatalogRepository extends JpaRepository<ModelCatalogEntry, String> {
 }

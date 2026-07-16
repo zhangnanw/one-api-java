@@ -1,6 +1,6 @@
 package com.oneapi.filter;
 
-import com.oneapi.jpa.InstanceJpaRepository;
+import com.oneapi.repository.InstanceRepository;
 import com.oneapi.model.Instance;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 class NameMatcherTest {
 
     @Mock
-    InstanceJpaRepository instanceRepo;
+    InstanceRepository instanceRepo;
 
     private static final String PHYSICAL_MODEL = "doubao-seed-2.0-pro";
 

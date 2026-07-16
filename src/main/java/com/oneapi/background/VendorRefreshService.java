@@ -2,8 +2,8 @@ package com.oneapi.background;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.oneapi.jpa.InstanceJpaRepository;
-import com.oneapi.jpa.VendorJpaRepository;
+import com.oneapi.repository.InstanceRepository;
+import com.oneapi.repository.VendorRepository;
 import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
 import org.springframework.stereotype.Service;
@@ -27,11 +27,11 @@ public class VendorRefreshService {
         .connectTimeout(Duration.ofSeconds(15))
         .build();
 
-    private final VendorJpaRepository vendorRepo;
-    private final InstanceJpaRepository instanceRepo;
+    private final VendorRepository vendorRepo;
+    private final InstanceRepository instanceRepo;
     private final ObjectMapper mapper;
 
-    public VendorRefreshService(InstanceJpaRepository instanceRepo, VendorJpaRepository vendorRepo,
+    public VendorRefreshService(InstanceRepository instanceRepo, VendorRepository vendorRepo,
                                 ObjectMapper mapper) {
         this.instanceRepo = instanceRepo;
         this.vendorRepo = vendorRepo;

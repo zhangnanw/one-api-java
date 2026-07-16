@@ -1,9 +1,8 @@
 package com.oneapi.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.oneapi.jpa.InstanceJpaRepository;
+import com.oneapi.repository.InstanceRepository;
 import com.oneapi.model.Candidate;
 import com.oneapi.model.Instance;
 import com.oneapi.model.Vendor;
@@ -14,20 +13,18 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class RouterService {
-    private final InstanceJpaRepository instanceRepo;
+    private final InstanceRepository instanceRepo;
     private final CooldownService cooldownService;
     private final FilterUtils filterUtils;
-    private final ObjectMapper objectMapper;
 
-    public RouterService(InstanceJpaRepository instanceRepo, CooldownService cooldownService,
-                         FilterUtils filterUtils, ObjectMapper objectMapper) {
+    public RouterService(InstanceRepository instanceRepo, CooldownService cooldownService,
+                         FilterUtils filterUtils) {
         this.instanceRepo = instanceRepo;
         this.cooldownService = cooldownService;
         this.filterUtils = filterUtils;
-        this.objectMapper = objectMapper;
     }
 
-    // 60 秒 TTL 缓存（避免频繁查库）
+    // 60 �?TTL 缓存（避免频繁查库）
     private final Cache<String, List<Instance>> instanceCache = Caffeine.newBuilder()
         .expireAfterWrite(60, TimeUnit.SECONDS).build();
 
