@@ -29,7 +29,7 @@ import java.util.HexFormat;
  * 2. GetCodingPlanUsage - 查询用量百分比
  */
 public class VolcengineBalanceProvider implements BalanceProvider {
-    private static final HttpClient http = HttpClient.newBuilder()
+    private static final HttpClient HTTP = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
         .build();
     private static final String HOST = "ark.cn-beijing.volcengineapi.com";
@@ -144,7 +144,7 @@ public class VolcengineBalanceProvider implements BalanceProvider {
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
 
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) {
             throw new RuntimeException("HTTP " + resp.statusCode() + ": " + resp.body());
         }

@@ -14,7 +14,7 @@ import java.io.IOException;
  */
 @Slf4j
 public class ConfigLoader {
-    private static final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
 
     public static AppConfig load() {
         // 1. 尝试 ~/.one-api/config.yaml
@@ -29,7 +29,7 @@ public class ConfigLoader {
         if (is != null) {
             log.info("Loading config from classpath");
             try {
-                return yamlMapper.readValue(is, AppConfig.class);
+                return YAML_MAPPER.readValue(is, AppConfig.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse classpath config.yaml", e);
             }
@@ -43,7 +43,7 @@ public class ConfigLoader {
     // 端口统一从 AppConfig 取值，Main.java 用 config.port()
     private static AppConfig parse(File file) {
         try {
-            AppConfig config = yamlMapper.readValue(file, AppConfig.class);
+            AppConfig config = YAML_MAPPER.readValue(file, AppConfig.class);
             if (config.getRelay() == null) {
                 throw new RuntimeException("config.yaml missing 'relay:' section");
             }

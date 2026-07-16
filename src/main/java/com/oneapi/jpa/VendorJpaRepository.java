@@ -15,9 +15,9 @@ public interface VendorJpaRepository extends JpaRepository<Vendor, Integer> {
 
     @Query(value = """
         SELECT v.id, v.name, v.description, v.status,
-               v."group", v.priority, v.created_time, v.base_url,
-               v.api_key, v.balance_credential, v.meta,
-               COUNT(i.id) AS instance_count
+               v."group", v.priority, v.created_time AS createdTime, v.base_url AS baseUrl,
+               v.api_key AS apiKey, v.balance_credential AS balanceCredential, v.meta,
+               COUNT(i.id) AS instanceCount
         FROM vendors v
         LEFT JOIN instances i ON v.id = i.vendor_id AND i.status NOT IN (0, 3, 4, 5)
         GROUP BY v.id, v.name, v.description, v.status,
@@ -35,11 +35,11 @@ public interface VendorJpaRepository extends JpaRepository<Vendor, Integer> {
         int getStatus();
         String getGroup();
         int getPriority();
-        long getCreated_time();
-        String getBase_url();
-        String getApi_key();
-        String getBalance_credential();
+        long getCreatedTime();
+        String getBaseUrl();
+        String getApiKey();
+        String getBalanceCredential();
         String getMeta();
-        long getInstance_count();
+        long getInstanceCount();
     }
 }

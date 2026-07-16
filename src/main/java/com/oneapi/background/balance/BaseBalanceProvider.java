@@ -15,7 +15,7 @@ import java.time.Duration;
  * 封装 HTTP 调用逻辑，子类只需实现 supports() 和 parseResponse()。
  */
 public abstract class BaseBalanceProvider implements BalanceProvider {
-    private static final HttpClient http = HttpClient.newBuilder()
+    private static final HttpClient HTTP = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
         .build();
 
@@ -75,7 +75,7 @@ public abstract class BaseBalanceProvider implements BalanceProvider {
 
         HttpRequest req = reqBuilder.build();
 
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) {
             throw new RuntimeException("HTTP " + resp.statusCode() + ": " + resp.body());
         }

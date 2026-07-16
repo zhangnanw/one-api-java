@@ -43,12 +43,12 @@ public class VendorService {
             vendor.setStatus(p.getStatus());
             vendor.setGroup(p.getGroup());
             vendor.setPriority(p.getPriority());
-            vendor.setCreatedTime(p.getCreated_time());
-            vendor.setBaseUrl(p.getBase_url());
-            vendor.setApiKey(p.getApi_key());
-            vendor.setBalanceCredential(p.getBalance_credential());
+            vendor.setCreatedTime(p.getCreatedTime());
+            vendor.setBaseUrl(p.getBaseUrl());
+            vendor.setApiKey(p.getApiKey());
+            vendor.setBalanceCredential(p.getBalanceCredential());
             vendor.setMeta(p.getMeta());
-            result.add(new VendorWithCount(vendor, (int) p.getInstance_count()));
+            result.add(new VendorWithCount(vendor, (int) p.getInstanceCount()));
         }
         return result;
     }

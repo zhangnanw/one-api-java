@@ -23,8 +23,8 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 @Service
 public class VendorRefreshService {
-    private static final ReentrantLock lock = new ReentrantLock();
-    private static final HttpClient http = HttpClient.newBuilder()
+    private static final ReentrantLock LOCK = new ReentrantLock();
+    private static final HttpClient HTTP = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(15))
         .build();
 
@@ -42,7 +42,7 @@ public class VendorRefreshService {
     public record RefreshResult(int created, int deprecated, List<String> errors) {}
 
     public RefreshResult refreshAll() {
-        if (!lock.tryLock()) {
+        if (!LOCK.tryLock()) {
             return new RefreshResult(0, 0, List.of("refresh already in progress"));
         }
         try {
@@ -65,7 +65,7 @@ public class VendorRefreshService {
             }
             return new RefreshResult(created, deprecated, errors);
         } finally {
-            lock.unlock();
+            LOCK.unlock();
         }
     }
 
@@ -77,7 +77,7 @@ public class VendorRefreshService {
             .header("Accept", "application/json")
             .GET()
             .build();
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) {
             return new RefreshResult(0, 0, List.of(vendor.getName() + " returned " + resp.statusCode()));
         }
