@@ -1,5 +1,6 @@
 package com.oneapi.core;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.oneapi.jpa.InstanceJpaRepository;
@@ -16,12 +17,14 @@ public class RouterService {
     private final InstanceJpaRepository instanceRepo;
     private final CooldownService cooldownService;
     private final FilterUtils filterUtils;
+    private final ObjectMapper objectMapper;
 
     public RouterService(InstanceJpaRepository instanceRepo, CooldownService cooldownService,
-                         FilterUtils filterUtils) {
+                         FilterUtils filterUtils, ObjectMapper objectMapper) {
         this.instanceRepo = instanceRepo;
         this.cooldownService = cooldownService;
         this.filterUtils = filterUtils;
+        this.objectMapper = objectMapper;
     }
 
     // 60 秒 TTL 缓存（避免频繁查库）
