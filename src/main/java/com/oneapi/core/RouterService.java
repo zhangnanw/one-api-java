@@ -14,13 +14,10 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class RouterService {
     private final InstanceJpaRepository instanceRepo;
-    private CooldownService cooldownService;
+    private final CooldownService cooldownService;
 
-    public RouterService(InstanceJpaRepository instanceRepo) {
+    public RouterService(InstanceJpaRepository instanceRepo, CooldownService cooldownService) {
         this.instanceRepo = instanceRepo;
-    }
-
-    public void setCooldownService(CooldownService cooldownService) {
         this.cooldownService = cooldownService;
     }
 
@@ -75,17 +72,14 @@ public class RouterService {
             ))
             .toList();
 
-        if (cooldownService != null) {
-            candidates = candidates.stream()
-                .filter(rv -> {
-                    boolean instCool = cooldownService.isInstanceInCooldown(rv.instanceId(), rv.instanceTags());
-                    boolean vendCool = rv.vendor() != null
-                        && cooldownService.isVendorInCooldown(rv.vendor().getId());
-                    return !instCool && !vendCool;
-                })
-                .toList();
-        }
-        return candidates;
+        return candidates.stream()
+            .filter(rv -> {
+                boolean instCool = cooldownService.isInstanceInCooldown(rv.instanceId(), rv.instanceTags());
+                boolean vendCool = rv.vendor() != null
+                    && cooldownService.isVendorInCooldown(rv.vendor().getId());
+                return !instCool && !vendCool;
+            })
+            .toList();
     }
 
     private List<Instance> getCachedInstances() {

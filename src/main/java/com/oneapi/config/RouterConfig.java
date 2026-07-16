@@ -44,7 +44,7 @@ import com.oneapi.core.SessionTracker;
 import com.oneapi.background.VendorRefreshService;
 import com.oneapi.background.BalanceQueryService;
 
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Configuration;
 
 import java.io.Closeable;
 import java.util.List;
@@ -52,22 +52,62 @@ import java.util.List;
 /**
  * Vert.x 路由配置。
  * <p>
- * 所有数据访问现在统一通过 Spring 注入的 JPA Repository/Service。
+ * 所有数据访问统一通过 Spring 注入的 JPA Repository/Service 获取，
+ * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}。
  */
+@Configuration
 public class RouterConfig implements Closeable {
+
     private final Vertx vertx;
     private final Router router;
     private final AppConfig config;
-    private final ApplicationContext applicationContext;
+    private final CooldownService cooldown;
+    private final HolographicLogRecorder holographicRecorder;
+    private final RelayLogService relayLogService;
 
-    // Shared across builds so /api/status and relay routes see the same cooldown state.
-    private CooldownService cooldown;
+    private final InstanceJpaRepository instanceJpaRepo;
+    private final VendorJpaRepository vendorJpaRepo;
+    private final VirtualModelJpaRepository virtualModelJpaRepo;
+    private final ModelCatalogJpaRepository modelCatalogJpaRepo;
+
+    private final InstanceService instanceService;
+    private final VendorService vendorService;
+    private final VirtualModelService virtualModelService;
+    private final ModelCatalogService modelCatalogService;
+    private final VendorRefreshService vendorRefreshService;
+    private final BalanceQueryService balanceQueryService;
+
     private UpstreamClient upstreamClient;
 
-    public RouterConfig(Vertx vertx, AppConfig config, ApplicationContext applicationContext) {
+    public RouterConfig(Vertx vertx, AppConfig config,
+                        CooldownService cooldown,
+                        HolographicLogRecorder holographicRecorder,
+                        RelayLogService relayLogService,
+                        InstanceJpaRepository instanceJpaRepo,
+                        VendorJpaRepository vendorJpaRepo,
+                        VirtualModelJpaRepository virtualModelJpaRepo,
+                        ModelCatalogJpaRepository modelCatalogJpaRepo,
+                        InstanceService instanceService,
+                        VendorService vendorService,
+                        VirtualModelService virtualModelService,
+                        ModelCatalogService modelCatalogService,
+                        VendorRefreshService vendorRefreshService,
+                        BalanceQueryService balanceQueryService) {
         this.vertx = vertx;
         this.config = config;
-        this.applicationContext = applicationContext;
+        this.cooldown = cooldown;
+        this.holographicRecorder = holographicRecorder;
+        this.relayLogService = relayLogService;
+        this.instanceJpaRepo = instanceJpaRepo;
+        this.vendorJpaRepo = vendorJpaRepo;
+        this.virtualModelJpaRepo = virtualModelJpaRepo;
+        this.modelCatalogJpaRepo = modelCatalogJpaRepo;
+        this.instanceService = instanceService;
+        this.vendorService = vendorService;
+        this.virtualModelService = virtualModelService;
+        this.modelCatalogService = modelCatalogService;
+        this.vendorRefreshService = vendorRefreshService;
+        this.balanceQueryService = balanceQueryService;
         this.router = Router.router(vertx);
     }
 
@@ -75,29 +115,9 @@ public class RouterConfig implements Closeable {
         // 全局中间件
         router.route().handler(new CORS());
 
-        // CooldownService 在所有路由之前单例化，/api/status 与 /v1/chat/completions 共用
-        if (cooldown == null) {
-            cooldown = new CooldownService();
-        }
-
-        // 从 Spring 上下文获取 JPA Repository
-        InstanceJpaRepository instanceJpaRepo = applicationContext.getBean(InstanceJpaRepository.class);
-        VendorJpaRepository vendorJpaRepo = applicationContext.getBean(VendorJpaRepository.class);
-        VirtualModelJpaRepository virtualModelJpaRepo = applicationContext.getBean(VirtualModelJpaRepository.class);
-        ModelCatalogJpaRepository modelCatalogJpaRepo = applicationContext.getBean(ModelCatalogJpaRepository.class);
-
-        // 从 Spring 上下文获取 Service
-        InstanceService instanceService = applicationContext.getBean(InstanceService.class);
-        VendorService vendorService = applicationContext.getBean(VendorService.class);
-        VirtualModelService virtualModelService = applicationContext.getBean(VirtualModelService.class);
-        ModelCatalogService modelCatalogService = applicationContext.getBean(ModelCatalogService.class);
-        VendorRefreshService vendorRefreshService = applicationContext.getBean(VendorRefreshService.class);
-        BalanceQueryService balanceQueryService = applicationContext.getBean(BalanceQueryService.class);
-        RelayLogService relayLogService = applicationContext.getBean(RelayLogService.class);
-
         registerStaticRoutes();
-        registerApiRoutes(cooldown, vendorService, instanceService, virtualModelService, modelCatalogService, vendorRefreshService, balanceQueryService);
-        registerRelayRoutes(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService, relayLogService);
+        registerApiRoutes();
+        registerRelayRoutes();
         registerFallback();
         return router;
     }
@@ -126,10 +146,7 @@ public class RouterConfig implements Closeable {
     }
 
     /** API routes — DB-backed CRUD, run on worker pool. */
-    private void registerApiRoutes(CooldownService cooldown, VendorService vendorService,
-                                    InstanceService instanceService, VirtualModelService virtualModelService,
-                                    ModelCatalogService modelCatalogService,
-                                    VendorRefreshService vendorRefreshService, BalanceQueryService balanceQueryService) {
+    private void registerApiRoutes() {
         // BodyHandler for all /api/* routes so controllers can use ctx.body().
         router.route("/api/*").handler(BodyHandler.create());
 
@@ -170,29 +187,22 @@ public class RouterConfig implements Closeable {
     }
 
     /** Relay routes — event-loop based async pipeline. */
-    private void registerRelayRoutes(CooldownService cooldown, InstanceJpaRepository instanceJpaRepo,
-                                    VirtualModelJpaRepository virtualModelJpaRepo,
-                                    ModelCatalogService modelCatalogService,
-                                    RelayLogService relayLogService) {
+    private void registerRelayRoutes() {
         // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
         router.post("/v1/chat/completions")
             .handler(new RequestSetup())
-            .handler(buildV2Controller(cooldown, instanceJpaRepo, virtualModelJpaRepo, modelCatalogService, relayLogService)::handle);
+            .handler(buildV2Controller()::handle);
 
         var modelsCtrl = new com.oneapi.controller.ModelsController(virtualModelJpaRepo);
         router.get("/v1/models")
             .handler(modelsCtrl::list);
     }
 
-    private RelayControllerV2 buildV2Controller(CooldownService cooldown, InstanceJpaRepository instanceJpaRepo,
-                                               VirtualModelJpaRepository virtualModelJpaRepo,
-                                               ModelCatalogService modelCatalogService,
-                                               RelayLogService relayLogService) {
-        var routerSvc = new RouterService(instanceJpaRepo);
-        routerSvc.setCooldownService(cooldown);
+    private RelayControllerV2 buildV2Controller() {
+        var routerSvc = new RouterService(instanceJpaRepo, cooldown);
         var sessions = new SessionTracker();
 
-        FilterSets filters = buildFilters(instanceJpaRepo, virtualModelJpaRepo, modelCatalogService);
+        FilterSets filters = buildFilters();
 
         var upstreamClient = new UpstreamClient(
             WebClient.create(vertx, new io.vertx.ext.web.client.WebClientOptions()
@@ -202,7 +212,6 @@ public class RouterConfig implements Closeable {
         this.upstreamClient = upstreamClient;
         var baseRelay = new DefaultRelay(upstreamClient);
 
-        var holographicRecorder = new HolographicLogRecorder();
         var coordinator = new RelayCoordinator(
             routerSvc, cooldown, sessions, upstreamClient,
             filters.stage2, filters.stage3, baseRelay, config,
@@ -210,9 +219,7 @@ public class RouterConfig implements Closeable {
         return new RelayControllerV2(coordinator);
     }
 
-    private FilterSets buildFilters(InstanceJpaRepository instanceJpaRepo,
-                                   VirtualModelJpaRepository virtualModelJpaRepo,
-                                   ModelCatalogService modelCatalogService) {
+    private FilterSets buildFilters() {
         boolean requireVirtualModel = config != null && config.getRelay() != null
             ? config.getRelay().isRequireVirtualModel() : true;
         var nameMatcher = new NameMatcher(instanceJpaRepo, requireVirtualModel);

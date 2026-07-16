@@ -2,24 +2,31 @@ package com.oneapi.background;
 
 import com.oneapi.model.HolographicRecord;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 /**
- * 全息调试日志 — 写入失败静默丢弃，不影响主链路。
+ * 全息调试日志写入器 — 写入失败静默丢弃，不影响主链路。
+ * <p>
+ * 现在作为 Spring 组件管理，构造时注入 {@link DataSource}，不再依赖全局静态状态。
  */
 @Slf4j
+@Component
 public class HolographicLogger {
-    private static DataSource ds;
 
-    public static void init(DataSource dataSource) {
-        ds = dataSource;
+    private final DataSource dataSource;
+
+    public HolographicLogger(DataSource dataSource) {
+        this.dataSource = dataSource;
         log.info("HolographicLogger initialized");
     }
 
-    public static void write(HolographicRecord record) {
-        if (ds == null || record == null) return;
+    public void write(HolographicRecord record) {
+        if (record == null) return;
         try {
             insert(record);
         } catch (Exception e) {
@@ -27,7 +34,7 @@ public class HolographicLogger {
         }
     }
 
-    private static void insert(HolographicRecord record) throws SQLException {
+    private void insert(HolographicRecord record) throws SQLException {
         String sql = "INSERT INTO holographic_logs (request_id, timestamp_ms, requested_model, final_status, " +
               "final_http_code, total_latency_ms, total_tokens, data) " +
               "VALUES (?, to_timestamp(?/1000.0), ?, ?, ?, ?, ?, ?::jsonb) " +
@@ -39,7 +46,7 @@ public class HolographicLogger {
               "total_latency_ms = EXCLUDED.total_latency_ms, " +
               "total_tokens = EXCLUDED.total_tokens, " +
               "data = EXCLUDED.data";
-        try (Connection conn = ds.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, record.requestId());
             ps.setLong(2, record.timestampMs());
@@ -51,9 +58,5 @@ public class HolographicLogger {
             ps.setString(8, record.toJson());
             ps.executeUpdate();
         }
-    }
-
-    public static DataSource getDataSource() {
-        return ds;
     }
 }

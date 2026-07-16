@@ -12,26 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class DatabaseConfigTest {
 
     @Test
-    void initH2Test_returnsDataSource() {
-        DatabaseConfig.init("test");
-        DataSource ds = DatabaseConfig.getDataSource();
-        assertNotNull(ds, "DataSource should not be null after init");
+    void createTestDataSource_returnsDataSource() {
+        DataSource ds = DatabaseConfig.createTestDataSource("unit_test");
+        assertNotNull(ds, "DataSource should not be null");
     }
 
     @Test
-    void getDataSource_returnsConnection() throws SQLException {
-        DatabaseConfig.init("test");
-        try (Connection conn = DatabaseConfig.getDataSource().getConnection()) {
+    void createTestDataSource_returnsConnection() throws SQLException {
+        DataSource ds = DatabaseConfig.createTestDataSource("unit_test_conn");
+        try (Connection conn = ds.getConnection()) {
             assertThat(conn.isValid(1)).isTrue();
         }
-    }
-
-    @Test
-    void initTwice_overwrites() {
-        DatabaseConfig.init("test");
-        DatabaseConfig.init("test");
-        DataSource second = DatabaseConfig.getDataSource();
-        assertNotNull(second);
-        // Different DataSource objects (each init creates new pool)
     }
 }

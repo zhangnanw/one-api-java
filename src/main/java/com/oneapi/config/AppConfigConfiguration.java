@@ -1,7 +1,7 @@
 package com.oneapi.config;
 
-import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import io.vertx.core.Vertx;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -23,6 +23,11 @@ public class AppConfigConfiguration {
         return ConfigLoader.load();
     }
 
+    @Bean
+    public Vertx vertx() {
+        return Vertx.vertx();
+    }
+
     /**
      * 用 {@link AppConfig} 里的 database 段构造 DataSource，覆盖 application.yml 的默认值。
      * 仅在非 test profile 下激活，避免集成测试被强制要求 ~/.one-api/config.yaml。
@@ -42,20 +47,6 @@ public class AppConfigConfiguration {
                 "config.yaml 'database.password' must not be empty. " +
                 "Set it in " + System.getProperty("user.home") + "/.one-api/config.yaml");
         }
-
-        HikariConfig hc = new HikariConfig();
-        hc.setJdbcUrl(String.format("jdbc:postgresql://%s:%d/%s",
-            db.getHost(), db.getPort(), db.getDatabase()));
-        hc.setUsername(db.getUser());
-        hc.setPassword(db.getPassword());
-        hc.setMaximumPoolSize(10);
-        hc.setMinimumIdle(2);
-        hc.setConnectionTimeout(10_000);
-        hc.setIdleTimeout(600_000);
-        hc.setMaxLifetime(1_800_000);
-        hc.setKeepaliveTime(30_000);
-        hc.setValidationTimeout(5_000);
-        hc.setConnectionTestQuery("SELECT 1");
-        return new HikariDataSource(hc);
+        return DatabaseConfig.createPostgresDataSource(db);
     }
 }

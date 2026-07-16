@@ -1,9 +1,10 @@
 package com.oneapi.core;
 
-import com.oneapi.model.HolographicRecord;
 import com.oneapi.background.HolographicLogger;
+import com.oneapi.model.HolographicRecord;
 import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Encapsulates holographic log recording boilerplate.
@@ -11,7 +12,14 @@ import lombok.extern.slf4j.Slf4j;
  * All writes run on the Vert.x worker pool so they do not block the event loop.
  */
 @Slf4j
+@Component
 public class HolographicLogRecorder {
+
+    private final HolographicLogger holographicLogger;
+
+    public HolographicLogRecorder(HolographicLogger holographicLogger) {
+        this.holographicLogger = holographicLogger;
+    }
 
     /**
      * Record a successful attempt and finalize the holographic log.
@@ -132,7 +140,7 @@ public class HolographicLogRecorder {
 
     private void writeAsync(RoutingContext ctx, HolographicRecord rec) {
         ctx.vertx().executeBlocking(() -> {
-            HolographicLogger.write(rec);
+            holographicLogger.write(rec);
             return null;
         }).onFailure(err -> log.error("holographic log write failed: {}", err.getMessage()));
     }
