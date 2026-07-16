@@ -1,6 +1,5 @@
 package com.oneapi.coordinator;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.config.AppConfig;
 import com.oneapi.filter.Filter;
 import com.oneapi.filter.ParamClamp;
@@ -47,7 +46,6 @@ public class RelayCoordinator {
     private final DefaultRelay baseRelay;
     private final HolographicLogRecorder holographicRecorder;
     private final RelayLogService relayLogService;
-    private final ObjectMapper objectMapper;
 
     public RelayCoordinator(RouterService router, CooldownService cooldown,
                             SessionTracker sessions,
@@ -57,8 +55,7 @@ public class RelayCoordinator {
                             DefaultRelay baseRelay,
                             AppConfig config,
                             HolographicLogRecorder holographicRecorder,
-                            RelayLogService relayLogService,
-                            ObjectMapper objectMapper) {
+                            RelayLogService relayLogService) {
         this.router = router;
         this.cooldown = cooldown;
         this.sessions = sessions;
@@ -68,7 +65,6 @@ public class RelayCoordinator {
         this.baseRelay = baseRelay;
         this.holographicRecorder = holographicRecorder;
         this.relayLogService = relayLogService;
-        this.objectMapper = objectMapper;
         this.sorter = SorterFactory.build(config);
     }
 
