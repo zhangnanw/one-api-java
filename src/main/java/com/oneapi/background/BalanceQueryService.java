@@ -2,6 +2,7 @@ package com.oneapi.background;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.oneapi.background.balance.*;
 import com.oneapi.jpa.VendorJpaRepository;
@@ -27,6 +28,7 @@ public class BalanceQueryService {
     private final Cache<Integer, BalanceInfo> cache;
     private final Map<Integer, BalanceInfo> latestResults = new ConcurrentHashMap<>();
 
+    @Autowired
     public BalanceQueryService(VendorJpaRepository vendorRepo) {
         this(vendorRepo, Duration.ofMinutes(5));
     }

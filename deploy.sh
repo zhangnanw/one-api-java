@@ -222,9 +222,9 @@ log "Step 4/5: 打包 shaded JAR..."
     -Dmaven.compiler.source=17 \
     -Dmaven.compiler.target=17 \
     -Dmaven.compiler.fork=false \
-    package shade:shade $TEST_OPTS -q
+    package $TEST_OPTS -q
 
-JAR_SIZE=$(ls -lh target/one-api-java-1.0.0-shaded.jar | awk '{print $5}')
+JAR_SIZE=$(ls -lh target/one-api-java-1.0.0.jar | awk '{print $5}')
 log "打包完成 ($JAR_SIZE)"
 
 # ---- Step 5: 部署到 ~/.one-api/ ----
@@ -240,12 +240,16 @@ if [ -f "$DEPLOY_DIR/one-api-java.jar" ]; then
     log "已备份旧 JAR: $BACKUP_NAME"
 fi
 
-cp target/one-api-java-1.0.0-shaded.jar "$DEPLOY_DIR/one-api-java.jar"
+cp target/one-api-java-1.0.0.jar "$DEPLOY_DIR/one-api-java.jar"
 
 # 如果 config.yaml 不存在，生成模板
 if [ ! -f "$DEPLOY_DIR/config.yaml" ]; then
     warn "未找到 config.yaml，生成默认模板..."
     cat > "$DEPLOY_DIR/config.yaml" << 'YAML'
+# one-api-java 部署配置
+# 数据库密码不写在这里！通过环境变量传入：
+#   export DB_PASSWORD=你的密码
+# 或者在 systemd / Windows 服务里设置环境变量。
 server:
   port: 13000
 database:
@@ -253,9 +257,8 @@ database:
   port: 5432
   database: oneapi
   user: oneapi
-  password: "CHANGE_ME"
 YAML
-    warn "请编辑 $DEPLOY_DIR/config.yaml 填入正确的数据库密码"
+    warn "请通过环境变量 DB_PASSWORD 填入数据库密码（不要写入 config.yaml）"
 fi
 
 # 停止旧服务（通过端口找进程）
@@ -273,7 +276,13 @@ fi
 # 启动新服务
 log "启动 one-api-java..."
 cd "$DEPLOY_DIR"
-"$JAVA_EXE" -Dfile.encoding=UTF-8 -cp one-api-java.jar com.oneapi.Main > server.log 2>&1 &
+
+if [ -z "$DB_PASSWORD" ]; then
+    warn "未设置环境变量 DB_PASSWORD，将使用空密码（启动可能失败）"
+    warn "建议: export DB_PASSWORD=你的密码后再运行 deploy.sh"
+fi
+
+"$JAVA_EXE" -Dfile.encoding=UTF-8 -jar one-api-java.jar > server.log 2>&1 &
 NEW_PID=$!
 sleep 3
 
