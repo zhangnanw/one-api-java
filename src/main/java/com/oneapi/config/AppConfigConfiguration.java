@@ -1,6 +1,5 @@
 package com.oneapi.config;
 
-import com.zaxxer.hikari.HikariDataSource;
 import io.vertx.core.Vertx;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

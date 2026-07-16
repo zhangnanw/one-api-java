@@ -23,18 +23,17 @@ import java.util.Arrays;
  * 数据库、日志等组件已由 Spring 容器管理，此处不再手动桥接。
  * <p>
  * 在 {@code test} profile 下不会启动 HTTP server，避免 surefire fork JVM
- * 被阻塞（Vert.x HTTP server 在主线程回调 listen() 后会在 eventloop 上
- * 持续运行，阻碍 JVM 自然退出）。
+ * 被阻塞（Vert.x HTTP server 启动后会在 eventloop 上持续运行，阻碍 JVM 自然退出）。
  */
 @Slf4j
 @Component
 public class VertxApplicationRunner implements ApplicationRunner, DisposableBean {
 
     private final Vertx vertx;
-    private final HttpServer server;
     private final RouterConfig routerConfig;
     private final AppConfig appConfig;
     private final Environment environment;
+    private HttpServer server;
 
     public VertxApplicationRunner(Vertx vertx, RouterConfig routerConfig, AppConfig appConfig,
                                   Environment environment) {
@@ -42,8 +41,6 @@ public class VertxApplicationRunner implements ApplicationRunner, DisposableBean
         this.routerConfig = routerConfig;
         this.appConfig = appConfig;
         this.environment = environment;
-        this.server = vertx.createHttpServer()
-            .requestHandler(routerConfig.build());
     }
 
     @Override
@@ -52,6 +49,7 @@ public class VertxApplicationRunner implements ApplicationRunner, DisposableBean
             log.info("Test profile detected — skipping Vert.x HTTP server start.");
             return;
         }
+        this.server = vertx.createHttpServer().requestHandler(routerConfig.build());
         server.listen(appConfig.port(), ar -> {
             if (ar.succeeded()) {
                 log.info("one-api-java started on http://localhost:{}", appConfig.port());
@@ -68,7 +66,7 @@ public class VertxApplicationRunner implements ApplicationRunner, DisposableBean
 
     @Override
     public void destroy() {
-        if (isTestProfile()) {
+        if (isTestProfile() || server == null) {
             return;
         }
         log.info("Shutting down Vert.x...");
