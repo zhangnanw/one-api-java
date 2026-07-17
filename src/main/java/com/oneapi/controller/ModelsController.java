@@ -1,6 +1,6 @@
 package com.oneapi.controller;
 
-import com.oneapi.repository.VirtualModelRepository;
+import com.oneapi.service.VirtualModelService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -10,16 +10,16 @@ import io.vertx.ext.web.RoutingContext;
  */
 public class ModelsController {
 
-    private final VirtualModelRepository repo;
+    private final VirtualModelService virtualModelService;
 
-    public ModelsController(VirtualModelRepository repo) {
-        this.repo = repo;
+    public ModelsController(VirtualModelService virtualModelService) {
+        this.virtualModelService = virtualModelService;
     }
 
     /** 列出所有已注册的虚拟模型。*/
     public void list(RoutingContext ctx) {
         var data = new JsonArray();
-        for (var virtualModel : repo.findAll()) {
+        for (var virtualModel : virtualModelService.findAll()) {
             data.add(new JsonObject()
                 .put("id", virtualModel.getName())
                 .put("object", "model")

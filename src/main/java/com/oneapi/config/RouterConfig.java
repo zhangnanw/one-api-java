@@ -7,8 +7,6 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.client.WebClient;
 
-import com.oneapi.repository.InstanceRepository;
-import com.oneapi.repository.VirtualModelRepository;
 import com.oneapi.service.InstanceService;
 import com.oneapi.service.VendorService;
 import com.oneapi.service.VirtualModelService;
@@ -67,9 +65,6 @@ public class RouterConfig implements Closeable {
     private final HolographicLogRecorder holographicRecorder;
     private final RelayLogService relayLogService;
 
-    private final InstanceRepository instanceJpaRepo;
-    private final VirtualModelRepository virtualModelJpaRepo;
-
     private final InstanceService instanceService;
     private final VendorService vendorService;
     private final VirtualModelService virtualModelService;
@@ -87,8 +82,6 @@ public class RouterConfig implements Closeable {
                         CooldownService cooldown,
                         HolographicLogRecorder holographicRecorder,
                         RelayLogService relayLogService,
-                        InstanceRepository instanceJpaRepo,
-                        VirtualModelRepository virtualModelJpaRepo,
                         InstanceService instanceService,
                         VendorService vendorService,
                         VirtualModelService virtualModelService,
@@ -104,8 +97,6 @@ public class RouterConfig implements Closeable {
         this.cooldown = cooldown;
         this.holographicRecorder = holographicRecorder;
         this.relayLogService = relayLogService;
-        this.instanceJpaRepo = instanceJpaRepo;
-        this.virtualModelJpaRepo = virtualModelJpaRepo;
         this.instanceService = instanceService;
         this.vendorService = vendorService;
         this.virtualModelService = virtualModelService;
@@ -206,7 +197,7 @@ public class RouterConfig implements Closeable {
             .handler(new RequestSetup())
             .handler(buildV2Controller()::handle);
 
-        var modelsCtrl = new com.oneapi.controller.ModelsController(virtualModelJpaRepo);
+        var modelsCtrl = new com.oneapi.controller.ModelsController(virtualModelService);
         router.get("/v1/models")
             .handler(modelsCtrl::list);
     }
@@ -232,8 +223,8 @@ public class RouterConfig implements Closeable {
     private FilterSets buildFilters() {
         boolean requireVirtualModel = config != null && config.getRelay() != null
             ? config.getRelay().isRequireVirtualModel() : true;
-        var nameMatcher = new NameMatcher(instanceJpaRepo, requireVirtualModel);
-        var vmLookup = new VirtualModelLookup(virtualModelJpaRepo,
+        var nameMatcher = new NameMatcher(instanceService, requireVirtualModel);
+        var vmLookup = new VirtualModelLookup(virtualModelService,
             config.getPolicies() != null && config.getPolicies().getReasoning() != null
                 ? config.getPolicies().getReasoning().getTriggerSuffix()
                 : "-max", matchRuleParser);

@@ -1,6 +1,6 @@
 package com.oneapi.filter;
 
-import com.oneapi.repository.InstanceRepository;
+import com.oneapi.service.InstanceService;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
 import lombok.extern.slf4j.Slf4j;
@@ -12,15 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NameMatcher implements Filter {
 
-    private final InstanceRepository instanceRepo;
+    private final InstanceService instanceService;
     private final boolean requireVirtualModel;
 
-    public NameMatcher(InstanceRepository instanceRepo) {
-        this(instanceRepo, true);
+    public NameMatcher(InstanceService instanceService) {
+        this(instanceService, true);
     }
 
-    public NameMatcher(InstanceRepository instanceRepo, boolean requireVirtualModel) {
-        this.instanceRepo = instanceRepo;
+    public NameMatcher(InstanceService instanceService, boolean requireVirtualModel) {
+        this.instanceService = instanceService;
         this.requireVirtualModel = requireVirtualModel;
     }
 
@@ -34,8 +34,7 @@ public class NameMatcher implements Filter {
             return ctx;
         }
 
-        if (instanceRepo.existsByModelNameAndStatusIn(model,
-                java.util.List.of(com.oneapi.entity.Instance.STATUS_RAW, com.oneapi.entity.Instance.STATUS_TAGGED))) {
+        if (instanceService.existsByModelName(model)) {
             log.info("NameMatcher: {} is a physical model name, direct use forbidden", model);
             ctx.setMatchedPhysical(true);
             ctx.markError(new RelayError.DirectUseForbidden(model),

@@ -1,7 +1,6 @@
 package com.oneapi.filter;
 
-import com.oneapi.repository.InstanceRepository;
-import com.oneapi.entity.Instance;
+import com.oneapi.service.InstanceService;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
 import com.oneapi.util.TestFixtures;
@@ -10,9 +9,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -20,17 +16,16 @@ import static org.mockito.Mockito.when;
 class NameMatcherTest {
 
     @Mock
-    InstanceRepository instanceRepo;
+    InstanceService instanceService;
 
     private static final String PHYSICAL_MODEL = "doubao-seed-2.0-pro";
 
     @Test
     void physicalModelName_markedAsMatchedPhysical_withError() {
-        when(instanceRepo.existsByModelNameAndStatusIn(PHYSICAL_MODEL,
-                List.of(Instance.STATUS_RAW, Instance.STATUS_TAGGED))).thenReturn(true);
+        when(instanceService.existsByModelName(PHYSICAL_MODEL)).thenReturn(true);
 
         RelayContext ctx = TestFixtures.relayContext(null, null, PHYSICAL_MODEL);
-        new NameMatcher(instanceRepo).apply(ctx);
+        new NameMatcher(instanceService).apply(ctx);
 
         assertThat(ctx.matchedPhysical()).isTrue();
         assertThat(ctx.hasError()).isTrue();
@@ -43,11 +38,10 @@ class NameMatcherTest {
 
     @Test
     void unknownModel_skipsMatchedPhysical() {
-        when(instanceRepo.existsByModelNameAndStatusIn(PHYSICAL_MODEL,
-                List.of(Instance.STATUS_RAW, Instance.STATUS_TAGGED))).thenReturn(false);
+        when(instanceService.existsByModelName(PHYSICAL_MODEL)).thenReturn(false);
 
         RelayContext ctx = TestFixtures.relayContext(null, null, PHYSICAL_MODEL);
-        new NameMatcher(instanceRepo).apply(ctx);
+        new NameMatcher(instanceService).apply(ctx);
 
         assertThat(ctx.matchRule()).isNull();
         assertThat(ctx.routingModelName()).isNull();
@@ -58,7 +52,7 @@ class NameMatcherTest {
     @Test
     void emptyModel_earlyReturn() {
         RelayContext ctx = TestFixtures.relayContext(null, null, "");
-        new NameMatcher(instanceRepo).apply(ctx);
+        new NameMatcher(instanceService).apply(ctx);
 
         assertThat(ctx.matchRule()).isNull();
         assertThat(ctx.routingModelName()).isNull();
@@ -69,7 +63,7 @@ class NameMatcherTest {
     @Test
     void requireVirtualModel_disabled_skipsPhysicalCheck() {
         var r = new RelayContext(PHYSICAL_MODEL);
-        new NameMatcher(instanceRepo, false).apply(r);
+        new NameMatcher(instanceService, false).apply(r);
 
         assertThat(r.matchedPhysical()).isFalse();
         assertThat(r.hasError()).isFalse();
