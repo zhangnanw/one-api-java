@@ -1,4 +1,4 @@
-package com.oneapi.config;
+﻿package com.oneapi.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.Vertx;
@@ -8,8 +8,6 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.client.WebClient;
 
 import com.oneapi.repository.InstanceRepository;
-import com.oneapi.repository.ModelCatalogRepository;
-import com.oneapi.repository.VendorRepository;
 import com.oneapi.repository.VirtualModelRepository;
 import com.oneapi.service.InstanceService;
 import com.oneapi.service.VendorService;
@@ -70,9 +68,7 @@ public class RouterConfig implements Closeable {
     private final RelayLogService relayLogService;
 
     private final InstanceRepository instanceJpaRepo;
-    private final VendorRepository vendorJpaRepo;
     private final VirtualModelRepository virtualModelJpaRepo;
-    private final ModelCatalogRepository modelCatalogJpaRepo;
 
     private final InstanceService instanceService;
     private final VendorService vendorService;
@@ -92,9 +88,7 @@ public class RouterConfig implements Closeable {
                         HolographicLogRecorder holographicRecorder,
                         RelayLogService relayLogService,
                         InstanceRepository instanceJpaRepo,
-                        VendorRepository vendorJpaRepo,
                         VirtualModelRepository virtualModelJpaRepo,
-                        ModelCatalogRepository modelCatalogJpaRepo,
                         InstanceService instanceService,
                         VendorService vendorService,
                         VirtualModelService virtualModelService,
@@ -111,9 +105,7 @@ public class RouterConfig implements Closeable {
         this.holographicRecorder = holographicRecorder;
         this.relayLogService = relayLogService;
         this.instanceJpaRepo = instanceJpaRepo;
-        this.vendorJpaRepo = vendorJpaRepo;
         this.virtualModelJpaRepo = virtualModelJpaRepo;
-        this.modelCatalogJpaRepo = modelCatalogJpaRepo;
         this.instanceService = instanceService;
         this.vendorService = vendorService;
         this.virtualModelService = virtualModelService;
