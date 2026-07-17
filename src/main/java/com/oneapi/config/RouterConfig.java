@@ -1,4 +1,4 @@
-package com.oneapi.config;
+﻿package com.oneapi.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.Vertx;
@@ -54,10 +54,10 @@ import java.io.Closeable;
 import java.util.List;
 
 /**
- * Vert.x 路由配置�?
+ * Vert.x 路由配置。
  * <p>
- * 所有数据访问统一通过 Spring 注入�?JPA Repository/Service 获取�?
- * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}�?
+ * 所有数据访问统一通过 Spring 注入，JPA Repository/Service 获取。
+ * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}。
  */
 @Configuration
 public class RouterConfig implements Closeable {
@@ -128,7 +128,7 @@ public class RouterConfig implements Closeable {
     }
 
     public Router build() {
-        // 全局中间�?
+        // 全局中间件
         router.route().handler(new CORS());
 
         registerStaticRoutes();
@@ -166,7 +166,7 @@ public class RouterConfig implements Closeable {
         }
     }
 
-    /** API routes �?DB-backed CRUD, run on worker pool. */
+    /** API routes - DB-backed CRUD, run on worker pool. */
     private void registerApiRoutes() {
         // BodyHandler for all /api/* routes so controllers can use ctx.body().
         router.route("/api/*").handler(BodyHandler.create());
@@ -207,7 +207,7 @@ public class RouterConfig implements Closeable {
         router.delete("/api/model-catalog/:name").blockingHandler(mcCtrl::delete);
     }
 
-    /** Relay routes �?event-loop based async pipeline. */
+    /** Relay routes - event-loop based async pipeline. */
     private void registerRelayRoutes() {
         // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
         router.post("/v1/chat/completions")

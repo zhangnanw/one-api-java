@@ -17,7 +17,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 供应商余额查询服务�? * 定时轮询所有启用的供应商余额，缓存�?Caffeine 中�? * 低可靠性要求：单个供应商失败不影响其他，只 log.warn�? */
+ * 供应商余额查询服务。
+ * 定时轮询所有启用的供应商余额，缓存到 Caffeine 中。
+ * 低可靠性要求：单个供应商失败不影响其他，只 log.warn。
+ */
 @Slf4j
 @Service
 public class BalanceQueryService {
@@ -49,7 +52,9 @@ public class BalanceQueryService {
     }
 
     /**
-     * 查询所有启用供应商的余额�?     * 单个失败不影响其他�?     */
+     * 查询所有启用供应商的余额。
+     * 单个失败不影响其他。
+     */
     public Map<Integer, BalanceInfo> queryAll() {
         List<String> errors = new ArrayList<>();
 

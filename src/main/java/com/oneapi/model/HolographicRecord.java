@@ -1,10 +1,8 @@
 package com.oneapi.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.oneapi.coordinator.RelayCoordinator;
 import com.oneapi.core.RouterService.RoutedVendor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,7 +37,6 @@ public class HolographicRecord {
     private String fullRequestBody;
 
     // ── 阶段2：模型解析 ──
-    private String virtualModel;
     private String matchRuleType;
     private Object matchRuleDetail;
     private List<String> routingModelNames;
@@ -55,12 +52,6 @@ public class HolographicRecord {
 
     // ── 阶段5：尝试记录 ──
     private final List<AttemptRecord> attempts;
-
-    // ── 流式指标 ──
-    private int chunkCount;
-    private long streamDurationMs;
-    private long firstChunkMs;
-    private long lastChunkMs;
 
     // ── 最终结果 ──
     private String finalStatus;
@@ -247,14 +238,6 @@ public class HolographicRecord {
         }
     }
 
-    /** 记录流式指标 */
-    public void streamMetrics(int chunkCount, long durationMs, long firstChunkMs, long lastChunkMs) {
-        this.chunkCount = chunkCount;
-        this.streamDurationMs = durationMs;
-        this.firstChunkMs = firstChunkMs;
-        this.lastChunkMs = lastChunkMs;
-    }
-
     /** 最终完成 */
     public void finish(String finalStatus, int finalHttpCode, long totalLatencyMs,
                         int totalTokens, String responseBody, String errorStage,
@@ -304,7 +287,6 @@ public class HolographicRecord {
     @JsonProperty("routing")
     Map<String, Object> getRouting() {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("virtual_model", virtualModel);
         m.put("match_rule_type", matchRuleType);
         m.put("match_rule_detail", matchRuleDetail);
         m.put("routing_model_names", routingModelNames);
@@ -330,18 +312,6 @@ public class HolographicRecord {
             attempts.get(i).seqN = i + 1;
         }
         return attempts;
-    }
-
-    @JsonProperty("stream_metrics")
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    Map<String, Object> getStreamMetrics() {
-        if (!stream) return null;
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("chunk_count", chunkCount);
-        m.put("stream_duration_ms", streamDurationMs);
-        m.put("first_chunk_ms", firstChunkMs);
-        m.put("last_chunk_ms", lastChunkMs);
-        return m;
     }
 
     @JsonProperty("result")

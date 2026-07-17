@@ -7,8 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 全息调试日志写入�?�?写入失败静默丢弃，不影响主链路�? * <p>
- * 现在作为 Spring 组件管理，通过 JPA 写入 holographic_logs�? * 不再直接操作 JDBC�? */
+ * 全息调试日志写入器。写入失败静默丢弃，不影响主链路。
+ * <p>
+ * 现在作为 Spring 组件管理，通过 JPA 写入 holographic_logs。
+ * 不再直接操作 JDBC。
+ */
 @Slf4j
 @Component
 public class HolographicLogger {

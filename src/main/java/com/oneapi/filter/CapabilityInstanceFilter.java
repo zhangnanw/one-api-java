@@ -25,14 +25,6 @@ public class CapabilityInstanceFilter implements Filter {
         this.catalogRepo = catalogRepo;
     }
 
-    /**
-     * For backward-compatible wiring only. Falls back to no-op filtering.
-     * Use {@link #CapabilityInstanceFilter(CapabilityCatalog)} for full capability support.
-     */
-    public CapabilityInstanceFilter() {
-        this.catalogRepo = null;
-    }
-
     @Override
     public RelayContext apply(RelayContext ctx) {
         String required = ctx.capabilityRequired();

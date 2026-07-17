@@ -12,8 +12,11 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Relay 日志异步写入服务�? * <p>
- * 真实的数据库写入发生�?Spring 管理�?log-worker 线程池中�? * 调用方只需要等�?CompletableFuture，不阻塞 Vert.x eventloop�? */
+ * Relay 日志异步写入服务。
+ * <p>
+ * 真实的数据库写入发生在 Spring 管理的 log-worker 线程池中。
+ * 调用方只需要等待 CompletableFuture，不阻塞 Vert.x eventloop。
+ */
 @Slf4j
 @Service
 public class RelayLogService {
@@ -25,7 +28,9 @@ public class RelayLogService {
     }
 
     /**
-     * 插入 relay 日志并返回自�?ID�?     * 方法本身�?worker 线程中同步执�?JPA save，但调用方在异步 future 中等待结果�?     */
+     * 插入 relay 日志并返回自增 ID。
+     * 方法本身在 worker 线程中同步执行 JPA save，但调用方在异步 future 中等待结果。
+     */
     @Async
     @Transactional
     public CompletableFuture<Long> insertAsync(RelayLog rlog) {

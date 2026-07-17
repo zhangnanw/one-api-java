@@ -6,7 +6,9 @@ import com.oneapi.model.RelayError;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 阶段 2 �?检�?requestedModel 是否为物理模型名称�? * API 表面只暴露虚拟模型，不暴露具体实例�? */
+ * 阶段 2：检查 requestedModel 是否为物理模型名称。
+ * API 表面只暴露虚拟模型，不暴露具体实例。
+ */
 @Slf4j
 public class NameMatcher implements Filter {
 
