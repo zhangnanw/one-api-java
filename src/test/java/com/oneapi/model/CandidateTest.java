@@ -1,5 +1,7 @@
 package com.oneapi.model;
 
+import com.oneapi.entity.Instance;
+import com.oneapi.entity.Vendor;
 import io.vertx.core.MultiMap;
 import org.junit.jupiter.api.Test;
 

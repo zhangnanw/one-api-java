@@ -2,6 +2,7 @@ package com.oneapi.coordinator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.config.AppConfig;
+import com.oneapi.entity.Vendor;
 import com.oneapi.filter.Filter;
 import com.oneapi.filter.ParamClamp;
 import com.oneapi.handler.HeaderInjector;

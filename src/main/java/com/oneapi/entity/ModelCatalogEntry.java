@@ -1,4 +1,4 @@
-package com.oneapi.model;
+package com.oneapi.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

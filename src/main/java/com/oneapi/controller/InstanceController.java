@@ -1,6 +1,6 @@
 package com.oneapi.controller;
 
-import com.oneapi.model.Instance;
+import com.oneapi.entity.Instance;
 import com.oneapi.service.InstanceService;
 import com.oneapi.service.VendorService;
 import io.vertx.core.json.JsonArray;

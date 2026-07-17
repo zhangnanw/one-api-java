@@ -5,7 +5,7 @@ import com.oneapi.model.MatchRule;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
 import com.oneapi.model.MatchRuleParser;
-import com.oneapi.model.VirtualModel;
+import com.oneapi.entity.VirtualModel;
 import lombok.extern.slf4j.Slf4j;
 
 /**

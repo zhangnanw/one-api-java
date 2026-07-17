@@ -1,7 +1,7 @@
 package com.oneapi.repository;
 
-import com.oneapi.model.HolographicLogEntity;
-import com.oneapi.model.RelayLogEntity;
+import com.oneapi.entity.HolographicLog;
+import com.oneapi.entity.RelayLogEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,7 +28,7 @@ class LogRepositoryTest {
 
     @Test
     void holographicLogSaveAndRead() {
-        HolographicLogEntity e = new HolographicLogEntity();
+        HolographicLog e = new HolographicLog();
         e.setRequestId("test-req-" + System.nanoTime());
         e.setTimestampMs(System.currentTimeMillis());
         e.setRequestedModel("gpt-4");
@@ -38,7 +38,7 @@ class LogRepositoryTest {
         e.setTotalTokens(42);
         e.setData("{\"foo\":\"bar\"}");
 
-        HolographicLogEntity saved = holographicRepo.saveAndFlush(e);
+        HolographicLog saved = holographicRepo.saveAndFlush(e);
         assertNotNull(saved.getId());
 
         var found = holographicRepo.findById(saved.getId());

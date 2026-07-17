@@ -1,7 +1,7 @@
 package com.oneapi.service;
 
 import com.oneapi.repository.VirtualModelRepository;
-import com.oneapi.model.VirtualModel;
+import com.oneapi.entity.VirtualModel;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;

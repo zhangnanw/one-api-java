@@ -1,7 +1,7 @@
 package com.oneapi.service;
 
 import com.oneapi.repository.ModelCatalogRepository;
-import com.oneapi.model.ModelCatalogEntry;
+import com.oneapi.entity.ModelCatalogEntry;
 import com.oneapi.repo.CapabilityCatalog;
 import com.oneapi.repo.WindowCatalog;
 import io.vertx.core.json.JsonArray;

@@ -4,8 +4,8 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.oneapi.repository.InstanceRepository;
 import com.oneapi.model.Candidate;
-import com.oneapi.model.Instance;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Instance;
+import com.oneapi.entity.Vendor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

@@ -2,7 +2,7 @@ package com.oneapi.background.balance;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Vendor;
 
 /**
  * 小米 MiMo 余额查询（非官方 API）。

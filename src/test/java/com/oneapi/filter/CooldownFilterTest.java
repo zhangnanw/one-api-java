@@ -1,7 +1,7 @@
 package com.oneapi.filter;
 
 import com.oneapi.model.RelayContext;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Vendor;
 import com.oneapi.core.CooldownService;
 import com.oneapi.core.RouterService.RoutedVendor;
 import org.junit.jupiter.api.BeforeEach;

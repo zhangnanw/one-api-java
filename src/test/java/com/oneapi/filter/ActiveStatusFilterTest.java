@@ -1,6 +1,6 @@
 package com.oneapi.filter;
 
-import com.oneapi.model.Instance;
+import com.oneapi.entity.Instance;
 import com.oneapi.model.RelayContext;
 import com.oneapi.core.RouterService.RoutedVendor;
 import org.junit.jupiter.api.Test;

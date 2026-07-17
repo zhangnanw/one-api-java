@@ -2,8 +2,8 @@ package com.oneapi.service;
 
 import com.oneapi.repository.InstanceRepository;
 import com.oneapi.repository.VendorRepository;
-import com.oneapi.model.Instance;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Instance;
+import com.oneapi.entity.Vendor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;

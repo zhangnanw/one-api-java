@@ -1,6 +1,6 @@
 package com.oneapi.background.balance;
 
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Vendor;
 
 /**
  * 供应商余额查询接口。

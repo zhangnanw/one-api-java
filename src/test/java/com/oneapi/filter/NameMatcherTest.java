@@ -1,7 +1,7 @@
 package com.oneapi.filter;
 
 import com.oneapi.repository.InstanceRepository;
-import com.oneapi.model.Instance;
+import com.oneapi.entity.Instance;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
 import com.oneapi.util.TestFixtures;

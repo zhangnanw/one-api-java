@@ -1,6 +1,6 @@
 package com.oneapi.controller;
 
-import com.oneapi.model.ModelCatalogEntry;
+import com.oneapi.entity.ModelCatalogEntry;
 import com.oneapi.service.ModelCatalogService;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;

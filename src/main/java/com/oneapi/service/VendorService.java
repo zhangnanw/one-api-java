@@ -1,7 +1,7 @@
 package com.oneapi.service;
 
 import com.oneapi.repository.VendorRepository;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Vendor;
 import com.oneapi.model.VendorWithCount;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;

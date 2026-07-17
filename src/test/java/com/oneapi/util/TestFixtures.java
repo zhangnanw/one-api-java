@@ -2,8 +2,8 @@ package com.oneapi.util;
 
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.RelayContext;
-import com.oneapi.model.Vendor;
-import com.oneapi.model.Instance;
+import com.oneapi.entity.Vendor;
+import com.oneapi.entity.Instance;
 import com.oneapi.core.RouterService.RoutedVendor;
 
 import java.util.List;

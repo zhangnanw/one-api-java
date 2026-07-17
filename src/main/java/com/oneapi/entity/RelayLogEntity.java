@@ -1,4 +1,4 @@
-package com.oneapi.model;
+package com.oneapi.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

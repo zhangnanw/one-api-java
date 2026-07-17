@@ -2,7 +2,7 @@ package com.oneapi.handler;
 
 import com.oneapi.model.Candidate;
 import com.oneapi.model.RelayContext;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Vendor;
 
 /**
  * Injects vendor-specific HTTP headers into a {@link Candidate}.

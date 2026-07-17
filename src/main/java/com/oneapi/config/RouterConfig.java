@@ -49,14 +49,15 @@ import com.oneapi.background.BalanceQueryService;
 
 import org.springframework.context.annotation.Configuration;
 
+import java.nio.charset.StandardCharsets;
 import java.io.Closeable;
 import java.util.List;
 
 /**
- * Vert.x 路由配置�?
+ * Vert.x 路由配置�?
  * <p>
- * 所有数据访问统一通过 Spring 注入�?JPA Repository/Service 获取�?
- * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}�?
+ * 所有数据访问统一通过 Spring 注入�?JPA Repository/Service 获取�?
+ * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}�?
  */
 @Configuration
 public class RouterConfig implements Closeable {
@@ -127,7 +128,7 @@ public class RouterConfig implements Closeable {
     }
 
     public Router build() {
-        // 全局中间�?
+        // 全局中间�?
         router.route().handler(new CORS());
 
         registerStaticRoutes();
@@ -147,20 +148,25 @@ public class RouterConfig implements Closeable {
 
     /** Serve static files from classpath:/static/ */
     private void registerStaticRoutes() {
-        router.get("/status").handler(ctx -> {
-            try (var is = getClass().getClassLoader().getResourceAsStream("static/status.html")) {
-                if (is == null) {
-                    ctx.response().setStatusCode(404).end("status page not found");
-                    return;
-                }
-                ctx.response().putHeader("Content-Type", "text/html").end(new String(is.readAllBytes()));
-            } catch (Exception e) {
-                ctx.response().setStatusCode(500).end("failed to load status page");
-            }
-        });
+        router.get("/status").handler(this::serveStatusPage);
+        router.get("/status.html").handler(this::serveStatusPage);
     }
 
-    /** API routes �?DB-backed CRUD, run on worker pool. */
+    private void serveStatusPage(io.vertx.ext.web.RoutingContext ctx) {
+        try (var is = getClass().getClassLoader().getResourceAsStream("static/status.html")) {
+            if (is == null) {
+                ctx.response().setStatusCode(404).end("status page not found");
+                return;
+            }
+            ctx.response()
+                .putHeader("Content-Type", "text/html; charset=utf-8")
+                .end(new String(is.readAllBytes(), StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            ctx.response().setStatusCode(500).end("failed to load status page");
+        }
+    }
+
+    /** API routes �?DB-backed CRUD, run on worker pool. */
     private void registerApiRoutes() {
         // BodyHandler for all /api/* routes so controllers can use ctx.body().
         router.route("/api/*").handler(BodyHandler.create());
@@ -201,7 +207,7 @@ public class RouterConfig implements Closeable {
         router.delete("/api/model-catalog/:name").blockingHandler(mcCtrl::delete);
     }
 
-    /** Relay routes �?event-loop based async pipeline. */
+    /** Relay routes �?event-loop based async pipeline. */
     private void registerRelayRoutes() {
         // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
         router.post("/v1/chat/completions")

@@ -5,7 +5,7 @@ import com.oneapi.repository.VirtualModelRepository;
 import com.oneapi.model.MatchRuleParser;
 import com.oneapi.model.RelayContext;
 import com.oneapi.model.RelayError;
-import com.oneapi.model.VirtualModel;
+import com.oneapi.entity.VirtualModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,4 +1,4 @@
-package com.oneapi.model;
+package com.oneapi.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -12,7 +12,7 @@ import lombok.Setter;
 @Table(name = "holographic_logs")
 @Getter
 @Setter
-public class HolographicLogEntity {
+public class HolographicLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

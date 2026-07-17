@@ -1,6 +1,8 @@
 package com.oneapi.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.oneapi.entity.Instance;
+import com.oneapi.entity.Vendor;
 
 import java.util.*;
 

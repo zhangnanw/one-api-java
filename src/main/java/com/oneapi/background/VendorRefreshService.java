@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oneapi.repository.InstanceRepository;
 import com.oneapi.repository.VendorRepository;
-import com.oneapi.model.Instance;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Instance;
+import com.oneapi.entity.Vendor;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;

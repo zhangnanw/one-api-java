@@ -1,6 +1,6 @@
 package com.oneapi.controller;
 
-import com.oneapi.model.VirtualModel;
+import com.oneapi.entity.VirtualModel;
 import com.oneapi.service.VirtualModelService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;

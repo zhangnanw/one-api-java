@@ -6,7 +6,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 /**
- * {@code /v1/models} �?返回 OpenAI 兼容的模型列表�? */
+ * {@code /v1/models} �?返回 OpenAI 兼容的模型列表�? */
 public class ModelsController {
 
     private final VirtualModelRepository repo;
@@ -15,7 +15,7 @@ public class ModelsController {
         this.repo = repo;
     }
 
-    /** 列出所有已注册的虚拟模型�?*/
+    /** 列出所有已注册的虚拟模型�?*/
     public void list(RoutingContext ctx) {
         var data = new JsonArray();
         for (var virtualModel : repo.findAll()) {

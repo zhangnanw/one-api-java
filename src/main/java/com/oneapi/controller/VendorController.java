@@ -3,7 +3,7 @@ package com.oneapi.controller;
 import com.oneapi.background.balance.BalanceInfo;
 import com.oneapi.background.BalanceQueryService;
 import com.oneapi.background.VendorRefreshService;
-import com.oneapi.model.Vendor;
+import com.oneapi.entity.Vendor;
 import com.oneapi.service.VendorService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;

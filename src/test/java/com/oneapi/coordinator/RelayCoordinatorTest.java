@@ -2,7 +2,7 @@ package com.oneapi.coordinator;
 
 import com.oneapi.comparator.SorterFactory;
 import com.oneapi.config.AppConfig;
-import com.oneapi.model.Instance;
+import com.oneapi.entity.Instance;
 import com.oneapi.core.RouterService.RoutedVendor;
 import org.junit.jupiter.api.Test;
 
