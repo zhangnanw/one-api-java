@@ -45,6 +45,8 @@ import com.oneapi.background.BalanceQueryService;
 
 import org.springframework.context.annotation.Configuration;
 
+import lombok.RequiredArgsConstructor;
+
 import java.nio.charset.StandardCharsets;
 import java.io.Closeable;
 import java.util.List;
@@ -56,10 +58,10 @@ import java.util.List;
  * 不再使用 {@link org.springframework.context.ApplicationContext#getBean(Class)}。
  */
 @Configuration
+@RequiredArgsConstructor
 public class RouterConfig implements Closeable {
 
     private final Vertx vertx;
-    private final Router router;
     private final AppConfig config;
     private final CooldownService cooldown;
     private final HolographicLogRecorder holographicRecorder;
@@ -78,46 +80,15 @@ public class RouterConfig implements Closeable {
 
     private UpstreamClient upstreamClient;
 
-    public RouterConfig(Vertx vertx, AppConfig config,
-                        CooldownService cooldown,
-                        HolographicLogRecorder holographicRecorder,
-                        RelayLogService relayLogService,
-                        InstanceService instanceService,
-                        VendorService vendorService,
-                        VirtualModelService virtualModelService,
-                        ModelCatalogService modelCatalogService,
-                        VendorRefreshService vendorRefreshService,
-                        BalanceQueryService balanceQueryService,
-                        ObjectMapper objectMapper,
-                        MatchRuleParser matchRuleParser,
-                        SessionTracker sessionTracker,
-                        RouterService routerService) {
-        this.vertx = vertx;
-        this.config = config;
-        this.cooldown = cooldown;
-        this.holographicRecorder = holographicRecorder;
-        this.relayLogService = relayLogService;
-        this.instanceService = instanceService;
-        this.vendorService = vendorService;
-        this.virtualModelService = virtualModelService;
-        this.modelCatalogService = modelCatalogService;
-        this.vendorRefreshService = vendorRefreshService;
-        this.balanceQueryService = balanceQueryService;
-        this.objectMapper = objectMapper;
-        this.matchRuleParser = matchRuleParser;
-        this.sessionTracker = sessionTracker;
-        this.routerService = routerService;
-        this.router = Router.router(vertx);
-    }
-
     public Router build() {
+        Router router = Router.router(vertx);
         // 全局中间件
         router.route().handler(new CORS());
 
-        registerStaticRoutes();
-        registerApiRoutes();
-        registerRelayRoutes();
-        registerFallback();
+        registerStaticRoutes(router);
+        registerApiRoutes(router);
+        registerRelayRoutes(router);
+        registerFallback(router);
         return router;
     }
 
@@ -130,7 +101,7 @@ public class RouterConfig implements Closeable {
     }
 
     /** Serve static files from classpath:/static/ */
-    private void registerStaticRoutes() {
+    private void registerStaticRoutes(Router router) {
         router.get("/status").handler(this::serveStatusPage);
         router.get("/status.html").handler(this::serveStatusPage);
     }
@@ -150,7 +121,7 @@ public class RouterConfig implements Closeable {
     }
 
     /** API routes - DB-backed CRUD, run on worker pool. */
-    private void registerApiRoutes() {
+    private void registerApiRoutes(Router router) {
         // BodyHandler for all /api/* routes so controllers can use ctx.body().
         router.route("/api/*").handler(BodyHandler.create());
 
@@ -191,7 +162,7 @@ public class RouterConfig implements Closeable {
     }
 
     /** Relay routes - event-loop based async pipeline. */
-    private void registerRelayRoutes() {
+    private void registerRelayRoutes(Router router) {
         // Body is read directly by RelayControllerV2 to avoid double-read with BodyHandler.
         router.post("/v1/chat/completions")
             .handler(new RequestSetup())
@@ -257,7 +228,7 @@ public class RouterConfig implements Closeable {
         return new FilterSets(stage2, stage3);
     }
 
-    private void registerFallback() {
+    private void registerFallback(Router router) {
         router.errorHandler(404, ctx -> {
             ctx.response()
                 .setStatusCode(404)
