@@ -11,8 +11,6 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
-  flyway:
-    enabled: false
   cache:
     type: simple
 

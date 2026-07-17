@@ -28,9 +28,6 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
 
-  flyway:
-    enabled: false
-
   cache:
     type: caffeine
     caffeine:
