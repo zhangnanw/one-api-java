@@ -44,23 +44,23 @@ public class RouterService {
     }
 
     /**
-     * 加载可用实例列表（带 Spring 缓存，60 秒 TTL）。
+     * 加载指定模型的可用实例列表（数据库优先，Spring 缓存 60 秒 TTL）。
+     * SQL 已经过滤不可用状态并 JOIN vendor，返回值可直接进入候选筛选。
      * 状态过滤和冷却判断都不缓存，因为它们是动态的。
      */
-    @Cacheable(value = INSTANCE_CACHE, key = "'all'")
-    public List<Instance> getAvailableInstances() {
-        return instanceRepo.findAllWithVendor(
+    @Cacheable(value = INSTANCE_CACHE, key = "#modelName")
+    public List<Instance> getAvailableInstances(String modelName) {
+        return instanceRepo.findByModelNameAndStatusNotInWithVendor(modelName,
             List.of(Instance.STATUS_DISABLED, Instance.STATUS_DEPRECATED,
                 Instance.STATUS_FAILED, Instance.STATUS_UNKNOWN));
     }
 
     public List<RoutedVendor> loadCandidates(String modelName) {
-        List<Instance> all = getAvailableInstances();
+        List<Instance> all = getAvailableInstances(modelName);
         if (all.isEmpty()) return List.of();
 
         List<RoutedVendor> candidates = all.stream()
             .filter(i -> i.getVendor() != null)
-            .filter(i -> i.getModelName() != null && i.getModelName().equals(modelName))
             .map(i -> new RoutedVendor(
                 i.getVendor(),
                 i.getModelName(),

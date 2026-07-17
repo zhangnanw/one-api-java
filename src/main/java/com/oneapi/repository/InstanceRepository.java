@@ -28,4 +28,15 @@ public interface InstanceRepository extends JpaRepository<Instance, Integer> {
         ORDER BY i.id
         """)
     List<Instance> findAllWithVendor(@Param("excludedStatuses") List<Integer> excludedStatuses);
+
+    @Query("""
+        SELECT i FROM Instance i
+        LEFT JOIN FETCH i.vendor
+        WHERE i.modelName = :modelName
+          AND i.status NOT IN :excludedStatuses
+        ORDER BY i.id
+        """)
+    List<Instance> findByModelNameAndStatusNotInWithVendor(
+        @Param("modelName") String modelName,
+        @Param("excludedStatuses") List<Integer> excludedStatuses);
 }
