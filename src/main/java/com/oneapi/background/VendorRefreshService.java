@@ -6,6 +6,7 @@ import com.oneapi.repository.InstanceRepository;
 import com.oneapi.repository.VendorRepository;
 import com.oneapi.entity.Instance;
 import com.oneapi.entity.Vendor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -21,6 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * Matches Go's model/vendor.go RefreshAllVendorModels().
  */
 @Service
+@RequiredArgsConstructor
 public class VendorRefreshService {
     private static final ReentrantLock LOCK = new ReentrantLock();
     private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -30,13 +32,6 @@ public class VendorRefreshService {
     private final VendorRepository vendorRepo;
     private final InstanceRepository instanceRepo;
     private final ObjectMapper mapper;
-
-    public VendorRefreshService(InstanceRepository instanceRepo, VendorRepository vendorRepo,
-                                ObjectMapper mapper) {
-        this.instanceRepo = instanceRepo;
-        this.vendorRepo = vendorRepo;
-        this.mapper = mapper;
-    }
 
     public record RefreshResult(int created, int deprecated, List<String> errors) {}
 

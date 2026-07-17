@@ -5,15 +5,13 @@ import com.oneapi.service.VirtualModelService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@RequiredArgsConstructor
 public class VirtualModelController extends BaseController {
     private final VirtualModelService virtualModelService;
-
-    public VirtualModelController(VirtualModelService virtualModelService) {
-        this.virtualModelService = virtualModelService;
-    }
 
     public void getAll(RoutingContext ctx) {
         var models = virtualModelService.findAll();

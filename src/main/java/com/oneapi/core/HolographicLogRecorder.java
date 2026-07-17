@@ -3,6 +3,7 @@ package com.oneapi.core;
 import com.oneapi.background.HolographicLogger;
 import com.oneapi.model.HolographicRecord;
 import io.vertx.ext.web.RoutingContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -13,13 +14,10 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class HolographicLogRecorder {
 
     private final HolographicLogger holographicLogger;
-
-    public HolographicLogRecorder(HolographicLogger holographicLogger) {
-        this.holographicLogger = holographicLogger;
-    }
 
     /**
      * Record a successful attempt and finalize the holographic log.

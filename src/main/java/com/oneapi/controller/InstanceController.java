@@ -6,17 +6,14 @@ import com.oneapi.service.VendorService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@RequiredArgsConstructor
 public class InstanceController extends BaseController {
     private final InstanceService instanceService;
     private final VendorService vendorService;
-
-    public InstanceController(InstanceService instanceService, VendorService vendorService) {
-        this.instanceService = instanceService;
-        this.vendorService = vendorService;
-    }
 
     public void getAll(RoutingContext ctx) {
         var instances = instanceService.findAll();

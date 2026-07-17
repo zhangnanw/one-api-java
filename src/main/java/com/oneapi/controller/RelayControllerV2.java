@@ -2,6 +2,7 @@ package com.oneapi.controller;
 
 import com.oneapi.coordinator.RelayCoordinator;
 import io.vertx.ext.web.RoutingContext;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 薄 HTTP 边界 — 仅负责读取 Vert.x 请求体并委托给协调器。
@@ -16,12 +17,9 @@ import io.vertx.ext.web.RoutingContext;
  * 注意：上一版本注释说"不做解析"易被误读为"不做任何 JSON / body 解析"。
  * 实际仅指不做模型名解析，body 读取仍是本类的职责。
  */
+@RequiredArgsConstructor
 public class RelayControllerV2 {
     private final RelayCoordinator coordinator;
-
-    public RelayControllerV2(RelayCoordinator coordinator) {
-        this.coordinator = coordinator;
-    }
 
     public void handle(RoutingContext ctx) {
         ctx.request().bodyHandler(buf -> coordinator.execute(ctx, buf.getBytes()));

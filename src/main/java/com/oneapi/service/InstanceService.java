@@ -9,20 +9,18 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.RequiredArgsConstructor;
+
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class InstanceService {
 
     private static final String CACHE = "instances";
 
     private final InstanceRepository jpaRepository;
     private final VendorRepository vendorJpaRepository;
-
-    public InstanceService(InstanceRepository jpaRepository, VendorRepository vendorJpaRepository) {
-        this.jpaRepository = jpaRepository;
-        this.vendorJpaRepository = vendorJpaRepository;
-    }
 
     @Cacheable(value = CACHE, key = "'all'")
     public List<Instance> findAll() {

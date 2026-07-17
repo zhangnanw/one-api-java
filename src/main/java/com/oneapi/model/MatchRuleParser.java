@@ -1,6 +1,7 @@
 package com.oneapi.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -14,13 +15,10 @@ import java.util.*;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class MatchRuleParser {
 
     private final ObjectMapper mapper;
-
-    public MatchRuleParser(ObjectMapper mapper) {
-        this.mapper = mapper;
-    }
 
     /**
      * 解析 match JSON 字符串。

@@ -4,6 +4,7 @@ import com.oneapi.entity.ModelCatalogEntry;
 import com.oneapi.service.ModelCatalogService;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -13,12 +14,9 @@ import lombok.extern.slf4j.Slf4j;
  * {@code { "success": boolean, "message": string, "data": object (optional) }}
  */
 @Slf4j
+@RequiredArgsConstructor
 public class ModelCatalogController extends BaseController {
     private final ModelCatalogService modelCatalogService;
-
-    public ModelCatalogController(ModelCatalogService modelCatalogService) {
-        this.modelCatalogService = modelCatalogService;
-    }
 
     /** GET /api/model-catalog — list all entries. */
     public void getAll(RoutingContext ctx) {

@@ -3,6 +3,8 @@ package com.oneapi.service;
 import com.oneapi.repository.RelayLogRepository;
 import com.oneapi.model.RelayLog;
 import com.oneapi.entity.RelayLogEntity;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -19,14 +21,10 @@ import java.util.concurrent.CompletableFuture;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RelayLogService {
 
     private final RelayLogRepository relayLogRepository;
-
-    public RelayLogService(RelayLogRepository relayLogRepository) {
-        this.relayLogRepository = relayLogRepository;
-    }
-
     /**
      * 插入 relay 日志并返回自增 ID。
      * 方法本身在 worker 线程中同步执行 JPA save，但调用方在异步 future 中等待结果。

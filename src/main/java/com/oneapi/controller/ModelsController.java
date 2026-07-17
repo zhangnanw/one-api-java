@@ -4,17 +4,15 @@ import com.oneapi.service.VirtualModelService;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import lombok.RequiredArgsConstructor;
 
 /**
  * {@code /v1/models}：返回 OpenAI 兼容的模型列表。
  */
+@RequiredArgsConstructor
 public class ModelsController {
 
     private final VirtualModelService virtualModelService;
-
-    public ModelsController(VirtualModelService virtualModelService) {
-        this.virtualModelService = virtualModelService;
-    }
 
     /** 列出所有已注册的虚拟模型。*/
     public void list(RoutingContext ctx) {

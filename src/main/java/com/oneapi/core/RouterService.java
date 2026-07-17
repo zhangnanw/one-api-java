@@ -6,23 +6,18 @@ import com.oneapi.repository.InstanceRepository;
 import com.oneapi.model.Candidate;
 import com.oneapi.entity.Instance;
 import com.oneapi.entity.Vendor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@RequiredArgsConstructor
 public class RouterService {
     private final InstanceRepository instanceRepo;
     private final CooldownService cooldownService;
     private final FilterUtils filterUtils;
-
-    public RouterService(InstanceRepository instanceRepo, CooldownService cooldownService,
-                         FilterUtils filterUtils) {
-        this.instanceRepo = instanceRepo;
-        this.cooldownService = cooldownService;
-        this.filterUtils = filterUtils;
-    }
 
     // 60 秒 TTL 缓存（避免频繁查库）
     private final Cache<String, List<Instance>> instanceCache = Caffeine.newBuilder()

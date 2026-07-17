@@ -8,6 +8,7 @@ import com.oneapi.model.RelayRequest;
 import com.oneapi.model.RelayResult;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -15,14 +16,11 @@ import lombok.extern.slf4j.Slf4j;
  * {@link Candidate} + {@link RelayRequest} and delegates to {@link UpstreamClient#relay}.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class DefaultRelay implements RelayExecutor {
     private static final String DEFAULT_PATH = "/v1/chat/completions";
 
     private final UpstreamClient upstreamClient;
-
-    public DefaultRelay(UpstreamClient upstreamClient) {
-        this.upstreamClient = upstreamClient;
-    }
 
     @Override
     public Future<RelayResult> execute(Candidate candidate, RelayRequest req) {

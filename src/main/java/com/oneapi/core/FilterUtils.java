@@ -1,6 +1,7 @@
-package com.oneapi.core;
+﻿package com.oneapi.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -12,13 +13,10 @@ import java.util.List;
  * 现在作为 Spring 组件管理，注入统一的 {@link ObjectMapper}。
  */
 @Component
+@RequiredArgsConstructor
 public class FilterUtils {
 
     private final ObjectMapper mapper;
-
-    public FilterUtils(ObjectMapper mapper) {
-        this.mapper = mapper;
-    }
 
     /**
      * 从 meta JSON 中解析实例标签。

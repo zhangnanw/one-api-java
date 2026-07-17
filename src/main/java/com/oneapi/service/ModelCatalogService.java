@@ -10,20 +10,19 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.RequiredArgsConstructor;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ModelCatalogService implements CapabilityCatalog, WindowCatalog {
 
     private static final String CACHE = "modelCatalog";
 
     private final ModelCatalogRepository jpaRepository;
-
-    public ModelCatalogService(ModelCatalogRepository jpaRepository) {
-        this.jpaRepository = jpaRepository;
-    }
 
     @Cacheable(value = CACHE, key = "'all'")
     public List<ModelCatalogEntry> findAll() {

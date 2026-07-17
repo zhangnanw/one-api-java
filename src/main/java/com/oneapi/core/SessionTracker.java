@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,7 @@ import java.util.OptionalLong;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SessionTracker {
 
     private final ObjectMapper mapper;
@@ -42,10 +44,6 @@ public class SessionTracker {
 
     // sessionId → hash index for O(1) lookup (replaces full scan)
     private final ConcurrentHashMap<String, String> sessionIdIndex = new ConcurrentHashMap<>();
-
-    public SessionTracker(ObjectMapper mapper) {
-        this.mapper = mapper;
-    }
 
     public record SessionTrack(String sessionId, String hash, int updateCount,
                                 Long lastInstanceId, long lastUsedAt) {

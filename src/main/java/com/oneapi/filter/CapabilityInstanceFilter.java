@@ -5,6 +5,7 @@ import com.oneapi.model.RelayContext;
 import java.util.ArrayList;
 import com.oneapi.repo.CapabilityCatalog;
 import com.oneapi.core.RouterService.RoutedVendor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -17,13 +18,10 @@ import java.util.List;
  * → 本 filter 过滤掉 model_catalog 中无 "vision" 能力的模型的所有实例。
  */
 @Slf4j
+@RequiredArgsConstructor
 public class CapabilityInstanceFilter implements Filter {
 
     private final CapabilityCatalog catalogRepo;
-
-    public CapabilityInstanceFilter(CapabilityCatalog catalogRepo) {
-        this.catalogRepo = catalogRepo;
-    }
 
     @Override
     public RelayContext apply(RelayContext ctx) {

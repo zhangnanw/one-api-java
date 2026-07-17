@@ -5,6 +5,7 @@ import com.oneapi.model.RelayContext;
 import java.util.ArrayList;
 import com.oneapi.core.CooldownService;
 import com.oneapi.core.RouterService.RoutedVendor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -13,13 +14,10 @@ import java.util.List;
  * 阶段 3 — 移除实例或供应商处于冷却期的候选。
  */
 @Slf4j
+@RequiredArgsConstructor
 public class CooldownFilter implements Filter {
 
     private final CooldownService cooldown;
-
-    public CooldownFilter(CooldownService cooldown) {
-        this.cooldown = cooldown;
-    }
 
     @Override
     public RelayContext apply(RelayContext ctx) {

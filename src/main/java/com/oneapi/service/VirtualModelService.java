@@ -7,18 +7,17 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.RequiredArgsConstructor;
+
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class VirtualModelService {
 
     private static final String CACHE = "virtualModels";
 
     private final VirtualModelRepository jpaRepository;
-
-    public VirtualModelService(VirtualModelRepository jpaRepository) {
-        this.jpaRepository = jpaRepository;
-    }
 
     @Cacheable(value = CACHE, key = "'all'")
     public List<VirtualModel> findAll() {

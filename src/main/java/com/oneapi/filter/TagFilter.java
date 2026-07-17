@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import com.oneapi.model.MatchRule;
 import com.oneapi.model.MetaView;
 import com.oneapi.core.RouterService.RoutedVendor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -17,13 +18,10 @@ import java.util.Set;
  * 支持 ALL（必须包含所有标签）和 ANY（必须包含至少一个）。
  */
 @Slf4j
+@RequiredArgsConstructor
 public class TagFilter implements Filter {
 
     private final ObjectMapper objectMapper;
-
-    public TagFilter(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     @Override
     public RelayContext apply(RelayContext ctx) {
