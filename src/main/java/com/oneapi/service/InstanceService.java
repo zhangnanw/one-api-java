@@ -36,7 +36,7 @@ public class InstanceService {
         return jpaRepository.findByVendorId(vendorId);
     }
 
-    @CacheEvict(value = CACHE, allEntries = true)
+    @CacheEvict(value = {CACHE, "routedInstances"}, allEntries = true)
     @Transactional
     public void insert(Instance instance) {
         if (instance.getCreatedTime() == 0) {
@@ -51,13 +51,13 @@ public class InstanceService {
         jpaRepository.save(instance);
     }
 
-    @CacheEvict(value = CACHE, allEntries = true)
+    @CacheEvict(value = {CACHE, "routedInstances"}, allEntries = true)
     @Transactional
     public void update(Instance instance) {
         jpaRepository.save(instance);
     }
 
-    @CacheEvict(value = CACHE, allEntries = true)
+    @CacheEvict(value = {CACHE, "routedInstances"}, allEntries = true)
     @Transactional
     public void toggleStatus(int id) {
         Instance existing = findById(id);
@@ -69,7 +69,7 @@ public class InstanceService {
         jpaRepository.save(existing);
     }
 
-    @CacheEvict(value = CACHE, allEntries = true)
+    @CacheEvict(value = {CACHE, "routedInstances"}, allEntries = true)
     @Transactional
     public void delete(int id) {
         jpaRepository.deleteById(id);

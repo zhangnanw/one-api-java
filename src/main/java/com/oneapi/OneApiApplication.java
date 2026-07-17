@@ -2,6 +2,7 @@ package com.oneapi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 
 /**
  * Spring Boot 统一入口。
@@ -11,6 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 2. {@link com.oneapi.core.VertxApplicationRunner} 在 Spring 启动完成后启动 Vert.x HTTP server。
  */
 @SpringBootApplication
+@EnableCaching
 public class OneApiApplication {
 
     public static void main(String[] args) {
