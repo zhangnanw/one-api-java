@@ -1,4 +1,4 @@
-﻿package com.oneapi.core;
+package com.oneapi.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

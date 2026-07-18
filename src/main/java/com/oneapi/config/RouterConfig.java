@@ -1,4 +1,4 @@
-﻿package com.oneapi.config;
+package com.oneapi.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.Vertx;
